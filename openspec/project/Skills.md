@@ -8,6 +8,31 @@ This project requires specialized AI agent skills for both frontend development 
 |--------|--------|---------|
 | Frontend | [Vercel Agent Skills](https://github.com/vercel-labs/agent-skills) | React/Next.js optimization, UI patterns |
 | Security | [Trail of Bits Skills](https://github.com/trailofbits/skills) | Smart contract vulnerability analysis |
+| Platform | [External Agent Skills](https://skills.sh) | Supabase, x402, Prisma, TypeScript, NodeJS, MCP, Ollama |
+
+---
+
+## External Agent Skills (Added via CLI)
+
+These skills provide deep expertise for our specific stack and are managed via the `skills.sh` ecosystem.
+
+### Installation
+To add these skills to your local environment, use the following command:
+```bash
+npx skills add <owner/repo>
+```
+
+### Required Skills
+
+| Technology | Skill Repository | Command |
+|------------|------------------|---------|
+| **Supabase** | `supabase/agent-skills/supabase-postgres-best-practices` | `npx skills add supabase/agent-skills/supabase-postgres-best-practices` |
+| **x402** | `omer-metin/skills-for-antigravity/x402-payments` | `npx skills add omer-metin/skills-for-antigravity/x402-payments` |
+| **NodeJS** | `wshobson/agents/nodejs-backend-patterns` | `npx skills add wshobson/agents/nodejs-backend-patterns` |
+| **Prisma** | `sickn33/antigravity-awesome-skills/prisma-expert` | `npx skills add sickn33/antigravity-awesome-skills/prisma-expert` |
+| **TypeScript** | `sickn33/antigravity-awesome-skills/typescript-expert` | `npx skills add sickn33/antigravity-awesome-skills/typescript-expert` |
+| **MCP** | `anthropics/skills/mcp-builder` | `npx skills add anthropics/skills/mcp-builder` |
+| **Ollama** | `rawveg/skillsforge-marketplace/ollama` | `npx skills add rawveg/skillsforge-marketplace/ollama` |
 
 ---
 
@@ -475,7 +500,19 @@ Before deployment:
 
 ---
 
-## Skill Installation
+### Global Installation
+We use the `skills.sh` platform to manage specialized agent capabilities:
+
+```bash
+# Add all core technology skills
+npx skills add supabase/agent-skills/supabase-postgres-best-practices
+npx skills add omer-metin/skills-for-antigravity/x402-payments
+npx skills add wshobson/agents/nodejs-backend-patterns
+npx skills add sickn33/antigravity-awesome-skills/prisma-expert
+npx skills add sickn33/antigravity-awesome-skills/typescript-expert
+npx skills add anthropics/skills/mcp-builder
+npx skills add rawveg/skillsforge-marketplace/ollama
+```
 
 ### Vercel Agent Skills
 

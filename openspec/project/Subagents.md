@@ -28,7 +28,8 @@ This document defines the specialized AI development subagents required to build
 **Required Skills**:
 - `react-best-practices`
 - `web-design-guidelines`
-- `supabase-frontend-patterns` (New: Auth flows, RLS, Realtime subscriptions)
+- `supabase-postgres-best-practices` (Auth flows, RLS, Realtime)
+- `typescript-expert`
 
 **Outputs**:
 - Standard React structure + Supabase client configuration.
@@ -45,11 +46,18 @@ This document defines the specialized AI development subagents required to build
 - **Ollama Integration (AI Service Layer)**
 - Redis/BullMQ
 
+**Required Skills**:
+- `nodejs-backend-patterns`
+- `prisma-expert`
+- `typescript-expert`
+- `x402-payments`
+
 **Primary Responsibilities**:
 - Express API server
 - Prisma schema for Supabase Postgres
 - **Ollama Service** for routing prompts to local LLM
 - Supabase Auth middleware integration
+- x402 payment processing logic
 
 **Outputs**:
 ```
@@ -76,9 +84,9 @@ backend/src/services/
 - System Prompt Engineering for Local Models
 
 **Required Skills**:
-- `mcp-server-patterns`
-- `ollama-integration`
-- `local-model-prompting` (Optimizing prompts for DeepSeek/Llama 3)
+- `mcp-builder`
+- `ollama`
+- `typescript-expert`
 
 **Assignments**:
 - Build Protocol/Researcher/Validator agents using **Ollama** as the brain.
