@@ -36,6 +36,7 @@ graph TB
         API[Node.js API Server<br/>REST + WebSocket]
         Queue[Agent Message Queue<br/>Event Processing]
         Scheduler[Scan Scheduler<br/>Continuous Monitoring]
+        SyncWorker[State Reconciliation<br/>Blockchain -> DB Sync]
     end
 
     subgraph "Local Anvil - Chain 31337"
@@ -319,6 +320,17 @@ interface ProtocolRegistration {
 | PostgreSQL | Persistent data | Protocols, bounties, history |
 | Redis | Fast access | Agent state, message queue |
 | IPFS | Immutable proofs | Encrypted exploit proofs |
+
+### 6. Operational Sustainability (Gas Management)
+
+#### Operational Treasury
+To ensure agents (Validator/Protocol) remain funded, a separate **OpsTreasury** contract manages gas buffers.
+
+- **Funding**: Protocol owners deposit an "Operational Buffer" (ETH) alongside the Bounty Pool (USDC).
+- **Refund Logic**: 
+  - `ValidatorAgent` executes `submitValidation()` (Gas Cost: ~0.05 ETH).
+  - `ValidationRegistry` calls `OpsTreasury.refund(msg.sender, gasUsed + premium)`.
+  - This ensures the Validator Agent is self-sustaining and doesn't run out of gas during high-volume scanning.
 
 ## Security Considerations
 
