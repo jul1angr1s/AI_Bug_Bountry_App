@@ -178,3 +178,183 @@ Use a hosted Redis (e.g., Railway Redis or Upstash) alongside Supabase.
 ## Performance Tuning
 - **Connection Pooling**: Use Supabase Transaction Pool (port 6543) for Prisma.
 - **Realtime Limits**: restricting Realtime to specific tables (`Vulnerability`, `Scan`) to save quotas.
+
+---
+
+## Researcher Reputation System
+
+### Overview
+
+The reputation system incentivizes quality submissions and penalizes false positives. Reputation affects leaderboard rankings and may influence future features like priority scanning access.
+
+### Reputation Formula
+
+```typescript
+reputation = 
+  (confirmed_criticals * 100) + 
+  (confirmed_highs * 50) + 
+  (confirmed_mediums * 20) + 
+  (confirmed_lows * 10) - 
+  (false_positives * 30)
+```
+
+### Scoring Breakdown
+
+| Event | Points | Rationale |
+|-------|--------|-----------|
+| Confirmed CRITICAL | +100 | High-value finding, significant protocol risk |
+| Confirmed HIGH | +50 | Serious vulnerability discovered |
+| Confirmed MEDIUM | +20 | Moderate risk finding |
+| Confirmed LOW | +10 | Minor issue, still valuable |
+| False Positive (rejected) | -30 | Penalize wasted validator resources |
+| Duplicate Submission | 0 | No penalty, but no reward |
+
+### Database Schema Addition
+
+```prisma
+model Researcher {
+  id              String           @id @default(uuid())
+  authUserId      String?          @db.Uuid
+  walletAddress   String           @unique
+  name            String?
+  
+  // Reputation Fields
+  reputation         Int           @default(0)
+  confirmedCritical  Int           @default(0)
+  confirmedHigh      Int           @default(0)
+  confirmedMedium    Int           @default(0)
+  confirmedLow       Int           @default(0)
+  falsePositives     Int           @default(0)
+  duplicates         Int           @default(0)
+  
+  // Aggregate Stats
+  totalFindings      Int           @default(0)
+  totalEarnings      Decimal       @default(0) @db.Decimal(18, 6)
+  
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  
+  // Relations
+  vulnerabilities Vulnerability[]
+  payments        Payment[]
+  
+  @@index([authUserId])
+  @@index([reputation])
+}
+```
+
+### Reputation Update Trigger
+
+When a validation result is recorded, the researcher's reputation is automatically updated:
+
+```typescript
+// Backend: services/ReputationService.ts
+async function updateResearcherReputation(
+  researcherId: string,
+  validationResult: ValidationResult,
+  severity: Severity
+): Promise<void> {
+  const researcher = await prisma.researcher.findUnique({
+    where: { id: researcherId }
+  });
+
+  let reputationDelta = 0;
+  const updates: Partial<Researcher> = {};
+
+  switch (validationResult) {
+    case 'TRUE':
+      switch (severity) {
+        case 'CRITICAL':
+          reputationDelta = 100;
+          updates.confirmedCritical = researcher.confirmedCritical + 1;
+          break;
+        case 'HIGH':
+          reputationDelta = 50;
+          updates.confirmedHigh = researcher.confirmedHigh + 1;
+          break;
+        case 'MEDIUM':
+          reputationDelta = 20;
+          updates.confirmedMedium = researcher.confirmedMedium + 1;
+          break;
+        case 'LOW':
+          reputationDelta = 10;
+          updates.confirmedLow = researcher.confirmedLow + 1;
+          break;
+      }
+      updates.totalFindings = researcher.totalFindings + 1;
+      break;
+
+    case 'FALSE':
+      reputationDelta = -30;
+      updates.falsePositives = researcher.falsePositives + 1;
+      break;
+
+    case 'DUPLICATE':
+      // No reputation change for duplicates
+      updates.duplicates = researcher.duplicates + 1;
+      break;
+  }
+
+  await prisma.researcher.update({
+    where: { id: researcherId },
+    data: {
+      ...updates,
+      reputation: Math.max(0, researcher.reputation + reputationDelta) // Floor at 0
+    }
+  });
+}
+```
+
+### Leaderboard Query
+
+```sql
+-- Top researchers by reputation
+SELECT 
+  wallet_address,
+  name,
+  reputation,
+  confirmed_critical,
+  confirmed_high,
+  confirmed_medium,
+  confirmed_low,
+  total_earnings,
+  (confirmed_critical + confirmed_high + confirmed_medium + confirmed_low) as total_confirmed,
+  CASE 
+    WHEN (total_findings > 0) 
+    THEN ROUND(
+      (confirmed_critical + confirmed_high + confirmed_medium + confirmed_low)::numeric / 
+      total_findings * 100, 2
+    )
+    ELSE 0 
+  END as success_rate
+FROM "Researcher"
+WHERE reputation > 0
+ORDER BY reputation DESC
+LIMIT 100;
+```
+
+### API Response Enhancement
+
+The leaderboard endpoint returns enriched researcher data:
+
+```typescript
+// GET /api/v1/leaderboard
+{
+  "researchers": [
+    {
+      "rank": 1,
+      "walletAddress": "0x1234...5678",
+      "name": "SecurityPro",
+      "reputation": 9500,
+      "stats": {
+        "critical": 45,
+        "high": 120,
+        "medium": 80,
+        "low": 30,
+        "falsePositives": 5,
+        "successRate": 98.2
+      },
+      "totalEarned": "125000.00"
+    }
+  ]
+}
