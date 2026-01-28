@@ -16,8 +16,27 @@ This document defines the specialized AI development subagents required to build
 ---
 
 ## Subagent Definitions
+## 1. Swarm Orchestrator Agent (The "Conductor") 🧠
+**Role**: Central nervous system for agent coordination.
+**Model**: `claude-3-5-sonnet-20241022` (High Intelligence)
 
-### 1. Frontend Subagent 🎨
+### Primary Responsibilities
+- **Task Delegation**: Decomposes high-level "Audit Protocol" requests into atomic tasks for specialized agents.
+- **Resource Management**: meaningful allocation of Researcher Agents based on protocol complexity (e.g., "Spawn 3 Fuzzers for this complex DeFi protocol").
+- **Consensus Synthesis**: Aggregates findings from multiple Researchers; if two find similar bugs, it instructs the Validator to verify the unique underlying issue.
+- **Self-Healing**: Detects if a subagent is stuck or hallucinating and restarts/re-prompts it.
+
+### Required Skills
+- `swarm-management`: Patterns for map-reduce style task delegation.
+- `state-reconciliation`: ensuring DB state matches Agent activities.
+
+### Outputs
+- **Task Graph**: A DAG of dependent tasks (Register -> Compile -> Scan -> Validate).
+- **Audit Report**: Final synthesized report from all findings.
+
+---
+
+### 2. Frontend Subagent 🎨
 *(Role & Expertise largely similar, added Supabase)*
 
 **Expertise**:
