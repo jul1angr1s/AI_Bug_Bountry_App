@@ -1,0 +1,7 @@
+.claude/
+.codex/
+.cursor/
+.factory/
+.gemini/
+.DS_Store
+node_modules/
