@@ -108,6 +108,42 @@ Leveraging Supabase requires strict configuration to prevent data leaks.
 
 ---
 
+---
+
+## 6. Front-Running Protection (Anti-MEV)
+
+Since the platform operates on a public blockchain (Base Sepolia/Mainnet), vulnerability submissions are susceptible to MEV bots observing the mempool and front-running the `submitValidation` transaction to claim the bounty.
+
+### 6.1 Threat Model
+1. **The Attack**: A MEV bot observes a pending transaction to `submitValidation(protocolId, proofHash, researcherAddress, ipfsCid)`.
+2. **The Clone**: The bot creates a clone transaction with `researcherAddress = botAddress` but keeps the same `proofHash` and `ipfsCid`.
+3. **The Front-Run**: The bot submits this with higher gas fees, ensuring it is mined before the original researcher's transaction.
+4. **The Impact**: If the Validator Agent simply decrypts the IPFS payload and pays the `researcherAddress` listed in the contract, the bot steals the bounty without doing any work.
+
+### 6.2 Mitigation Strategy: Cryptographic Binding
+To prevent this, the *contents* of the encrypted proof must be cryptographically bound to the *submitter*.
+
+1. **Identity Binding**: The encrypted JSON payload must explicitly contain the `researcherAddress` and a `signature` of the payload signed by that address.
+   ```json
+   {
+     "payload": { ...exploit_details... },
+     "identity": {
+       "researcher": "0x7099...",
+       "signature": "0x382a..." // signing "timestamp + protocolId + proofHash"
+     }
+   }
+   ```
+2. **Validator Check**: The Validator Agent performs a critical check after decrypting:
+   - Does `decrypted.identity.researcher` match `chain.getValidation(id).researcher`?
+   - Is the `signature` valid for that address?
+
+### 6.3 Enforcement Logic
+- **If Match**: The submission is valid.
+- **If Mismatch**: The submission is flagged as a **Front-Running Attempt**. The Validator Agent rejects the validation (records `FALSE` or `ERROR`) and may blacklist the submission address.
+- **Bot Failure**: Since the MEV bot cannot generate a valid signature for the original researcher's address (without their private key) nor decrypt/modify the payload to insert their own address (without the Validator's private key), the attack is mathematically impossible.
+
+---
+
 ## Security Checklist for Acceptance
 
 | Category | Item | Verified |
