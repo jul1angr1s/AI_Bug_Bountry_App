@@ -853,3 +853,42 @@ INSERT INTO "Payment" VALUES (
 | ✅ Multi-chain architecture | Anvil (scanning) + Sepolia (payments) |
 
 **Total Time: ~3.5 minutes from registration to payment** 🚀
+---
+
+## Phase 7: The 1-Minute Race Condition (Fairness Demo)
+
+This scenario demonstrates how the system handles two researchers finding the same "Thunder Loan" oracle bug nearly simultaneously.
+
+### Sequence of Events
+
+**T+180s: Researcher A Submits Proof**
+- **Researcher A** (0x7099...79C8) calls `submitValidation` on Base Sepolia.
+- **Transaction**: Block 18543260, Timestamp `12:00:00`.
+- **Status**: `Pending`.
+
+**T+185s: Researcher B Submits Proof**
+- **Researcher B** (0x3C44...7290) finds the same bug and calls `submitValidation`.
+- **Transaction**: Block 18543262, Timestamp `12:00:12`.
+- **Status**: `Pending`.
+
+### Validation Processing
+
+1. **Validator Agent** picks up **Researcher A's** submission (A is first based on on-chain timestamp).
+2. **Validator Agent** confirms exploit is successful in sandbox.
+3. **Validator Agent** updates registry to `TRUE` and triggers $5,000 payout to **Researcher A**.
+4. **Validator Agent** picks up **Researcher B's** submission.
+5. **Validator Agent** confirms exploit is successful.
+6. **Internal Audit**: Agent maps vulnerability to `protocolId="0x7a3f...9c2d"` and `location="ThunderLoan.sol:getCalculatedFee()"`.
+7. **Deduplication Check**: System finds Researcher A already paid for this exact location and type.
+
+### Outcome & Transparency
+
+**On-Chain Record:**
+- **Researcher A (val-A)**: `ValidationResult: True`, `BountyPaid: 5000 USDC`.
+- **Researcher B (val-B)**: `ValidationResult: Duplicate`, `ReferenceId: val-A`.
+
+**Transparency Proof for Researcher B:**
+- Researcher B can look up `val-A` on the `ValidationRegistry`.
+- They see `val-A.submittedAt = 12:00:00` and `val-B.submittedAt = 12:01:12`.
+- The 12-second difference is mathematically proven on the blockchain, guaranteeing that Researcher A was indeed first.
+- The platform remains transparent: Researcher B's finding is acknowledged as valid (`TRUE` logic), but not eligible for payment due to the precedence of Researcher A.

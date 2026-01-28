@@ -371,6 +371,7 @@ interface IValidationRegistry {
         Pending,
         True,
         False,
+        Duplicate,
         Error
     }
 
@@ -539,7 +540,9 @@ contract ValidationRegistry is IValidationRegistry, AccessControl {
         Validation storage validation = _validations[validationId];
         require(validation.result == ValidationResult.Pending, "Already validated");
         require(
-            result == ValidationResult.True || result == ValidationResult.False,
+            result == ValidationResult.True || 
+            result == ValidationResult.False ||
+            result == ValidationResult.Duplicate,
             "Invalid result"
         );
 
