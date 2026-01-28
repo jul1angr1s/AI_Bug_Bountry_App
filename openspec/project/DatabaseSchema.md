@@ -76,7 +76,48 @@ model Researcher {
   @@index([authUserId])
 }
 
-// ... Other models (Scan, Vulnerability, etc.) remain unchanged ...
+// ... (Previous models)
+
+model Vulnerability {
+  id              String      @id @default(uuid())
+  protocolId      String
+  
+  // Deterministic Fingerprint
+  // keccak256(contractAddress + vulnType + functionSignature)
+  vulnerabilityHash String    @unique
+  
+  severity        String
+  title           String
+  description     String
+  status          String      // OPEN, PENDING_VALIDATION, VALIDATED, PAID, DUPLICATE
+  
+  // Relations
+  validations     Validation[]
+  
+  createdAt       DateTime    @default(now())
+}
+
+model Notification {
+  id              String      @id @default(uuid())
+  userId          String      // Links to Researcher or Protocol Owner
+  type            String      // VULN_FOUND, PAYMENT_RECEIVED, DUPLICATE_REJECTED
+  title           String
+  message         String
+  read            Boolean     @default(false)
+  metadata        Json?       // Stores relatedIDs e.g. { "validationId": "..." }
+  
+  createdAt       DateTime    @default(now())
+  
+  @@index([userId])
+}
+
+model Validation {
+  id              String      @id
+  proofHash       String      @unique
+  vulnerabilityHash String    // Link to canonical bug class
+  
+  // ... rest existing fields
+}
 ```
 
 ---
