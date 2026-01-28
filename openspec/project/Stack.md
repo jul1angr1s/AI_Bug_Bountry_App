@@ -34,12 +34,12 @@
 | Vite | 5.x | Build tool |
 
 ### State & Data
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| **Supabase JS** | 2.x | Auth, Realtime, DB Client |
-| TanStack Query | 5.x | Server state management |
-| Zustand | 4.x | Client state management |
-| React Hook Form | 7.x | Form handling |
+| Technology | Version | Purpose | Agent Skill |
+|------------|---------|---------|-------------|
+| **Supabase JS** | 2.x | Auth, Realtime, DB Client | `supabase-postgres-best-practices` |
+| TanStack Query | 5.x | Server state management | - |
+| Zustand | 4.x | Client state management | - |
+| React Hook Form | 7.x | Form handling | - |
 
 ### Web3 Integration (Unchanged)
 | Technology | Version | Purpose |
@@ -53,18 +53,20 @@
 ## Backend Stack
 
 ### Core Framework
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| Node.js | 20.x LTS | Runtime environment |
-| Express | 4.x | HTTP server framework |
+| Technology | Version | Purpose | Agent Skill |
+|------------|---------|---------|-------------|
+| Node.js | 20.x LTS | Runtime environment | `nodejs-backend-patterns` |
+| Express | 4.x | HTTP server framework | - |
+| TypeScript | 5.x | Type safety | `typescript-expert` |
 
 ### Database & Auth (Supabase)
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| **Supabase Postgres** | 15.x | Primary Database |
-| **Supabase Auth** | - | User Management (GitHub/Wallet) |
-| **Prisma** | 5.x | ORM (connected to Supabase PG) |
-| **Redis** | 7.x | Job Queues (BullMQ) |
+| Technology | Version | Purpose | Agent Skill |
+|------------|---------|---------|-------------|
+| **Supabase Postgres** | 15.x | Primary Database | `supabase-postgres-best-practices` |
+| **Supabase Auth** | - | User Management (GitHub/Wallet) | - |
+| **Prisma** | 5.x | ORM (connected to Supabase PG) | `prisma-expert` |
+| **Redis** | 7.x | Job Queues (BullMQ) | - |
+| **x402** | - | Payments Layer | `x402-payments` |
 
 ### API Structure
 ```
@@ -86,17 +88,17 @@ backend/
 ## Agent Layer (Local AI)
 
 ### AI Model Provider
-| Technology | Purpose |
-|------------|---------|
-| **Ollama** | Local LLM Inference Engine |
-| **DeepSeek Coder V2** | Primary Coding/Scanning Model |
-| **Llama 3.1** | General Reasoning Model |
+| Technology | Purpose | Agent Skill |
+|------------|---------|-------------|
+| **Ollama** | Local LLM Inference Engine | `ollama` |
+| **DeepSeek Coder V2** | Primary Coding/Scanning Model | - |
+| **Llama 3.1** | General Reasoning Model | - |
 
 ### Tools & SDKs
-| Technology | Purpose |
-|------------|---------|
-| `ollama-js` | Node.js Client for Ollama |
-| @modelcontextprotocol/sdk | MCP implementation |
+| Technology | Purpose | Agent Skill |
+|------------|---------|-------------|
+| `ollama-js` | Node.js Client for Ollama | `ollama` |
+| @modelcontextprotocol/sdk | MCP implementation | `mcp-builder` |
 
 ---
 
