@@ -846,4 +846,33 @@ To prevent trivial bypasses, a vulnerability is considered a duplicate if it sha
 2. **The Impact Path**: The execution flow used to extract value.
 3. **The Target Code**: The specific lines in the target contract that must be modified to fix the bug.
 
+---
+
+## 10. Front-Running Protection (Anti-MEV)
+
+To prevent MEV bots from observing a `submitValidation` transaction and front-running it with their own address to claim the bounty, the platform enforces **Identity Binding** within the encrypted payload.
+
+### The Mechanism
+
+1. **Proof Generation (Researcher Side)**:
+   - Researcher generates the exploit proof.
+   - Researcher signs a hash of the proof + their wallet address.
+   - Researcher includes this signature inside the payload *before* encryption.
+
+2. **Submission (Public Mempool)**:
+   - Researcher submits `submitValidation(..., proofHash, researcher=0xResearcher, ...)` to the blockchain.
+   - MEV Bot sees this and submits `submitValidation(..., proofHash, researcher=0xBot, ...)` with higher gas.
+
+3. **Validation (Validator Side)**:
+   - Validator Agent picks up the Bot's transaction (mined first).
+   - Validator decrypts the payload (only Validator has the key).
+   - **CRITICAL CHECK**: Validator compares `tx.researcher` (0xBot) with `payload.identity.researcher` (0xResearcher).
+   - **Mismatch Found**: The payload explicitly belongs to 0xResearcher, but the transaction claims to be 0xBot.
+
+4. **Outcome**:
+   - The Validator Agent **REJECTS** the Bot's submission (Status: `False` or `Error`).
+   - The Validator Agent proceeds to the next submission (the original Researcher's).
+   - The check passes (0xResearcher == 0xResearcher).
+   - The Validator approves the original submission and pays the Researcher.
+
 If Researcher B finds a *different* root cause that leads to the same impact, it may be considered a unique finding at the discretion of the Protocol Agent rules.
