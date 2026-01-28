@@ -812,6 +812,273 @@ contract BountyPool is IBountyPool, AccessControl, ReentrancyGuard {
 
 ---
 
+## OpsTreasury.sol
+
+### Overview
+
+The OpsTreasury contract manages operational gas funds for Validator Agents. Protocol owners deposit ETH alongside their USDC bounty pool to ensure agents can execute validation transactions without running out of gas.
+
+### Interface
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+/**
+ * @title IOpsTreasury
+ * @notice Manages operational ETH buffer for agent gas costs
+ * @dev Protocol owners deposit ETH; Validator Agents get refunded after validation tx
+ */
+interface IOpsTreasury {
+    // ============================================
+    // STRUCTS
+    // ============================================
+
+    struct OpsBuffer {
+        uint256 totalDeposited;      // Total ETH deposited by protocol owner
+        uint256 availableBalance;    // Currently available for refunds
+        uint256 totalRefunded;       // Total refunded to agents
+        uint256 minBuffer;           // Minimum buffer before alerts
+    }
+
+    // ============================================
+    // EVENTS
+    // ============================================
+
+    event BufferDeposited(
+        bytes32 indexed protocolId,
+        address indexed depositor,
+        uint256 amount
+    );
+
+    event AgentRefunded(
+        bytes32 indexed protocolId,
+        address indexed agent,
+        uint256 gasUsed,
+        uint256 refundAmount
+    );
+
+    event BufferWithdrawn(
+        bytes32 indexed protocolId,
+        address indexed owner,
+        uint256 amount
+    );
+
+    event LowBufferAlert(
+        bytes32 indexed protocolId,
+        uint256 remainingBalance,
+        uint256 minBuffer
+    );
+
+    // ============================================
+    // FUNCTIONS
+    // ============================================
+
+    /**
+     * @notice Deposit ETH to protocol's operational buffer
+     * @param protocolId Protocol identifier
+     */
+    function depositBuffer(bytes32 protocolId) external payable;
+
+    /**
+     * @notice Refund gas costs to Validator Agent after validation tx
+     * @param protocolId Protocol identifier
+     * @param agent Address of the agent to refund
+     * @param gasUsed Gas consumed by the validation transaction
+     * @dev Only callable by ValidationRegistry after recordResult()
+     */
+    function refundAgent(
+        bytes32 protocolId,
+        address agent,
+        uint256 gasUsed
+    ) external;
+
+    /**
+     * @notice Withdraw unused buffer (protocol owner only)
+     * @param protocolId Protocol identifier
+     * @param amount Amount to withdraw
+     */
+    function withdrawBuffer(
+        bytes32 protocolId,
+        uint256 amount
+    ) external;
+
+    /**
+     * @notice Set minimum buffer threshold for alerts
+     * @param protocolId Protocol identifier
+     * @param minBuffer Minimum ETH balance before alert
+     */
+    function setMinBuffer(
+        bytes32 protocolId,
+        uint256 minBuffer
+    ) external;
+
+    /**
+     * @notice Get buffer information for a protocol
+     * @param protocolId Protocol identifier
+     * @return OpsBuffer struct
+     */
+    function getBufferInfo(bytes32 protocolId)
+        external
+        view
+        returns (OpsBuffer memory);
+
+    /**
+     * @notice Check if buffer has sufficient funds for a validation
+     * @param protocolId Protocol identifier
+     * @param estimatedGas Estimated gas for validation tx
+     * @return True if sufficient funds
+     */
+    function hasSufficientBuffer(
+        bytes32 protocolId,
+        uint256 estimatedGas
+    ) external view returns (bool);
+}
+```
+
+### Implementation Skeleton
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {IOpsTreasury} from "./interfaces/IOpsTreasury.sol";
+import {IProtocolRegistry} from "./interfaces/IProtocolRegistry.sol";
+
+contract OpsTreasury is IOpsTreasury, AccessControl, ReentrancyGuard {
+    bytes32 public constant REFUNDER_ROLE = keccak256("REFUNDER_ROLE");
+
+    IProtocolRegistry public protocolRegistry;
+
+    mapping(bytes32 => OpsBuffer) private _buffers;
+
+    // Gas price premium (10% buffer for gas price fluctuations)
+    uint256 public constant GAS_PREMIUM_BPS = 1100; // 110% of gas cost
+
+    constructor(address _protocolRegistry) {
+        protocolRegistry = IProtocolRegistry(_protocolRegistry);
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+    }
+
+    function depositBuffer(bytes32 protocolId) external payable nonReentrant {
+        require(msg.value > 0, "Amount must be > 0");
+
+        IProtocolRegistry.Protocol memory protocol =
+            protocolRegistry.getProtocol(protocolId);
+        require(protocol.contractAddress != address(0), "Protocol not found");
+
+        _buffers[protocolId].totalDeposited += msg.value;
+        _buffers[protocolId].availableBalance += msg.value;
+
+        emit BufferDeposited(protocolId, msg.sender, msg.value);
+    }
+
+    function refundAgent(
+        bytes32 protocolId,
+        address agent,
+        uint256 gasUsed
+    ) external onlyRole(REFUNDER_ROLE) nonReentrant {
+        require(agent != address(0), "Invalid agent");
+
+        // Calculate refund with premium
+        uint256 refundAmount = (gasUsed * tx.gasprice * GAS_PREMIUM_BPS) / 10000;
+
+        OpsBuffer storage buffer = _buffers[protocolId];
+        require(buffer.availableBalance >= refundAmount, "Insufficient buffer");
+
+        buffer.availableBalance -= refundAmount;
+        buffer.totalRefunded += refundAmount;
+
+        // Transfer ETH to agent
+        (bool success, ) = agent.call{value: refundAmount}("");
+        require(success, "Refund transfer failed");
+
+        emit AgentRefunded(protocolId, agent, gasUsed, refundAmount);
+
+        // Check for low buffer alert
+        if (buffer.availableBalance < buffer.minBuffer) {
+            emit LowBufferAlert(protocolId, buffer.availableBalance, buffer.minBuffer);
+        }
+    }
+
+    function withdrawBuffer(
+        bytes32 protocolId,
+        uint256 amount
+    ) external nonReentrant {
+        IProtocolRegistry.Protocol memory protocol =
+            protocolRegistry.getProtocol(protocolId);
+        require(protocol.owner == msg.sender, "Not owner");
+
+        OpsBuffer storage buffer = _buffers[protocolId];
+        require(buffer.availableBalance >= amount, "Insufficient balance");
+
+        buffer.availableBalance -= amount;
+        buffer.totalDeposited -= amount;
+
+        (bool success, ) = msg.sender.call{value: amount}("");
+        require(success, "Withdraw transfer failed");
+
+        emit BufferWithdrawn(protocolId, msg.sender, amount);
+    }
+
+    function setMinBuffer(
+        bytes32 protocolId,
+        uint256 minBuffer
+    ) external {
+        IProtocolRegistry.Protocol memory protocol =
+            protocolRegistry.getProtocol(protocolId);
+        require(protocol.owner == msg.sender, "Not owner");
+
+        _buffers[protocolId].minBuffer = minBuffer;
+    }
+
+    function hasSufficientBuffer(
+        bytes32 protocolId,
+        uint256 estimatedGas
+    ) external view returns (bool) {
+        uint256 estimatedCost = (estimatedGas * tx.gasprice * GAS_PREMIUM_BPS) / 10000;
+        return _buffers[protocolId].availableBalance >= estimatedCost;
+    }
+
+    function getBufferInfo(bytes32 protocolId)
+        external
+        view
+        returns (OpsBuffer memory)
+    {
+        return _buffers[protocolId];
+    }
+
+    // Allow contract to receive ETH
+    receive() external payable {}
+}
+```
+
+### Integration with ValidationRegistry
+
+When `recordResult()` is called, the ValidationRegistry triggers a refund:
+
+```solidity
+// In ValidationRegistry.sol - recordResult function
+function recordResult(
+    bytes32 validationId,
+    ValidationResult result
+) external onlyRole(VALIDATOR_ROLE) {
+    // ... existing validation logic ...
+
+    // Refund gas to Validator Agent
+    uint256 gasUsed = gasleft(); // Capture at start, calculate diff
+    opsTreasury.refundAgent(
+        validation.protocolId,
+        msg.sender,  // Validator Agent address
+        startGas - gasleft() + 21000  // Include base tx cost
+    );
+}
+```
+
+---
+
 ## Sample Target Contracts (Local Anvil)
 
 These contracts are deployed locally for vulnerability scanning and exploit validation.

@@ -1186,6 +1186,264 @@ describe('Integration: Scan → Validation → Payment', () => {
 
 ---
 
+## 10. Agent Task Rate Limiting
+
+### Overview
+
+To prevent system abuse, DoS attacks, and resource exhaustion, rate limits are enforced at the agent task level. These limits complement the API-level rate limiting defined in `APIRoutes.md`.
+
+### Rate Limit Configuration
+
+| Resource | Limit | Window | Rationale |
+|----------|-------|--------|-----------|
+| Scans per Protocol | 5 | 1 hour | Prevent scan spam on single protocol |
+| Scans per Researcher | 10 | 1 hour | Fair usage across researchers |
+| Pending Validations (global) | 20 | Queue | Prevent validator backlog |
+| Concurrent Scans per Agent | 3 | Active | Agent resource management |
+| Proof Submissions per Researcher | 10 | 1 hour | Prevent proof spam |
+| Protocol Registrations per Owner | 5 | 24 hours | Prevent registry spam |
+
+### Implementation
+
+```typescript
+// Backend: services/RateLimitService.ts
+import { Redis } from 'ioredis';
+
+interface RateLimitConfig {
+  key: string;
+  limit: number;
+  windowSeconds: number;
+}
+
+class AgentRateLimiter {
+  private redis: Redis;
+
+  constructor(redis: Redis) {
+    this.redis = redis;
+  }
+
+  /**
+   * Check if action is allowed under rate limit
+   * @returns {allowed: boolean, remaining: number, resetIn: number}
+   */
+  async checkLimit(config: RateLimitConfig): Promise<{
+    allowed: boolean;
+    remaining: number;
+    resetIn: number;
+  }> {
+    const currentCount = await this.redis.incr(config.key);
+    
+    if (currentCount === 1) {
+      await this.redis.expire(config.key, config.windowSeconds);
+    }
+
+    const ttl = await this.redis.ttl(config.key);
+    const allowed = currentCount <= config.limit;
+    const remaining = Math.max(0, config.limit - currentCount);
+
+    return { allowed, remaining, resetIn: ttl };
+  }
+
+  /**
+   * Pre-defined rate limit checks
+   */
+  async canScanProtocol(protocolId: string): Promise<boolean> {
+    const result = await this.checkLimit({
+      key: `ratelimit:scan:protocol:${protocolId}`,
+      limit: 5,
+      windowSeconds: 3600 // 1 hour
+    });
+    return result.allowed;
+  }
+
+  async canResearcherScan(researcherId: string): Promise<boolean> {
+    const result = await this.checkLimit({
+      key: `ratelimit:scan:researcher:${researcherId}`,
+      limit: 10,
+      windowSeconds: 3600 // 1 hour
+    });
+    return result.allowed;
+  }
+
+  async canSubmitProof(researcherId: string): Promise<boolean> {
+    const result = await this.checkLimit({
+      key: `ratelimit:proof:researcher:${researcherId}`,
+      limit: 10,
+      windowSeconds: 3600 // 1 hour
+    });
+    return result.allowed;
+  }
+
+  async canRegisterProtocol(ownerAddress: string): Promise<boolean> {
+    const result = await this.checkLimit({
+      key: `ratelimit:register:owner:${ownerAddress}`,
+      limit: 5,
+      windowSeconds: 86400 // 24 hours
+    });
+    return result.allowed;
+  }
+
+  /**
+   * Check validation queue depth
+   */
+  async canQueueValidation(): Promise<boolean> {
+    const queueDepth = await this.redis.llen('validation:pending');
+    return queueDepth < 20;
+  }
+
+  /**
+   * Check agent concurrent task limit
+   */
+  async canAgentAcceptTask(agentId: string): Promise<boolean> {
+    const activeTasks = await this.redis.scard(`agent:${agentId}:tasks`);
+    return activeTasks < 3;
+  }
+}
+
+export const rateLimiter = new AgentRateLimiter(redis);
+```
+
+### Pre-Hook Integration
+
+Rate limits are enforced via pre-hooks before task execution:
+
+```typescript
+// hooks/preHooks.ts
+const preHooks = {
+  'scan:start': [
+    // Existing checks...
+
+    // Rate limit: Protocol scan frequency
+    async (ctx) => {
+      const allowed = await rateLimiter.canScanProtocol(ctx.protocolId);
+      if (!allowed) {
+        return { 
+          proceed: false, 
+          reason: 'Protocol scan rate limit exceeded (max 5/hour)' 
+        };
+      }
+      return { proceed: true };
+    },
+
+    // Rate limit: Researcher scan frequency
+    async (ctx) => {
+      const allowed = await rateLimiter.canResearcherScan(ctx.researcherId);
+      if (!allowed) {
+        return { 
+          proceed: false, 
+          reason: 'Researcher scan rate limit exceeded (max 10/hour)' 
+        };
+      }
+      return { proceed: true };
+    },
+
+    // Rate limit: Agent capacity
+    async (ctx) => {
+      const allowed = await rateLimiter.canAgentAcceptTask(ctx.assignedAgent.id);
+      if (!allowed) {
+        return { 
+          proceed: false, 
+          reason: 'Agent at maximum concurrent task capacity' 
+        };
+      }
+      return { proceed: true };
+    }
+  ],
+
+  'validation:submit': [
+    // Rate limit: Validation queue depth
+    async (ctx) => {
+      const allowed = await rateLimiter.canQueueValidation();
+      if (!allowed) {
+        return { 
+          proceed: false, 
+          reason: 'Validation queue full (max 20 pending). Try again later.' 
+        };
+      }
+      return { proceed: true };
+    },
+
+    // Rate limit: Proof submission frequency
+    async (ctx) => {
+      const allowed = await rateLimiter.canSubmitProof(ctx.researcherId);
+      if (!allowed) {
+        return { 
+          proceed: false, 
+          reason: 'Proof submission rate limit exceeded (max 10/hour)' 
+        };
+      }
+      return { proceed: true };
+    }
+  ],
+
+  'protocol:register': [
+    // Rate limit: Protocol registration frequency
+    async (ctx) => {
+      const allowed = await rateLimiter.canRegisterProtocol(ctx.ownerAddress);
+      if (!allowed) {
+        return { 
+          proceed: false, 
+          reason: 'Protocol registration rate limit exceeded (max 5/day)' 
+        };
+      }
+      return { proceed: true };
+    }
+  ]
+};
+```
+
+### Error Response Format
+
+When a rate limit is exceeded, the API returns a standardized error:
+
+```json
+{
+  "error": {
+    "code": "RATE_LIMITED",
+    "message": "Protocol scan rate limit exceeded (max 5/hour)",
+    "retryAfter": 1847,
+    "limit": 5,
+    "remaining": 0,
+    "resetAt": "2026-01-28T16:30:00Z"
+  },
+  "requestId": "req-uuid"
+}
+```
+
+### HTTP Headers
+
+Rate limit information is included in response headers:
+
+```
+X-RateLimit-Limit: 5
+X-RateLimit-Remaining: 0
+X-RateLimit-Reset: 1706456200
+Retry-After: 1847
+```
+
+### Monitoring & Alerts
+
+Rate limit events are logged for monitoring:
+
+```typescript
+// Log rate limit hits for monitoring
+if (!allowed) {
+  logger.warn('Rate limit exceeded', {
+    type: 'scan:protocol',
+    protocolId: ctx.protocolId,
+    researcherId: ctx.researcherId,
+    resetIn: result.resetIn
+  });
+
+  // Emit metric for dashboards
+  metrics.increment('rate_limit.exceeded', {
+    resource: 'protocol_scan'
+  });
+}
+```
+
+---
+
 ## Integration Checklist
 
 | Integration | Status | Events | Hooks | Auto-Fix |
@@ -1198,3 +1456,4 @@ describe('Integration: Scan → Validation → Payment', () => {
 | Agent Lifecycle | Required | ✓ | ✓ | ✓ |
 | Error Recovery | Required | ✓ | ✓ | ✓ |
 | Dashboard Sync | Required | ✓ | - | ✓ |
+| Agent Rate Limiting | Required | ✓ | ✓ | - |

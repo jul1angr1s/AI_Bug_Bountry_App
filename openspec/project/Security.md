@@ -144,6 +144,77 @@ To prevent this, the *contents* of the encrypted proof must be cryptographically
 
 ---
 
+## 7. Key Management (Validator Agent Encryption)
+
+The Validator Agent requires a private key to decrypt vulnerability proofs submitted by Researcher Agents. This section defines the key management strategy.
+
+### 7.1 MVP Approach (Environment Variable)
+
+For the initial MVP deployment, encryption keys are managed via environment variables:
+
+```bash
+# .env (Backend/Validator Agent)
+VALIDATOR_ENCRYPTION_PRIVATE_KEY=0x...  # X25519 or RSA private key
+VALIDATOR_ENCRYPTION_PUBLIC_KEY=0x...   # Shared with Researcher Agents
+```
+
+**Security Measures for MVP:**
+- Store keys in Railway/Supabase secret manager (not in code or `.env` files in repo)
+- Restrict access to production environment variables to admin-only
+- Use separate keys for Testnet vs Mainnet deployments
+- Log all decryption attempts (without logging the decrypted content)
+
+### 7.2 Key Usage Flow
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    ENCRYPTION KEY FLOW                          │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  1. RESEARCHER AGENT (Encryption)                               │
+│     - Fetches VALIDATOR_ENCRYPTION_PUBLIC_KEY from API          │
+│     - Encrypts proof payload with public key                    │
+│     - Stores encrypted payload on IPFS                          │
+│                                                                  │
+│  2. VALIDATOR AGENT (Decryption)                                │
+│     - Loads VALIDATOR_ENCRYPTION_PRIVATE_KEY from env           │
+│     - Fetches encrypted payload from IPFS                       │
+│     - Decrypts and validates proof                              │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 7.3 Production Upgrade Path
+
+When transitioning to mainnet, upgrade to a more robust key management solution:
+
+| Phase | Solution | Benefit |
+|-------|----------|---------|
+| **MVP** | Environment Variables | Simple, fast to implement |
+| **Production v1** | AWS KMS / GCP Cloud KMS | Hardware-backed, audit logs |
+| **Production v2** | HashiCorp Vault | Key rotation, fine-grained access |
+| **Enterprise** | HSM (Hardware Security Module) | FIPS 140-2 compliance |
+
+### 7.4 Key Rotation Policy
+
+- **MVP**: Manual rotation on suspected compromise
+- **Production**: Quarterly rotation with 7-day overlap period
+- **On Compromise**: Immediate rotation + invalidate all pending validations
+
+### 7.5 Recovery Procedure
+
+If the Validator private key is lost or compromised:
+
+1. **Immediate**: Pause all validation processing
+2. **Generate**: Create new keypair
+3. **Update**: Deploy new public key to API endpoint
+4. **Notify**: Alert all Researcher Agents to re-encrypt pending proofs
+5. **Resume**: Re-enable validation with new key
+
+**Note**: Pending validations encrypted with the old key must be re-submitted by researchers.
+
+---
+
 ## Security Checklist for Acceptance
 
 | Category | Item | Verified |
