@@ -20,11 +20,18 @@ const localStorageMock = {
   clear: () => {
     localStorageMock.store = {};
   },
+  key: (index: number) => {
+    const keys = Object.keys(localStorageMock.store);
+    return keys[index] || null;
+  },
+  get length() {
+    return Object.keys(localStorageMock.store).length;
+  },
   store: {} as Record<string, string>,
 };
 
 beforeAll(() => {
-  global.localStorage = localStorageMock as Storage;
+  global.localStorage = localStorageMock as unknown as Storage;
 });
 
 // Cleanup after each test
