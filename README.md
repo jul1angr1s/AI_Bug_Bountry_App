@@ -84,12 +84,50 @@ Calculates severity scores
 - **📊 Vulnerability Table** - Sortable, filterable findings with severity badges
 - **⚡ Live Updates** - WebSocket-powered real-time data (coming in Phase 3)
 
-### ⛓️ Blockchain Integration
+### ⛓️ Blockchain + AI: The Perfect Synergy
 
-- **💎 Base L2** - Fast, cheap transactions
+**When AI meets Blockchain, magic happens.** Our platform leverages cutting-edge protocols to create a trustless, autonomous security ecosystem.
+
+#### 🔮 Industry-Leading Standards
+
+- **💳 x402 Protocol** - Autonomous agent-to-agent payments for microtransactions
+  - Pay AI agents instantly for vulnerability discoveries
+  - Sub-cent precision for granular bounty distribution
+  - No human intervention required
+
+- **🛡️ ERC-8004 Standard** - On-chain agent trust & reputation
+  - Immutable agent performance history
+  - Verifiable track record of discoveries
+  - Trust scoring for validator agents
+  - Community-driven reputation metrics
+
+- **🤝 Agent-to-Agent Protocol** - Autonomous collaboration at scale
+  - Agents negotiate bounties programmatically
+  - Cross-platform agent communication
+  - Standardized finding verification
+  - Decentralized consensus without human bottlenecks
+
+#### ⚡ Why Blockchain + AI Changes Everything
+
+**Traditional Bug Bounties**: Human → Find Bug → Submit → Wait → Review → Get Paid (weeks)
+
+**Thunder Security**: AI Agent → Detect → Verify → Smart Contract → Instant Payment (seconds)
+
+**The Result**:
+- 🚀 **1000x Faster** - No waiting for manual reviews
+- 💰 **Lower Costs** - Automated processes, no overhead
+- 🔒 **Trustless** - Smart contracts guarantee payment
+- 📊 **Transparent** - All transactions on-chain
+- 🤖 **Scalable** - AI agents work 24/7 across thousands of protocols
+
+#### 💎 Blockchain Features
+
+- **💎 Base L2** - Fast, cheap transactions (< $0.01 per bounty)
 - **💵 USDC Payments** - Stable, reliable bounties
 - **📝 Smart Contracts** - Transparent, auditable payouts
 - **🔐 SIWE Auth** - Sign-In with Ethereum for researchers
+- **🏆 NFT Bounties** - Collectible vulnerability discovery tokens
+- **⚖️ On-chain Governance** - Community-driven protocol upgrades
 
 ### 🧪 Built with Excellence
 
@@ -98,6 +136,7 @@ Calculates severity scores
 - **🎨 Modern UI** - React 18 + Tailwind CSS
 - **⚡ Lightning Fast** - Vite build, optimized bundles
 - **📖 OpenSpec** - Structured development methodology
+- **🏆 Industry Standards** - x402, ERC-8004, Agent-to-Agent Protocol
 
 ---
 
@@ -521,15 +560,27 @@ npm run test:ui
 
 ![Ollama](https://img.shields.io/badge/Ollama-Local_AI-000000?style=flat-square)
 ![Solidity](https://img.shields.io/badge/Solidity-0.8.20-363636?style=flat-square&logo=solidity&logoColor=white)
+![x402](https://img.shields.io/badge/x402-Agent_Payments-FF6B6B?style=flat-square)
+![ERC8004](https://img.shields.io/badge/ERC--8004-Agent_Trust-4ECDC4?style=flat-square)
 
-- **Ollama** - Local LLM inference
-- **DeepSeek Coder V2** - Code analysis model
-- **Llama 3.1** - Reasoning model
-- **MCP SDK** - Model Context Protocol
-- **Solidity** - Smart contracts
-- **Foundry** - Contract development
+#### AI Layer
+- **Ollama** - Local LLM inference engine
+- **DeepSeek Coder V2** - Smart contract analysis model
+- **Llama 3.1** - Advanced reasoning model
+- **MCP SDK** - Model Context Protocol for agent communication
+
+#### Blockchain Layer
+- **Solidity 0.8.20** - Smart contract language
+- **Foundry** - Advanced contract development toolkit
 - **Viem** - TypeScript Ethereum library
-- **Base L2** - Scaling solution
+- **Base L2** - Fast, low-cost scaling solution
+- **USDC** - Stable payment token
+
+#### Autonomous Agent Standards
+- **x402 Protocol** - Micropayment standard for agent-to-agent transactions
+- **ERC-8004** - On-chain agent trust and reputation system
+- **Agent-to-Agent Protocol** - Standardized autonomous agent communication
+- **MCP Tools** - Model Context Protocol for tool integration
 
 ---
 
@@ -635,13 +686,28 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 ## 🙏 Acknowledgments
 
+### 🏆 Protocol Standards
+- **x402 Protocol** - Pioneering agent micropayment infrastructure
+- **ERC-8004** - On-chain agent trust and reputation standard
+- **Agent-to-Agent Protocol** - Autonomous agent communication framework
+
+### 🤖 AI & Technology
 - **OpenAI** - Inspiration for autonomous agents
 - **Anthropic** - Claude for development assistance
 - **Ollama** - Local AI infrastructure
-- **Supabase** - Backend platform
+- **DeepSeek** - Advanced code analysis models
+
+### ⛓️ Blockchain Infrastructure
 - **Base** - L2 scaling solution
-- **OpenZeppelin** - Smart contract standards
-- **The Open Source Community** - For everything
+- **OpenZeppelin** - Smart contract security standards
+- **Coinbase** - USDC stable payment infrastructure
+- **Ethereum Foundation** - Core blockchain technology
+
+### 🛠️ Development Tools
+- **Supabase** - Backend platform and real-time database
+- **Vite** - Lightning-fast build tooling
+- **Vitest** - Modern testing framework
+- **The Open Source Community** - For making innovation possible
 
 ---
 
