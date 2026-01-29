@@ -422,8 +422,8 @@ npm run dev
 ```bash
 cd contracts
 npm install
-npx hardhat compile
-npx hardhat deploy --network base-sepolia
+forge build
+forge create <contract-path>:<contract-name> --rpc-url $BASE_SEPOLIA_RPC --private-key $PRIVATE_KEY --chain 84532 --verify
 ```
 
 ---
@@ -477,7 +477,7 @@ AI_Bug_Bountry_App/
 
 ### 🧪 Testing
 
-We take testing seriously. **100% coverage** on all components.
+We take testing seriously. **>90% coverage** on all components. Because we use TDD methodology
 
 ```bash
 cd frontend
@@ -500,30 +500,6 @@ npm run test:ui
 - ✅ React Testing Library - Component testing
 - ✅ @testing-library/user-event - User interaction testing
 
-### 🎨 Design System
-
-**Theme**: Dark Mode First
-
-```css
-/* Navy Palette */
---navy-900: #0A0E1A;  /* Background */
---navy-800: #0F1421;  /* Cards */
-
-/* Primary */
---primary: #3B82F6;   /* Electric Blue */
-
-/* Status Colors */
---critical: #EF4444;  /* Red */
---info: #3B82F6;      /* Blue */
---online: #10B981;    /* Green */
-```
-
-**Layout**:
-- Sidebar: 200px fixed width
-- Content: Fluid responsive area
-- Typography: System sans-serif stack
-
----
 
 ## 🛠️ Tech Stack
 
