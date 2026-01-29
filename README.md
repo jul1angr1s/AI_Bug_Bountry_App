@@ -103,70 +103,218 @@ Calculates severity scores
 
 ## 🏗️ Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         FRONTEND                                │
-│  React 18 · TypeScript · Tailwind CSS · Vite                   │
-│  Real-time Dashboard · SIWE Auth · WebSocket Client            │
-└────────────────────────┬────────────────────────────────────────┘
-                         │
-                    REST API / WebSocket
-                         │
-┌────────────────────────┴────────────────────────────────────────┐
-│                         BACKEND                                 │
-│  Node.js · Express · TypeScript · Prisma                       │
-│  API Routes · WebSocket Server · Job Queues                    │
-└────────────────────────┬────────────────────────────────────────┘
-                         │
-        ┌────────────────┼────────────────┐
-        │                │                │
-        ▼                ▼                ▼
-┌──────────────┐  ┌─────────────┐  ┌─────────────┐
-│   AGENTS     │  │  SUPABASE   │  │ BLOCKCHAIN  │
-│              │  │             │  │             │
-│ Ollama AI    │  │ PostgreSQL  │  │ Base L2     │
-│ DeepSeek     │  │ Auth        │  │ Smart       │
-│ Llama 3      │  │ Realtime    │  │ Contracts   │
-│ MCP Tools    │  │ Storage     │  │ USDC        │
-└──────────────┘  └─────────────┘  └─────────────┘
+### 🎯 System Architecture
+
+```mermaid
+graph TB
+    subgraph "Frontend Layer"
+        UI[🎨 React Dashboard<br/>TypeScript · Tailwind · Vite]
+        WS_CLIENT[⚡ WebSocket Client]
+        AUTH[🔐 SIWE Auth]
+    end
+
+    subgraph "Backend Layer"
+        API[🔌 REST API<br/>Express · Node.js]
+        WS_SERVER[📡 WebSocket Server]
+        QUEUE[📋 Job Queues<br/>BullMQ · Redis]
+        ORCHESTRATOR[🎭 Agent Orchestrator]
+    end
+
+    subgraph "AI Agents Layer"
+        PROTOCOL[🛡️ Protocol Agent<br/>Contract Monitoring]
+        RESEARCHER[🔬 Researcher Agent<br/>Vulnerability Analysis]
+        VALIDATOR[✅ Validator Agent<br/>Finding Verification]
+        OLLAMA[🧠 Ollama<br/>DeepSeek · Llama 3]
+    end
+
+    subgraph "Data Layer"
+        DB[(🗄️ Supabase<br/>PostgreSQL)]
+        REALTIME[⚡ Supabase Realtime]
+        STORAGE[💾 Storage]
+    end
+
+    subgraph "Blockchain Layer"
+        CONTRACTS[📝 Smart Contracts<br/>Solidity]
+        BASE[⛓️ Base L2]
+        USDC[💵 USDC Token]
+    end
+
+    UI <-->|REST/GraphQL| API
+    UI <-->|Real-time| WS_CLIENT
+    WS_CLIENT <-->|Events| WS_SERVER
+
+    API --> ORCHESTRATOR
+    WS_SERVER --> ORCHESTRATOR
+    ORCHESTRATOR --> QUEUE
+
+    QUEUE --> PROTOCOL
+    QUEUE --> RESEARCHER
+    QUEUE --> VALIDATOR
+
+    PROTOCOL --> OLLAMA
+    RESEARCHER --> OLLAMA
+    VALIDATOR --> OLLAMA
+
+    API <--> DB
+    REALTIME --> WS_SERVER
+
+    ORCHESTRATOR --> CONTRACTS
+    CONTRACTS --> BASE
+    CONTRACTS --> USDC
+
+    style UI fill:#3B82F6,stroke:#1E40AF,stroke-width:3px,color:#fff
+    style OLLAMA fill:#10B981,stroke:#059669,stroke-width:3px,color:#fff
+    style CONTRACTS fill:#F59E0B,stroke:#D97706,stroke-width:3px,color:#fff
+    style DB fill:#8B5CF6,stroke:#7C3AED,stroke-width:3px,color:#fff
 ```
 
 ### 🔄 Agent Workflow
 
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Protocol as 🛡️ Protocol Agent
+    participant Queue as 📋 Job Queue
+    participant Researcher as 🔬 Researcher Agent
+    participant Validator as ✅ Validator Agent
+    participant Ollama as 🧠 Ollama AI
+    participant Contract as 💰 Smart Contract
+    participant Dashboard as 📊 Dashboard
+
+    Note over Protocol: Monitors Blockchain
+    Protocol->>Protocol: Detects New Deployment
+    Protocol->>Queue: Create Scan Task
+
+    Queue->>Researcher: Assign Scan Job
+    Researcher->>Ollama: Analyze Contract Code
+    Ollama-->>Researcher: Security Analysis
+
+    alt Vulnerability Found
+        Researcher->>Researcher: Generate PoC Exploit
+        Researcher->>Queue: Submit Finding
+
+        Queue->>Validator: Validate Finding
+        Validator->>Ollama: Verify PoC
+        Ollama-->>Validator: Validation Result
+
+        alt Finding Confirmed
+            Validator->>Validator: Calculate Severity
+            Validator->>Contract: Approve Payout
+
+            Contract->>Contract: Mint Bounty NFT
+            Contract->>Contract: Transfer USDC
+            Contract-->>Dashboard: Emit Event
+
+            Dashboard->>Dashboard: Show Alert Banner
+            Dashboard->>Dashboard: Update Metrics
+            Dashboard->>Dashboard: Add to Table
+        else False Positive
+            Validator->>Queue: Reject Finding
+            Note over Dashboard: No Update
+        end
+    else No Vulnerability
+        Researcher->>Queue: Report Clean
+        Note over Dashboard: Update Status Only
+    end
 ```
-Protocol Change Detected
-         │
-         ▼
-🛡️ Protocol Agent
-   • Detects new deployment
-   • Fetches contract code
-   • Creates scan task
-         │
-         ▼
-🔬 Researcher Agent
-   • Analyzes contract
-   • Runs security checks
-   • Discovers vulnerability
-   • Generates PoC
-         │
-         ▼
-✅ Validator Agent
-   • Reviews finding
-   • Verifies PoC
-   • Calculates severity
-   • Approves for payout
-         │
-         ▼
-💰 Smart Contract
-   • Mints bounty NFT
-   • Transfers USDC
-   • Emits events
-         │
-         ▼
-📊 Dashboard Updates
-   • Real-time notification
-   • Metrics update
-   • Alert banner shows
+
+### 🎨 Component Architecture
+
+```mermaid
+graph LR
+    subgraph "Pages"
+        DASH[📄 Dashboard Page]
+    end
+
+    subgraph "Layouts"
+        LAYOUT[🎯 Dashboard Layout]
+        SIDEBAR[📱 Sidebar]
+    end
+
+    subgraph "Dashboard Components"
+        PROTOCOL[🛡️ Protocol Overview]
+        STATS[📊 Statistics Panel]
+        AGENTS[🤖 Agent Status Grid]
+        VULNS[📋 Vulnerabilities Table]
+        ALERT[🚨 Critical Alert Banner]
+    end
+
+    subgraph "Shared Components"
+        CARD[📇 Stat Card]
+        SEV_BADGE[🏷️ Severity Badge]
+        STATUS[🔵 Status Badge]
+    end
+
+    subgraph "State & Data"
+        AUTH[🔐 Auth Context]
+        TYPES[📝 TypeScript Types]
+    end
+
+    DASH --> LAYOUT
+    LAYOUT --> SIDEBAR
+    LAYOUT --> PROTOCOL
+    LAYOUT --> STATS
+    LAYOUT --> AGENTS
+    LAYOUT --> VULNS
+    LAYOUT --> ALERT
+
+    PROTOCOL --> CARD
+    PROTOCOL --> STATUS
+    STATS --> CARD
+    AGENTS --> STATUS
+    VULNS --> SEV_BADGE
+    ALERT --> SEV_BADGE
+
+    DASH --> AUTH
+    PROTOCOL --> TYPES
+    STATS --> TYPES
+    AGENTS --> TYPES
+    VULNS --> TYPES
+
+    style DASH fill:#3B82F6,stroke:#1E40AF,stroke-width:2px,color:#fff
+    style LAYOUT fill:#8B5CF6,stroke:#7C3AED,stroke-width:2px,color:#fff
+    style AUTH fill:#10B981,stroke:#059669,stroke-width:2px,color:#fff
+```
+
+### 💾 Data Flow
+
+```mermaid
+flowchart TB
+    START([🚀 Application Start])
+
+    START --> AUTH{🔐 Authenticated?}
+
+    AUTH -->|No| LOGIN[🔑 SIWE Login]
+    AUTH -->|Yes| FETCH[📡 Fetch Dashboard Data]
+
+    LOGIN --> FETCH
+
+    FETCH --> PROTOCOL[🛡️ Load Protocol Data]
+    FETCH --> STATS[📊 Load Statistics]
+    FETCH --> AGENTS[🤖 Load Agent Status]
+    FETCH --> VULNS[🐛 Load Vulnerabilities]
+
+    PROTOCOL --> RENDER[🎨 Render Dashboard]
+    STATS --> RENDER
+    AGENTS --> RENDER
+    VULNS --> RENDER
+
+    RENDER --> WS[⚡ Connect WebSocket]
+
+    WS --> LISTEN{👂 Listen for Events}
+
+    LISTEN -->|Agent Update| UPDATE_AGENT[🔄 Update Agent Card]
+    LISTEN -->|New Vuln| UPDATE_TABLE[📝 Add to Table]
+    LISTEN -->|Critical Alert| SHOW_BANNER[🚨 Show Alert Banner]
+
+    UPDATE_AGENT --> LISTEN
+    UPDATE_TABLE --> LISTEN
+    SHOW_BANNER --> LISTEN
+
+    style START fill:#10B981,stroke:#059669,stroke-width:3px,color:#fff
+    style AUTH fill:#F59E0B,stroke:#D97706,stroke-width:2px
+    style RENDER fill:#3B82F6,stroke:#1E40AF,stroke-width:2px,color:#fff
+    style WS fill:#8B5CF6,stroke:#7C3AED,stroke-width:2px,color:#fff
 ```
 
 ---
