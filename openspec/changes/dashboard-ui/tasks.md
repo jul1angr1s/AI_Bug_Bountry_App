@@ -2,19 +2,19 @@
 
 ## Phase 1: Layout & Navigation
 
-- [x] **Task 1.1**: Create base layout structure with fixed sidebar and fluid content area
-- [x] **Task 1.2**: Implement sidebar navigation with Thunder Security branding and navigation items
-- [x] **Task 1.3**: Set up React Router structure with protected routes
+- [ ] **Task 1.1**: Create base layout structure with fixed sidebar and fluid content area
+- [ ] **Task 1.2**: Implement sidebar navigation with Thunder Security branding and navigation items
+- [ ] **Task 1.3**: Set up React Router structure with protected routes
 - [ ] **Task 1.4**: Integrate Supabase Auth with SIWE flow
 
 ## Phase 2: Dashboard Components
 
-- [x] **Task 2.1**: Build StatCard component with progress bar variant
-- [x] **Task 2.2**: Implement ProtocolOverview card component
-- [x] **Task 2.3**: Build StatisticsPanel with three metric cards
-- [x] **Task 2.4**: Create AgentStatusGrid with real-time status indicators
-- [x] **Task 2.5**: Build VulnerabilitiesTable with sorting and filtering
-- [x] **Task 2.6**: Implement CriticalAlertBanner with dismiss functionality
+- [ ] **Task 2.1**: Build StatCard component with progress bar variant
+- [ ] **Task 2.2**: Implement ProtocolOverview card component
+- [ ] **Task 2.3**: Build StatisticsPanel with three metric cards
+- [ ] **Task 2.4**: Create AgentStatusGrid with real-time status indicators
+- [ ] **Task 2.5**: Build VulnerabilitiesTable with sorting and filtering
+- [ ] **Task 2.6**: Implement CriticalAlertBanner with dismiss functionality
 
 ## Phase 3: Real-time Integration
 

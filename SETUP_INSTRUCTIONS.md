@@ -2,49 +2,36 @@
 
 ## Implementation Status
 
-✅ **9/22 tasks completed** (40% - Phase 1 & Phase 2 core components)
+This PR contains **planning artifacts only** (documentation). Implementation will follow in separate PRs.
 
-### Completed Components
-- ✅ Base layout structure
-- ✅ Sidebar navigation with branding
-- ✅ React Router setup
-- ✅ StatCard component
-- ✅ ProtocolOverview card
-- ✅ StatisticsPanel
-- ✅ AgentStatusGrid
-- ✅ VulnerabilitiesTable
-- ✅ CriticalAlertBanner
-
-### Pending
-- ⏳ Supabase Auth integration (SIWE)
-- ⏳ WebSocket real-time updates
-- ⏳ TanStack Query data fetching
-- ⏳ Zustand state management
-- ⏳ Loading skeletons
-- ⏳ Error boundaries
-- ⏳ Full accessibility (keyboard nav, ARIA)
+### Planned Phases
+- Phase 1: Layout & Navigation (4 tasks)
+- Phase 2: Dashboard Components (6 tasks)
+- Phase 3: Real-time Integration (4 tasks)
+- Phase 4: Data Fetching & State (4 tasks)
+- Phase 5: Polish & Accessibility (4 tasks)
 
 ---
 
-## Required Commands (Run with sudo)
+## Required Commands
 
-### Step 1: Fix npm permissions
+### Step 1: Fix npm permissions (if needed)
 
 ```bash
-sudo chown -R 502:20 "/Users/0xjul1/.npm"
+sudo chown -R $(whoami) ~/.npm
 ```
 
 ### Step 2: Install dependencies
 
 ```bash
-cd /Users/0xjul1/Documents/Local_Dev/AI_Bug_Bountry_App/frontend
+cd frontend
 npm install
 ```
 
 ### Step 3: Set up environment
 
 ```bash
-cd /Users/0xjul1/Documents/Local_Dev/AI_Bug_Bountry_App/frontend
+cd frontend
 cp .env.example .env
 ```
 
@@ -207,7 +194,7 @@ frontend/
 ## Troubleshooting
 
 ### npm install fails
-Run: `sudo chown -R 502:20 "/Users/0xjul1/.npm"`
+Run: `sudo chown -R $(whoami) ~/.npm`
 
 ### Port 5173 in use
 Change port in `vite.config.ts`:
