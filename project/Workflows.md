@@ -16,165 +16,62 @@
 
 **Hybrid Setup:** Local Anvil (targets + sandbox) + Base Sepolia (payments)
 
+```mermaid
+flowchart TD
+    Start([System Startup]) --> LoadEnv[Load Environment<br/>Variables]
+    LoadEnv --> InitDB[Initialize PostgreSQL<br/>Run Prisma Migrations]
+    InitDB --> InitRedis[Connect to Redis<br/>Initialize Queues]
 
-```
-┌───────────────────────────────────────────────────┐                                                                                                                                           
-│                                                   │                                                                                                                                           
-│                   System Startup                  │                                                                                                                                           
-│                                                   │                                                                                                                                           
-└─────────────────────────┬─────────────────────────┘                                                                                                                                           
-                          │                                                                                                                                                                     
-                          │                                                                                                                                                                     
-                          │                                                                                                                                                                     
-                          │                                                                                                                                                                     
-                          ▼                                                                                                                                                                     
-┌───────────────────────────────────────────────────┐                                                                                                                                           
-│                                                   │                                                                                                                                           
-│           Load Environment<br/>Variables          │                                                                                                                                           
-│                                                   │                                                                                                                                           
-└─────────────────────────┬─────────────────────────┘                                                                                                                                           
-                          │                                                                                                                                                                     
-                          │                                                                                                                                                                     
-                          │                                                                                                                                                                     
-                          │                                                                                                                                                                     
-                          ▼                                                                                                                                                                     
-┌───────────────────────────────────────────────────┐                                                                                                                                           
-│                                                   │                                                                                                                                           
-│  Initialize PostgreSQL<br/>Run Prisma Migrations  │                                                                                                                                           
-│                                                   │                                                                                                                                           
-└─────────────────────────┬─────────────────────────┘                                                                                                                                           
-                          │                                                                                                                                                                     
-                          │                                                                                                                                                                     
-                          │                                                                                                                                                                     
-                          │                                                                                                                                                                     
-                          ▼                                                                                                                                                                     
-┌───────────────────────────────────────────────────┐                                                                                                                                           
-│                                                   │                                                                                                                                           
-│       Connect to Redis<br/>Initialize Queues      │                                                                                                                                           
-│                                                   │                                                                                                                                           
-└─────────────────────────┬─────────────────────────┘                                                                                                                                           
-                          │                                                                                                                                                                     
-                          │                                                                                                                                                                     
-                          │                                                                                                                                                                     
-                          │                                                                                                                                                                     
-                          ▼                                                                                                                                                                     
-┌───────────────────────────────────────────────────┐                                                                                                                                           
-│                                                   │                                                                                                                                           
-│           Start Services<br/>in Parallel          │  ├───────┬─────────────────────┐                                                                                                          
-│                                                   │          │                     │                                                                                                          
-└─────────────────────────┬─────────────────────────┘          └─────────────────────┼──────────────────────────────────────────────────┐                                                       
-                          │                                                          │                                                  │                                                       
-                          │                                                          │                                                  │                                                       
-                          │                                                          │                                                  │                                                       
-                          │                                                          │                                                  │                                                       
-                          ▼                                                          ▼                                                  ▼                                                       
-┌───────────────────────────────────────────────────┐          ┌───────────────────────────────────────────┐         ┌─────────────────────────────────────┐                                    
-│                                                   │          │                                           │         │                                     │                                    
-│          Start Express API<br/>Port 4000          │          │ Initialize Socket.io<br/>WebSocket Server │         │       Start BullMQ<br/>Workers      │                                    
-│                                                   │          │                                           │         │                                     │                                    
-└─────────────────────────┬─────────────────────────┘          └─────────────────────┬─────────────────────┘         └──────────────────┬──────────────────┘                                    
-                          │                                                          │                                                  │                                                       
-                          │                                                          │                                                  │                                                       
-                          │                                                          │                                                  │                                                       
-                          │                                                          │                                                  │                                                       
-                          ▼                                                          ▼                                                  ▼                                                       
-┌───────────────────────────────────────────────────┐          ┌───────────────────────────────────────────┐         ┌─────────────────────────────────────┐                                    
-│                                                   │          │                                           │         │                                     │                                    
-│                  API Health Check                 │          │              WebSocket Ready              │         │         Queue Workers Active        │                                    
-│                                                   │          │                                           │         │                                     │                                    
-└─────────────────────────┬─────────────────────────┘          └─────────────────────┬─────────────────────┘         └──────────────────┬──────────────────┘                                    
-                          │                                                          │                                                  │                                                       
-                          │                                                          │                                                  │                                                       
-                          │                                                          │                                                  │                                                       
-                          │                                                          │                                                  │                                                       
-                          ▼                                                          │                                                  │                                                       
-┌───────────────────────────────────────────────────┐                                │                                                  │                                                       
-│                                                   │                                │                                                  │                                                       
-│                    SpawnAgents                    │  ├◄──────┬─────────────────────┼──────────────────────────────────────────────────┘                                                       
-│                                                   │          │                     │                                                                                                          
-└─────────────────────────┬─────────────────────────┘          └─────────────────────┼──────────────────────────────────────────────────┐                                                       
-                          │                                                          │                                                  │                                                       
-                          │                                                          │                                                  │                                                       
-                          │                                                          │                                                  │                                                       
-                          │                                                          │                                                  │                                                       
-                          ▼                                                          ▼                                                  ▼                                                       
-┌───────────────────────────────────────────────────┐          ┌───────────────────────────────────────────┐         ┌─────────────────────────────────────┐                                    
-│                                                   │          │                                           │         │                                     │                                    
-│           Initialize<br/>Protocol Agent           │          │      Initialize<br/>Researcher Agent      │         │    Initialize<br/>Validator Agent   │                                    
-│                                                   │          │                                           │         │                                     │                                    
-└─────────────────────────┬─────────────────────────┘          └─────────────────────┬─────────────────────┘         └──────────────────┬──────────────────┘                                    
-                          │                                                          │                                                  │                                                       
-                          │                                                          │                                                  │                                                       
-                          │                                                          │                                                  │                                                       
-                          │                                                          │                                                  │                                                       
-                          ▼                                                          │                                                  │                                                       
-┌───────────────────────────────────────────────────┐                                │                                                  │                                                       
-│                                                   │                                │                                                  │                                                       
-│            Agent-to-Agent<br/>Bus Ready           │   ◄────────────────────────────┴──────────────────────────────────────────────────┘                                                       
-│                                                   │                                                                                                                                           
-└─────────────────────────┬─────────────────────────┘                                                                                                                                           
-                          │                                                                                                                                                                     
-                          │                                                                                                                                                                     
-                          │                                                                                                                                                                     
-                          │                                                                                                                                                                     
-                          ▼                                                                                                                                                                     
-┌───────────────────────────────────────────────────┐                                                                                                                                           
-│                                                   │                                                                                                                                           
-│             Connect to<br/>Both Chains            │  ├─────────────────────────────┐                                                                                                          
-│                                                   │                                │                                                                                                          
-└─────────────────────────┬─────────────────────────┘                                │                                                                                                          
-                          │                                                          │                                                                                                          
-                          │                                                          │                                                                                                          
-                          │                                                          │                                                                                                          
-                          │                                                          │                                                                                                          
-                          ▼                                                          ▼                                                                                                          
-┌───────────────────────────────────────────────────┐          ┌───────────────────────────────────────────┐                                                                                    
-│                                                   │          │                                           │                                                                                    
-│ Connect Local Anvil<br/>Chain 31337<br/>Port 8545 │  Fail─┐  │    Connect Base Sepolia<br/>Chain 84532   ├◄─Fail───┬Success───────────┬───────────────────────────────────────┐               
-│                                                   │       │  │                                           │         │                  │                                       │               
-└─────────────────────────┬─────────────────────────┘       │  └───────────────────────────────────────────┘         └──────────────────┼───────────────────────────────────────┤               
-                          │                                 │                                                                           │                                       │               
-                          │                                 │                                                                           │                                       │               
-                       Success                              └────────────────────────┐                                                  │                                       │               
-                          │                                                          │                                                  │                                       │               
-                          ▼                                                          ▼                                                  ▼                                       ▼               
-┌───────────────────────────────────────────────────┐          ┌───────────────────────────────────────────┐         ┌─────────────────────────────────────┐     ┌──────────────┴──────────────┐
-│                                                   │          │                                           │         │                                     │     │                             │
-│          Anvil Ready<br/>Target Contracts         │   ◄──────┤          Start Anvil<br/>Locally          │         │ Sepolia Ready<br/>Payment Contracts │     │ Retry with<br/>Fallback RPC │
-│                                                   │          │                                           │         │                                     │     │                             │
-└─────────────────────────┬─────────────────────────┘          └───────────────────────────────────────────┘         └──────────────────┬──────────────────┘     └─────────────────────────────┘
-                          │                                                                                                             │                                                       
-                          │                                                                                                             │                                                       
-                          │                                                                                                             │                                                       
-                          │                                                                                                             │                                                       
-                          ▼                                                                                                             │                                                       
-┌───────────────────────────────────────────────────┐          ┌───────────────────────────────────────────┐                            │                                                       
-│                                                   │          │                                           │                            │                                                       
-│         Start Sandbox Anvil<br/>Port 8546         │  ├──────►│           Both Chains<br/>Ready?          │◄───────────────────────────┘                                                       
-│                                                   │          │                                           │                                                                                    
-└───────────────────────────────────────────────────┘          └─────────────────────┬─────────────────────┘                                                                                    
-                                                                                     │                                                                                                          
-                                                                                     │                                                                                                          
-                                                                                     │                                                                                                          
-                                                                                     │                                                                                                          
-                                                                                     │                                                                                                          
-┌───────────────────────────────────────────────────┐                                │                                                                                                          
-│                                                   │                                │                                                                                                          
-│       Load Contract ABIs<br/>Anvil + Sepolia      │   ◄────────────────────────────┘                                                                                                          
-│                                                   │                                                                                                                                           
-└─────────────────────────┬─────────────────────────┘                                                                                                                                           
-                          │                                                                                                                                                                     
-                          │                                                                                                                                                                     
-                          │                                                                                                                                                                     
-                          │                                                                                                                                                                     
-                          ▼                                                                                                                                                                     
-┌───────────────────────────────────────────────────┐                                                                                                                                           
-│                                                   │                                                                                                                                           
-│        System Ready<br/>Accepting Requests        │                                                                                                                                           
-│                                                   │                                                                                                                                           
-└───────────────────────────────────────────────────┘                                                                                                                                           
-```
+    InitRedis --> StartServices{Start Services<br/>in Parallel}
 
+    StartServices --> API[Start Express API<br/>Port 4000]
+    StartServices --> WS[Initialize Socket.io<br/>WebSocket Server]
+    StartServices --> Queue[Start BullMQ<br/>Workers]
+
+    API --> HealthCheck1[API Health Check]
+    WS --> HealthCheck2[WebSocket Ready]
+    Queue --> HealthCheck3[Queue Workers Active]
+
+    HealthCheck1 --> SpawnAgents
+    HealthCheck2 --> SpawnAgents
+    HealthCheck3 --> SpawnAgents
+
+    SpawnAgents[Spawn MCP Agents] --> PA[Initialize<br/>Protocol Agent]
+    SpawnAgents --> RA[Initialize<br/>Researcher Agent]
+    SpawnAgents --> VA[Initialize<br/>Validator Agent]
+
+    PA --> A2A[Agent-to-Agent<br/>Bus Ready]
+    RA --> A2A
+    VA --> A2A
+
+    A2A --> ConnectChains{Connect to<br/>Both Chains}
+
+    ConnectChains --> ConnectAnvil[Connect Local Anvil<br/>Chain 31337<br/>Port 8545]
+    ConnectChains --> ConnectSepolia[Connect Base Sepolia<br/>Chain 84532]
+
+    ConnectAnvil -->|Success| AnvilReady[Anvil Ready<br/>Target Contracts]
+    ConnectAnvil -->|Fail| StartAnvil[Start Anvil<br/>Locally]
+    StartAnvil --> AnvilReady
+
+    ConnectSepolia -->|Success| SepoliaReady[Sepolia Ready<br/>Payment Contracts]
+    ConnectSepolia -->|Fail| RetryChain[Retry with<br/>Fallback RPC]
+    RetryChain --> ConnectSepolia
+
+    AnvilReady --> StartSandbox[Start Sandbox Anvil<br/>Port 8546]
+    StartSandbox --> BothReady{Both Chains<br/>Ready?}
+    SepoliaReady --> BothReady
+
+    BothReady --> LoadContracts[Load Contract ABIs<br/>Anvil + Sepolia]
+    LoadContracts --> SystemReady([System Ready<br/>Accepting Requests])
+
+    style Start fill:#e1f5ff
+    style SystemReady fill:#e1ffe1
+    style PA fill:#e1f5ff
+    style RA fill:#ffe1e1
+    style VA fill:#e1ffe1
+    style AnvilReady fill:#fff4e1
+    style SepoliaReady fill:#ffe1f0
+```
 
 ---
 
@@ -182,575 +79,178 @@
 
 **GitHub-Based Registration:** Protocols submit GitHub repo URLs, not deployed contract addresses.
 
+```mermaid
+flowchart TD
+    subgraph "Frontend - Dashboard"
+        User([Protocol Owner]) --> Form[Fill Registration Form<br/>GitHub URL, Contract Path, Terms]
+        Form --> Submit[Submit to API]
+    end
 
-```
-┌─────────────────────────────────────────────────────────────────┐                                                             
-│                     "Frontend - Dashboard"                      │                                                             
-│                                                                 │                                                             
-│                                                                 │                                                             
-│ ┌─────────────────────────────────────────────────────────────┐ │                                                             
-│ │                                                             │ │                                                             
-│ │                        Protocol Owner                       │ │                                                             
-│ │                                                             │ │                                                             
-│ └──────────────────────────────┬──────────────────────────────┘ │                                                             
-│                                │                                │                                                             
-│                                │                                │                                                             
-│                                │                                │                                                             
-│                                │                                │                                                             
-│                                ▼                                │                                                             
-│ ┌─────────────────────────────────────────────────────────────┐ │                                                             
-│ │                                                             │ │                                                             
-│ │ Fill Registration Form<br/>GitHub URL, Contract Path, Terms │ │                                                             
-│ │                                                             │ │                                                             
-│ └──────────────────────────────┬──────────────────────────────┘ │                                                             
-│                                │                                │                                                             
-│                                │                                │                                                             
-│                                │                                │                                                             
-│                                │                                │                                                             
-│                                ▼                                │                                                             
-│ ┌─────────────────────────────────────────────────────────────┐ │                                                             
-│ │                                                             │ │                                                             
-│ │                        Submit to API                        │ │                                                             
-│ │                                                             │ │                                                             
-│ └──────────────────────────────┬──────────────────────────────┘ │                                                             
-│                                │                                │                                                             
-└────────────────────────────────┼────────────────────────────────┘                                                             
-                                 │                                                                                              
-                                 │                                                                                              
-                                 │                                                                                              
-┌────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────┐
-│                                │                   "Backend - API Layer"                                                     │
-│                                │                                                                                             │
-│                                ▼                                                                                             │
-│ ┌─────────────────────────────────────────────────────────────┐                                                              │
-│ │                                                             │                                                              │
-│ │                Validate Input<br/>Zod Schema                │    ├──────────────Valid───────────────┐                      │
-│ │                                                             │                                       │                      │
-│ └──────────────────────────────┬──────────────────────────────┘                                       │                      │
-│                                │                                                                      │                      │
-│                                │                                                                      │                      │
-│                             Invalid                                                                   │                      │
-│                                │                                                                      │                      │
-│                                ▼                                                                      ▼                      │
-│ ┌─────────────────────────────────────────────────────────────┐                 ┌──────────────────────────────────────────┐ │
-│ │                                                             │                 │                                          │ │
-│ │               Return 400<br/>Validation Error               │             ┌Yes┤    GitHub URL Already<br/>Registered?    │ │
-│ │                                                             │             │   │                                          │ │
-│ └─────────────────────────────────────────────────────────────┘             │   └─────────────────────┬────────────────────┘ │
-│                                                                             │                         │                      │
-│                                                                             │                         │                      │
-│                                ┌────────────────────────────────────────────┘                        No                      │
-│                                │                                                                      │                      │
-│                                ▼                                                                      ▼                      │
-│ ┌─────────────────────────────────────────────────────────────┐                 ┌──────────────────────────────────────────┐ │
-│ │                                                             │                 │                                          │ │
-│ │                Return 409<br/>Already Exists                │                 │        Queue Registration<br/>Job        │ │
-│ │                                                             │                 │                                          │ │
-│ └─────────────────────────────────────────────────────────────┘                 └─────────────────────┬────────────────────┘ │
-│                                                                                                       │                      │
-└───────────────────────────────────────────────────────────────────────────────────────────────────────┼──────────────────────┘
-                                                                                                        │                       
-                                                                                                        │                       
-                                                                                                        │                       
-┌───────────────────────────────────────────────────────────────────────────────────────────────────────┼──────────────────────┐
-│                                               "Agent Layer - Protocol Agent"                          │                      │
-│                                                                                                       │                      │
-│                                                                                                       │                      │
-│ ┌─────────────────────────────────────────────────────────────┐                                       │                      │
-│ │                                                             │                                       │                      │
-│ │               Protocol Agent<br/>Receives Task              │     ◄─────────────────────────────────┘                      │
-│ │                                                             │                                                              │
-│ └──────────────────────────────┬──────────────────────────────┘                                                              │
-│                                │                                                                                             │
-│                                │                                                                                             │
-│                                │                                                                                             │
-│                                │                                                                                             │
-│                                ▼                                                                                             │
-│ ┌─────────────────────────────────────────────────────────────┐                                                              │
-│ │                                                             │                                                              │
-│ │       Clone GitHub Repo<br/>at Specified Branch/Commit      │    ├──────────────Valid───────────────┐                      │
-│ │                                                             │                                       │                      │
-│ └──────────────────────────────┬──────────────────────────────┘                                       │                      │
-│                                │                                                                      │                      │
-│                                │                                                                      │                      │
-│                             Invalid                                                                   │                      │
-│                                │                                                                      │                      │
-│                                ▼                                                                      ▼                      │
-│ ┌─────────────────────────────────────────────────────────────┐                 ┌──────────────────────────────────────────┐ │
-│ │                                                             │                 │                                          │ │
-│ │             Repo Not Found<br/>or Access Denied             │             ┌───┤   Locate Contract<br/>at contractPath    │ │
-│ │                                                             │             │   │                                          │ │
-│ └─────────────────────────────────────────────────────────────┘             │   └─────────────────────┬────────────────────┘ │
-│                                                                             │                         │                      │
-│                                                                             │                         │                      │
-│                                ┌─────────────────Not─Found──────────────────┘                       Found                    │
-│                                │                                                                      │                      │
-│                                ▼                                                                      ▼                      │
-│ ┌─────────────────────────────────────────────────────────────┐                 ┌──────────────────────────────────────────┐ │
-│ │                                                             │                 │                                          │ │
-│ │                 Contract File<br/>Not Found                 │             Fail┤ Compile with Foundry<br/>Verify Bytecode │ │
-│ │                                                             │             │   │                                          │ │
-│ └─────────────────────────────────────────────────────────────┘             │   └─────────────────────┬────────────────────┘ │
-│                                                                             │                         │                      │
-│                                                                             │                         │                      │
-│                                ┌────────────────────────────────────────────┘                      Success                   │
-│                                │                                                                      │                      │
-│                                ▼                                                                      ▼                      │
-│ ┌─────────────────────────────────────────────────────────────┐                 ┌──────────────────────────────────────────┐ │
-│ │                                                             │                 │                                          │ │
-│ │                    Compilation<br/>Failed                   │                 │      Initial Security<br/>Analysis       │ │
-│ │                                                             │                 │                                          │ │
-│ └─────────────────────────────────────────────────────────────┘                 └─────────────────────┬────────────────────┘ │
-│                                                                                                       │                      │
-│                                                                                                       │                      │
-│                                                                                                       │                      │
-│                                                                                                       │                      │
-│                                                                                                       │                      │
-│ ┌─────────────────────────────────────────────────────────────┐                                       │                      │
-│ │                                                             │                                       │                      │
-│ │                   Calculate Risk<br/>Score                  │     ◄─────────────────────────────────┘                      │
-│ │                                                             │                                                              │
-│ └──────────────────────────────┬──────────────────────────────┘                                                              │
-│                                │                                                                                             │
-└────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────┘
-                                 │                                                                                              
-                                 │                                                                                              
-                                 │                                                                                              
-┌────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────┐
-│                                │             "Blockchain Layer (Base Sepolia)"                                               │
-│                                │                                                                                             │
-│                                ▼                                                                                             │
-│ ┌─────────────────────────────────────────────────────────────┐                                                              │
-│ │                                                             │                                                              │
-│ │          Call ProtocolRegistry<br/>registerProtocol         │                                                              │
-│ │                                                             │                                                              │
-│ └──────────────────────────────┬──────────────────────────────┘                                                              │
-│                                │                                                                                             │
-│                                │                                                                                             │
-│                                │                                                                                             │
-│                                │                                                                                             │
-│                                ▼                                                                                             │
-│ ┌─────────────────────────────────────────────────────────────┐                                                              │
-│ │                                                             │                                                              │
-│ │                  Transaction<br/>Confirmed?                 │    ├◄───────┬─────Fail────────────────┐                      │
-│ │                                                             │             │                         │                      │
-│ └──────────────────────────────┬──────────────────────────────┘             │                         │                      │
-│                             Pending                                         │                         │                      │
-│                                │                                            │                         │                      │
-│                             Success─────────────────────────────────────────┘                         │                      │
-│                                │                                                                      │                      │
-│                                ▼                                                                      ▼                      │
-│ ┌─────────────────────────────────────────────────────────────┐                 ┌──────────────────────────────────────────┐ │
-│ │                                                             │                 │                                          │ │
-│ │                     Store in PostgreSQL                     │                 │  Registration Failed<br/>Revert Reason   │ │
-│ │                                                             │                 │                                          │ │
-│ └──────────────────────────────┬──────────────────────────────┘                 └──────────────────────────────────────────┘ │
-│                                │                                                                                             │
-└────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────┘
-                                 │                                                                                              
-                                 │                                                                                              
-                                 │                                                                                              
-┌────────────────────────────────┼────────────────────────────────┐                                                             
-│                    "Storage & Notification"                     │                                                             
-│                                │                                │                                                             
-│                                ▼                                │                                                             
-│ ┌─────────────────────────────────────────────────────────────┐ │                                                             
-│ │                                                             │ │                                                             
-│ │            Cache Cloned Repo<br/>for Future Scans           │ │                                                             
-│ │                                                             │ │                                                             
-│ └──────────────────────────────┬──────────────────────────────┘ │                                                             
-│                                │                                │                                                             
-│                                │                                │                                                             
-│                                │                                │                                                             
-│                                │                                │                                                             
-│                                ▼                                │                                                             
-│ ┌─────────────────────────────────────────────────────────────┐ │                                                             
-│ │                                                             │ │                                                             
-│ │               Index for<br/>Researcher Agents               │ │                                                             
-│ │                                                             │ │                                                             
-│ └──────────────────────────────┬──────────────────────────────┘ │                                                             
-│                                │                                │                                                             
-│                                │                                │                                                             
-│                                │                                │                                                             
-│                                │                                │                                                             
-│                                ▼                                │                                                             
-│ ┌─────────────────────────────────────────────────────────────┐ │                                                             
-│ │                                                             │ │                                                             
-│ │        Emit WebSocket<br/>Event: protocol_registered        │ │                                                             
-│ │                                                             │ │                                                             
-│ └──────────────────────────────┬──────────────────────────────┘ │                                                             
-│                                │                                │                                                             
-│                                │                                │                                                             
-│                                │                                │                                                             
-│                                │                                │                                                             
-│                                ▼                                │                                                             
-│ ┌─────────────────────────────────────────────────────────────┐ │                                                             
-│ │                                                             │ │                                                             
-│ │             Dashboard Updates<br/>Protocol List             │ │                                                             
-│ │                                                             │ │                                                             
-│ └──────────────────────────────┬──────────────────────────────┘ │                                                             
-│                                │                                │                                                             
-└────────────────────────────────┼────────────────────────────────┘                                                             
-                                 │                                                                                              
-                                 │                                                                                              
-                                 ▼                                                                                              
-  ┌─────────────────────────────────────────────────────────────┐                                                               
-  │                                                             │                                                               
-  │              Prompt User:<br/>Fund Bounty Pool              │                                                               
-  │                                                             │                                                               
-  └──────────────────────────────┬──────────────────────────────┘                                                               
-                                 │                                                                                              
-                                 │                                                                                              
-                                 │                                                                                              
-                                 │                                                                                              
-                                 ▼                                                                                              
-  ┌─────────────────────────────────────────────────────────────┐                                                               
-  │                                                             │                                                               
-  │                 Continue to<br/>Funding Flow                │                                                               
-  │                                                             │                                                               
-  └─────────────────────────────────────────────────────────────┘                                                               
-```
+    subgraph "Backend - API Layer"
+        Submit --> Validate[Validate Input<br/>Zod Schema]
+        Validate -->|Invalid| Error1[Return 400<br/>Validation Error]
+        Validate -->|Valid| CheckDupe{GitHub URL Already<br/>Registered?}
+        CheckDupe -->|Yes| Error2[Return 409<br/>Already Exists]
+        CheckDupe -->|No| QueueReg[Queue Registration<br/>Job]
+    end
 
+    subgraph "Agent Layer - Protocol Agent"
+        QueueReg --> PA[Protocol Agent<br/>Receives Task]
+        PA --> CloneRepo[Clone GitHub Repo<br/>at Specified Branch/Commit]
+        CloneRepo -->|Invalid| Error3[Repo Not Found<br/>or Access Denied]
+        CloneRepo -->|Valid| FindContract[Locate Contract<br/>at contractPath]
+        FindContract -->|Not Found| Error5[Contract File<br/>Not Found]
+        FindContract -->|Found| CompileCode[Compile with Foundry<br/>Verify Bytecode]
+        CompileCode -->|Fail| Error6[Compilation<br/>Failed]
+        CompileCode -->|Success| Analyze[Initial Security<br/>Analysis]
+        Analyze --> CalcRisk[Calculate Risk<br/>Score]
+    end
+
+    subgraph "Blockchain Layer (Base Sepolia)"
+        CalcRisk --> RegisterOnChain[Call ProtocolRegistry<br/>registerProtocol]
+        RegisterOnChain --> WaitTx{Transaction<br/>Confirmed?}
+        WaitTx -->|Pending| WaitTx
+        WaitTx -->|Success| StoreDB[Store in PostgreSQL]
+        WaitTx -->|Fail| Error4[Registration Failed<br/>Revert Reason]
+    end
+
+    subgraph "Storage & Notification"
+        StoreDB --> CacheRepo[Cache Cloned Repo<br/>for Future Scans]
+        CacheRepo --> IndexProtocol[Index for<br/>Researcher Agents]
+        IndexProtocol --> NotifyWS[Emit WebSocket<br/>Event: protocol_registered]
+        NotifyWS --> UpdateDash[Dashboard Updates<br/>Protocol List]
+    end
+
+    UpdateDash --> FundPrompt[Prompt User:<br/>Fund Bounty Pool]
+    FundPrompt --> FundFlow[Continue to<br/>Funding Flow]
+
+    style User fill:#f0f0f0
+    style PA fill:#e1f5ff
+    style CloneRepo fill:#e1ffe1
+    style RegisterOnChain fill:#ffe1f0
+```
 
 ### Protocol Registration Sequence
 
+```mermaid
+sequenceDiagram
+    participant User as Protocol Owner
+    participant FE as Frontend
+    participant API as Backend API
+    participant PA as Protocol Agent
+    participant GH as GitHub
+    participant BC as Base Sepolia
+    participant DB as PostgreSQL
+    participant Cache as Code Cache
 
-```
-┌────────────────┐                                                   ┌──────────┐                       ┌─────────────┐            ┌────────────────┐                   ┌────────┐        ┌──────────────┐  ┌────────────┐  ┌────────────┐   
-│ Protocol Owner │                                                   │ Frontend │                       │ Backend API │            │ Protocol Agent │                   │ GitHub │        │ Base Sepolia │  │ PostgreSQL │  │ Code Cache │   
-└────────┬───────┘                                                   └─────┬────┘                       └──────┬──────┘            └────────┬───────┘                   └────┬───┘        └───────┬──────┘  └──────┬─────┘  └──────┬─────┘   
-         │                                                                 │                                   │                            │                                │                    │                │               │         
-         │  Fill registration form<br/>(githubUrl, branch, contractPath)   │                                   │                            │                                │                    │                │               │         
-         │─────────────────────────────────────────────────────────────────▶                                   │                            │                                │                    │                │               │         
-         │                                                                 │                                   │                            │                                │                    │                │               │         
-         │                                                                 │        POST /api/protocols        │                            │                                │                    │                │               │         
-         │                                                                 │───────────────────────────────────▶                            │                                │                    │                │               │         
-         │                                                                 │                                   │                            │                                │                    │                │               │         
-         │                                                                 │                                   ├───┐                        │                                │                    │                │               │         
-         │                                                                 │                                   │   │ Validate request (Zod) │                                │                    │                │               │         
-         │                                                                 │                                   ◀───┘                        │                                │                    │                │               │         
-         │                                                                 │                                   │                            │                                │                    │                │               │         
-         │                                                                 │                                   │  Queue registration task   │                                │                    │                │               │         
-         │                                                                 │                                   │────────────────────────────▶                                │                    │                │               │         
-         │                                                                 │                                   │                            │                                │                    │                │               │         
-         │                                                                 │                                   │                            │  Clone repo at branch/commit   │                    │                │               │         
-         │                                                                 │                                   │                            │────────────────────────────────▶                    │                │               │         
-         │                                                                 │                                   │                            │                                │                    │                │               │         
-         │                                                                 │                                   │                            │      Repository contents       │                    │                │               │         
-         │                                                                 │                                   │                            ◀╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌│                    │                │               │         
-         │                                                                 │                                   │                            │                                │                    │                │               │         
-         │                                                                 │                                   │                            ├───┐                            │                    │                │               │         
-         │                                                                 │                                   │                            │   │ Locate contract at contractPath                 │                │               │         
-         │                                                                 │                                   │                            ◀───┘                            │                    │                │               │         
-         │                                                                 │                                   │                            │                                │                    │                │               │         
-         │                                                                 │                                   │                            ├───┐                            │                    │                │               │         
-         │                                                                 │                                   │                            │   │ Compile with Foundry       │                    │                │               │         
-         │                                                                 │                                   │                            ◀───┘                            │                    │                │               │         
-         │                                                                 │                                   │                            │                                │                    │                │               │         
-         │                                                                 │                                   │                            ├───┐                            │                    │                │               │         
-         │                                                                 │                                   │                            │   │ Analyze & calculate risk score                  │                │               │         
-         │                                                                 │                                   │                            ◀───┘                            │                    │                │               │         
-         │                                                                 │                                   │                            │                                │                    │                │               │         
-         │                                                                 │                                   │                            │         registerProtocol(githubUrl, terms)          │                │               │         
-         │                                                                 │                                   │                            │─────────────────────────────────────────────────────▶                │               │         
-         │                                                                 │                                   │                            │                                │                    │                │               │         
-         │                                                                 │                                   │                            │                  Transaction hash                   │                │               │         
-         │                                                                 │                                   │                            ◀╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌│                │               │         
-         │                                                                 │                                   │                            │                                │                    │                │               │         
-         │                                                                 │                                   │                            │                Wait for confirmation                │                │               │         
-         │                                                                 │                                   │                            │─────────────────────────────────────────────────────▶                │               │         
-         │                                                                 │                                   │                            │                                │                    │                │               │         
-         │                                                                 │                                   │                            │                  Receipt (success)                  │                │               │         
-         │                                                                 │                                   │                            ◀╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌│                │               │         
-         │                                                                 │                                   │                            │                                │                    │                │               │         
-         │                                                                 │                                   │                            │                       INSERT protocol record        │                │               │         
-         │                                                                 │                                   │                            │──────────────────────────────────────────────────────────────────────▶               │         
-         │                                                                 │                                   │                            │                                │                    │                │               │         
-         │                                                                 │                                   │                            │                              Store compiled artifacts                │               │         
-         │                                                                 │                                   │                            │──────────────────────────────────────────────────────────────────────────────────────▶         
-         │                                                                 │                                   │                            │                                │                    │                │               │         
-         │                                                                 │                                   │   Registration complete    │                                │                    │                │               │         
-         │                                                                 │                                   ◀────────────────────────────│                                │                    │                │               │         
-         │                                                                 │                                   │                            │                                │                    │                │               │         
-         │                                                                 │  WebSocket: protocol_registered   │                            │                                │                    │                │               │         
-         │                                                                 ◀───────────────────────────────────│                            │                                │                    │                │               │         
-         │                                                                 │                                   │                            │                                │                    │                │               │         
-         │                   Show success + fund prompt                    │                                   │                            │                                │                    │                │               │         
-         ◀─────────────────────────────────────────────────────────────────│                                   │                            │                                │                    │                │               │         
-         │                                                                 │                                   │                            │                                │                    │                │               │         
-┌────────┴───────┐                                                   ┌─────┴────┐                       ┌──────┴──────┐            ┌────────┴───────┐                   ┌────┴───┐        ┌───────┴──────┐  ┌──────┴─────┐  ┌──────┴─────┐   
-│ Protocol Owner │                                                   │ Frontend │                       │ Backend API │            │ Protocol Agent │                   │ GitHub │        │ Base Sepolia │  │ PostgreSQL │  │ Code Cache │   
-└────────────────┘                                                   └──────────┘                       └─────────────┘            └────────────────┘                   └────────┘        └──────────────┘  └────────────┘  └────────────┘   
-```
+    User->>FE: Fill registration form<br/>(githubUrl, branch, contractPath)
+    FE->>API: POST /api/protocols
+    API->>API: Validate request (Zod)
+    API->>PA: Queue registration task
 
+    PA->>GH: Clone repo at branch/commit
+    GH-->>PA: Repository contents
+
+    PA->>PA: Locate contract at contractPath
+    PA->>PA: Compile with Foundry
+    PA->>PA: Analyze & calculate risk score
+
+    PA->>BC: registerProtocol(githubUrl, terms)
+    BC-->>PA: Transaction hash
+
+    PA->>BC: Wait for confirmation
+    BC-->>PA: Receipt (success)
+
+    PA->>DB: INSERT protocol record
+    PA->>Cache: Store compiled artifacts
+
+    PA->>API: Registration complete
+    API->>FE: WebSocket: protocol_registered
+    FE->>User: Show success + fund prompt
+```
 
 ---
 
 ## 3. Vulnerability Scanning Flow
 
+```mermaid
+flowchart TD
+    subgraph "Scan Scheduler"
+        Cron([Cron Job<br/>Every 5 min]) --> FetchActive[Fetch Active<br/>Protocols]
+        FetchActive --> PriorityQueue[Sort by Priority<br/>Last Scan Time]
+        PriorityQueue --> DistributeJobs[Distribute to<br/>Researcher Agents]
+    end
 
-```
-┌──────────────────────────────────────────┐                                                                                                                        
-│            "Scan Scheduler"              │                                                                                                                        
-│                                          │                                                                                                                        
-│                                          │                                                                                                                        
-│ ┌──────────────────────────────────────┐ │                                                                                                                        
-│ │                                      │ │                                                                                                                        
-│ │       Cron Job<br/>Every 5 min       │ │                                                                                                                        
-│ │                                      │ │                                                                                                                        
-│ └───────────────────┬──────────────────┘ │                                                                                                                        
-│                     │                    │                                                                                                                        
-│                     │                    │                                                                                                                        
-│                     │                    │                                                                                                                        
-│                     │                    │                                                                                                                        
-│                     ▼                    │                                                                                                                        
-│ ┌──────────────────────────────────────┐ │                                                                                                                        
-│ │                                      │ │                                                                                                                        
-│ │      Fetch Active<br/>Protocols      │ │                                                                                                                        
-│ │                                      │ │                                                                                                                        
-│ └───────────────────┬──────────────────┘ │                                                                                                                        
-│                     │                    │                                                                                                                        
-│                     │                    │                                                                                                                        
-│                     │                    │                                                                                                                        
-│                     │                    │                                                                                                                        
-│                     ▼                    │                                                                                                                        
-│ ┌──────────────────────────────────────┐ │                                                                                                                        
-│ │                                      │ │                                                                                                                        
-│ │ Sort by Priority<br/>Last Scan Time  │ │                                                                                                                        
-│ │                                      │ │                                                                                                                        
-│ └───────────────────┬──────────────────┘ │                                                                                                                        
-│                     │                    │                                                                                                                        
-│                     │                    │                                                                                                                        
-│                     │                    │                                                                                                                        
-│                     │                    │                                                                                                                        
-│                     ▼                    │                                                                                                                        
-│ ┌──────────────────────────────────────┐ │                                                                                                                        
-│ │                                      │ │                                                                                                                        
-│ │ Distribute to<br/>Researcher Agents  │ │                                                                                                                        
-│ │                                      │ │                                                                                                                        
-│ └───────────────────┬──────────────────┘ │                                                                                                                        
-│                     │                    │                                                                                                                        
-└─────────────────────┼────────────────────┘                                                                                                                        
-                      │                                                                                                                                             
-                      │                                                                                                                                             
-                      │                                                                                                                                             
-┌─────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                     │                                        "Researcher Agent - Static Analysis"                                                                │
-│                     │                                                                                                                                            │
-│                     ▼                                                                                                                                            │
-│ ┌──────────────────────────────────────┐                                                                                                                         │
-│ │                                      │                                                                                                                         │
-│ │ Researcher Agent<br/>Receives Target │                                                                                                                         │
-│ │                                      │                                                                                                                         │
-│ └───────────────────┬──────────────────┘                                                                                                                         │
-│                     │                                                                                                                                            │
-│                     │                                                                                                                                            │
-│                     │                                                                                                                                            │
-│                     │                                                                                                                                            │
-│                     ▼                                                                                                                                            │
-│ ┌──────────────────────────────────────┐                                                                                                                         │
-│ │                                      │                                                                                                                         │
-│ │     Fetch Contract<br/>Bytecode      │                                                                                                                         │
-│ │                                      │                                                                                                                         │
-│ └───────────────────┬──────────────────┘                                                                                                                         │
-│                     │                                                                                                                                            │
-│                     │                                                                                                                                            │
-│                     │                                                                                                                                            │
-│                     │                                                                                                                                            │
-│                     ▼                                                                                                                                            │
-│ ┌──────────────────────────────────────┐                                                                                                                         │
-│ │                                      │                                                                                                                         │
-│ │    Decompile to<br/>Readable Form    │                                                                                                                         │
-│ │                                      │                                                                                                                         │
-│ └───────────────────┬──────────────────┘                                                                                                                         │
-│                     │                                                                                                                                            │
-│                     │                                                                                                                                            │
-│                     │                                                                                                                                            │
-│                     │                                                                                                                                            │
-│                     ▼                                                                                                                                            │
-│ ┌──────────────────────────────────────┐                                                                                                                         │
-│ │                                      │                                                                                                                         │
-│ │   Run Static Analysis<br/>Patterns   ├─────┬────────────────────────┐                                                                                          │
-│ │                                      │     │                        │                                                                                          │
-│ └───────────────────┬──────────────────┘     └────────────────────────┼─────────────────────────────────────────┬────────────────────────────────┐               │
-│                     │                                                 │                                         │                                │               │
-│                     │                                                 │                                         │                                │               │
-│                     │                                                 │                                         │                                │               │
-│                     │                                                 │                                         │                                │               │
-│                     ▼                                                 ▼                                         ▼                                ▼               │
-│ ┌──────────────────────────────────────┐     ┌────────────────────────────────────────────────┐     ┌───────────────────────┐     ┌────────────────────────────┐ │
-│ │                                      │     │                                                │     │                       │     │                            │ │
-│ │          Check: Reentrancy           │     │                Check: Overflow                 │     │ Check: Access Control │     │ Check: Oracle Manipulation │ │
-│ │                                      │     │                                                │     │                       │     │                            │ │
-│ └───────────────────┬──────────────────┘     └────────────────────────┬───────────────────────┘     └───────────┬───────────┘     └──────────────┬─────────────┘ │
-│                     │                                                 │                                         │                                │               │
-└─────────────────────┼─────────────────────────────────────────────────┼─────────────────────────────────────────┼────────────────────────────────┼───────────────┘
-                      │                                                 │                                         │                                │                
-                      │                                                 │                                         │                                │                
-                      │                                                 │                                         │                                │                
-┌─────────────────────┼─────────────────────────────────────────────────┼─────────────────────────┐               │                                │                
-│                     │              "Vulnerability Detection"          │                         │               │                                │                
-│                     │                                                 │                         │               │                                │                
-│                     ▼                                                 │                         │               │                                │                
-│ ┌──────────────────────────────────────┐                              │                         │               │                                │                
-│ │                                      │                              │                         │               │                                │                
-│ │      Vulnerabilities<br/>Found?      ├◄────────────Yes──────────────┼─────────────────────────┼───────────────┴────────────────────────────────┘                
-│ │                                      │                              │                         │                                                                 
-│ └───────────────────┬──────────────────┘                              │                         │                                                                 
-│                     │                                                 │                         │                                                                 
-│                     │                                                 │                         │                                                                 
-│                    No                                                 │                         │                                                                 
-│                     │                                                 │                         │                                                                 
-│                     ▼                                                 ▼                         │                                                                 
-│ ┌──────────────────────────────────────┐     ┌────────────────────────────────────────────────┐ │                                                                 
-│ │                                      │     │                                                │ │                                                                 
-│ │ Log: Clean Scan<br/>Update Timestamp │     │ Classify Severity<br/>Critical/High/Medium/Low │ │                                                                 
-│ │                                      │     │                                                │ │                                                                 
-│ └───────────────────┬──────────────────┘     └────────────────────────┬───────────────────────┘ │                                                                 
-│                     │                                                 │                         │                                                                 
-└─────────────────────┼─────────────────────────────────────────────────┼─────────────────────────┘                                                                 
-                      │                                                 │                                                                                           
-                      │                                                 │                                                                                           
-                      │                                                 │                                                                                           
-┌─────────────────────┼─────────────────────────────────────────────────┼─────────────────────────┐                                                                 
-│                     │                 "Proof Generation"              │                         │                                                                 
-│                     │                                                 │                         │                                                                 
-│                     ▼                                                 ▼                         │                                                                 
-│ ┌──────────────────────────────────────┐     ┌────────────────────────────────────────────────┐ │                                                                 
-│ │                                      │     │                                                │ │                                                                 
-│ │    Update Last Scan<br/>Timestamp    │     │     Generate Exploit<br/>Proof-of-Concept      │ │                                                                 
-│ │                                      │     │                                                │ │                                                                 
-│ └──────────────────────────────────────┘     └────────────────────────┬───────────────────────┘ │                                                                 
-│                                                                       │                         │                                                                 
-│                                                                       │                         │                                                                 
-│                                                                       │                         │                                                                 
-│                                                                       │                         │                                                                 
-│                                                                       │                         │                                                                 
-│ ┌──────────────────────────────────────┐                              │                         │                                                                 
-│ │                                      │                              │                         │                                                                 
-│ │      Document Exploit<br/>Steps      │◄─────────────────────────────┘                         │                                                                 
-│ │                                      │                                                        │                                                                 
-│ └───────────────────┬──────────────────┘                                                        │                                                                 
-│                     │                                                                           │                                                                 
-│                     │                                                                           │                                                                 
-│                     │                                                                           │                                                                 
-│                     │                                                                           │                                                                 
-│                     ▼                                                                           │                                                                 
-│ ┌──────────────────────────────────────┐                                                        │                                                                 
-│ │                                      │                                                        │                                                                 
-│ │      Encrypt Proof<br/>Payload       │                                                        │                                                                 
-│ │                                      │                                                        │                                                                 
-│ └───────────────────┬──────────────────┘                                                        │                                                                 
-│                     │                                                                           │                                                                 
-│                     │                                                                           │                                                                 
-│                     │                                                                           │                                                                 
-│                     │                                                                           │                                                                 
-│                     ▼                                                                           │                                                                 
-│ ┌──────────────────────────────────────┐                                                        │                                                                 
-│ │                                      │                                                        │                                                                 
-│ │      Store in IPFS<br/>Get CID       │                                                        │                                                                 
-│ │                                      │                                                        │                                                                 
-│ └───────────────────┬──────────────────┘                                                        │                                                                 
-│                     │                                                                           │                                                                 
-│                     │                                                                           │                                                                 
-│                     │                                                                           │                                                                 
-│                     │                                                                           │                                                                 
-│                     ▼                                                                           │                                                                 
-│ ┌──────────────────────────────────────┐                                                        │                                                                 
-│ │                                      │                                                        │                                                                 
-│ │    Submit to<br/>Validator Agent     │                                                        │                                                                 
-│ │                                      │                                                        │                                                                 
-│ └───────────────────┬──────────────────┘                                                        │                                                                 
-│                     │                                                                           │                                                                 
-└─────────────────────┼───────────────────────────────────────────────────────────────────────────┘                                                                 
-                      │                                                                                                                                             
-                      │                                                                                                                                             
-                      ▼                                                                                                                                             
-  ┌──────────────────────────────────────┐                                                                                                                          
-  │                                      │                                                                                                                          
-  │  Log Finding<br/>Pending Validation  │                                                                                                                          
-  │                                      │                                                                                                                          
-  └──────────────────────────────────────┘                                                                                                                          
-```
+    subgraph "Researcher Agent - Static Analysis"
+        DistributeJobs --> RA[Researcher Agent<br/>Receives Target]
+        RA --> FetchBytecode[Fetch Contract<br/>Bytecode]
+        FetchBytecode --> Decompile[Decompile to<br/>Readable Form]
+        Decompile --> StaticScan[Run Static Analysis<br/>Patterns]
 
+        StaticScan --> CheckReentrancy[Check: Reentrancy]
+        StaticScan --> CheckOverflow[Check: Overflow]
+        StaticScan --> CheckAccess[Check: Access Control]
+        StaticScan --> CheckOracle[Check: Oracle Manipulation]
+    end
+
+    subgraph "Vulnerability Detection"
+        CheckReentrancy --> Findings{Vulnerabilities<br/>Found?}
+        CheckOverflow --> Findings
+        CheckAccess --> Findings
+        CheckOracle --> Findings
+
+        Findings -->|No| LogClean[Log: Clean Scan<br/>Update Timestamp]
+        Findings -->|Yes| Classify[Classify Severity<br/>Critical/High/Medium/Low]
+    end
+
+    subgraph "Proof Generation"
+        Classify --> GenExploit[Generate Exploit<br/>Proof-of-Concept]
+        GenExploit --> CreateSteps[Document Exploit<br/>Steps]
+        CreateSteps --> EncryptProof[Encrypt Proof<br/>Payload]
+        EncryptProof --> StoreIPFS[Store in IPFS<br/>Get CID]
+        StoreIPFS --> SubmitToValidator[Submit to<br/>Validator Agent]
+    end
+
+    LogClean --> UpdateDB1[Update Last Scan<br/>Timestamp]
+    SubmitToValidator --> UpdateDB2[Log Finding<br/>Pending Validation]
+
+    style Cron fill:#f0e1ff
+    style RA fill:#ffe1e1
+    style Findings fill:#fff4e1
+```
 
 ### Vulnerability Detection Patterns
 
+```mermaid
+flowchart LR
+    subgraph "Detection Rules"
+        R1[Reentrancy<br/>call before state update]
+        R2[Integer Overflow<br/>unchecked math pre-0.8]
+        R3[Access Control<br/>missing onlyOwner]
+        R4[Oracle Manipulation<br/>single-block price]
+        R5[Flash Loan<br/>unsafe callback]
+    end
 
-```
-┌─────────────────────────────────────────────────┬───────────────────────────────────────┐  
-│                "Detection Rules"  "Bounty Multiplier"                                   │  
-│                                                 │                                       │  
-│                                                 │                                       │  
-│ ┌─────────────────────────────────────────────┐ │    ┌────────────┐      ┌────────────┐ │  
-│ │                                             │ │    │            │      │            │ │  
-│ │   Reentrancy<br/>call before state update   ├─┼─┬─►│  Critical  ├2.0x─►│ Base * 2.0 │ │  
-│ │                                             │ │ │  │            │      │            │ │  
-│ └─────────────────────────────────────────────┘ │ │  └────────────┘      └────────────┘ │  
-│                                                 │ │                                     │  
-│                                                 │ │                                     │  
-│                                                 │ │                                     │  
-│                                                 │ │                                     │  
-│                                                 │ │                                     │  
-│ ┌─────────────────────────────────────────────┐ │ │  ┌────────────┐      ┌────────────┐ │  
-│ │                                             │ │ │  │            │      │            │ │  
-│ │ Integer Overflow<br/>unchecked math pre-0.8 ├─┼─┼─►│    High    ├1.5x─►│ Base * 1.5 │ │  
-│ │                                             │ │ │  │            │      │            │ │  
-│ └─────────────────────────────────────────────┘ │ │  └────────────┘      └────────────┘ │  
-│                                                 │ │                                     │  
-│                                                 │ │                                     │  
-│                        ┌────────────────────────┼─┤                                     │  
-│                        │                        │ │                                     │  
-│                        │                        │ │                                     │  
-│ ┌──────────────────────┴──────────────────────┐ │ │  ┌────────────┐                     │  
-│ │                                             │ │ │  │            │                     │  
-│ │     Access Control<br/>missing onlyOwner    │ │ ├─►│ Base * 1.0 │                     │  
-│ │                                             │ │ │  │            │                     │  
-│ └─────────────────────────────────────────────┘ │ │  └────────────┘                     │  
-│                                                 │ │                                     │  
-│                                                 │ │                                     │  
-│                        ┌────────────────────────┼─┤                                     │  
-│                        │                        │ │                                     │  
-│                        │                        │ │                                     │  
-│ ┌──────────────────────┴──────────────────────┐ │ │  ┌────────────┐                     │  
-│ │                                             │ │ │  │            │                     │  
-│ │  Oracle Manipulation<br/>single-block price │ │ │  │ Base * 0.5 │                     │  
-│ │                                             │ │ │  │            │                     │  
-│ └─────────────────────────────────────────────┘ │ │  └────────────┘                     │  
-│                                                 │ │         ▲                           │  
-│                                                 │ │         │                           │  
-│                        ┌────────────────────────┼─┤         │                           │  
-│                        │                        │ │         │                           │  
-│                        │                        │ │         │                           │  
-│ ┌──────────────────────┴──────────────────────┐ │ │         │                           │  
-│ │                                             │ │ │         │                           │  
-│ │        Flash Loan<br/>unsafe callback       │ │ │         │                           │  
-│ │                                             │ │ │         │                           │  
-│ └─────────────────────────────────────────────┘ │ │         │                           │  
-│                                                 │ │         │                           │  
-├─────────────────────────────────────────────────┘ │         │                           │  
-│                        ┌──────────────────────────┘         │                           │  
-│                      1.0x                                   │                           │  
-│                        │                                    │                           │  
-│ ┌──────────────────────┴──────────────────────┐             │                           │  
-│ │                                             │             │                           │  
-│ │                    Medium                   │             │                           │  
-│ │                                             │             │                           │  
-│ └─────────────────────────────────────────────┘             │                           │  
-│                                                             │                           │  
-│                                                             │                           │  
-│                                                             │                           │  
-│                                                             │                           │  
-│                                                             │                           │  
-│ ┌─────────────────────────────────────────────┐             │                           │  
-│ │                                             │             │                           │  
-│ │                     Low                     ├────0.5x─────┘                           │  
-│ │                                             │                                         │  
-│ └─────────────────────────────────────────────┘                                         │  
-│                                                                                         │  
-└─────────────────────────────────────────────────────────────────────────────────────────┘  
-```
+    subgraph "Severity Classification"
+        R1 --> Critical
+        R2 --> High
+        R5 --> Critical
+        R3 --> High
+        R4 --> Critical
+    end
 
+    subgraph "Bounty Multiplier"
+        Critical -->|2.0x| Payout1[Base * 2.0]
+        High -->|1.5x| Payout2[Base * 1.5]
+        Medium -->|1.0x| Payout3[Base * 1.0]
+        Low -->|0.5x| Payout4[Base * 0.5]
+    end
+
+    style Critical fill:#ff6b6b
+    style High fill:#ffa06b
+    style Medium fill:#ffd56b
+    style Low fill:#6bff6b
+```
 
 ---
 
@@ -758,247 +258,108 @@
 
 **Cross-Chain Validation:** Execute on Local Anvil → Record on Base Sepolia
 
+```mermaid
+flowchart TD
+    subgraph "Validator Agent Receives Proof"
+        Receive([Receive Encrypted<br/>Proof from RA]) --> Decrypt[Decrypt Proof<br/>Payload]
+        Decrypt --> Parse[Parse Exploit<br/>Instructions]
+        Parse --> Validate{Valid Proof<br/>Format?}
+        Validate -->|No| Reject1[Reject: Invalid Format<br/>Notify RA]
+        Validate -->|Yes| PrepSandbox[Prepare Sandbox<br/>Environment]
+    end
 
-```
-┌────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                                       "Validator Agent Receives Proof"                                         │
-│                                                                                                                │
-│                                                                                                                │
-│ ┌───────────────────────────────────────────────────┐                                                          │
-│ │                                                   │                                                          │
-│ │        Receive Encrypted<br/>Proof from RA        │                                                          │
-│ │                                                   │                                                          │
-│ └─────────────────────────┬─────────────────────────┘                                                          │
-│                           │                                                                                    │
-│                           │                                                                                    │
-│                           │                                                                                    │
-│                           │                                                                                    │
-│                           ▼                                                                                    │
-│ ┌───────────────────────────────────────────────────┐                                                          │
-│ │                                                   │                                                          │
-│ │             Decrypt Proof<br/>Payload             │                                                          │
-│ │                                                   │                                                          │
-│ └─────────────────────────┬─────────────────────────┘                                                          │
-│                           │                                                                                    │
-│                           │                                                                                    │
-│                           │                                                                                    │
-│                           │                                                                                    │
-│                           ▼                                                                                    │
-│ ┌───────────────────────────────────────────────────┐                                                          │
-│ │                                                   │                                                          │
-│ │           Parse Exploit<br/>Instructions          │                                                          │
-│ │                                                   │                                                          │
-│ └─────────────────────────┬─────────────────────────┘                                                          │
-│                           │                                                                                    │
-│                           │                                                                                    │
-│                           │                                                                                    │
-│                           │                                                                                    │
-│                           ▼                                                                                    │
-│ ┌───────────────────────────────────────────────────┐                                                          │
-│ │                                                   │                                                          │
-│ │              Valid Proof<br/>Format?              ├──────────────Yes──────────────┐                          │
-│ │                                                   │                               │                          │
-│ └─────────────────────────┬─────────────────────────┘                               │                          │
-│                           │                                                         │                          │
-│                           │                                                         │                          │
-│                          No                                                         │                          │
-│                           │                                                         │                          │
-│                           ▼                                                         ▼                          │
-│ ┌───────────────────────────────────────────────────┐     ┌──────────────────────────────────────────────────┐ │
-│ │                                                   │     │                                                  │ │
-│ │        Reject: Invalid Format<br/>Notify RA       │     │         Prepare Sandbox<br/>Environment          │ │
-│ │                                                   │     │                                                  │ │
-│ └───────────────────────────────────────────────────┘     └─────────────────────────┬────────────────────────┘ │
-│                                                                                     │                          │
-└─────────────────────────────────────────────────────────────────────────────────────┼──────────────────────────┘
-                                                                                      │                           
-                                                                                      │                           
-                                                                                      │                           
-┌───────────────────────────────────────────────────────┐                             │                           
-│          "LOCAL ANVIL - Sandbox (Port 8546)"          │                             │                           
-│                                                       │                             │                           
-│                                                       │                             │                           
-│ ┌───────────────────────────────────────────────────┐ │                             │                           
-│ │                                                   │ │                             │                           
-│ │    Spawn Sandbox Anvil<br/>Fork from Port 8545    │◄┼─────────────────────────────┘                           
-│ │                                                   │ │                                                         
-│ └─────────────────────────┬─────────────────────────┘ │                                                         
-│                           │                           │                                                         
-│                           │                           │                                                         
-│                           │                           │                                                         
-│                           │                           │                                                         
-│                           ▼                           │                                                         
-│ ┌───────────────────────────────────────────────────┐ │                                                         
-│ │                                                   │ │                                                         
-│ │   Copy Target Contract<br/>State from Main Anvil  │ │                                                         
-│ │                                                   │ │                                                         
-│ └─────────────────────────┬─────────────────────────┘ │                                                         
-│                           │                           │                                                         
-│                           │                           │                                                         
-│                           │                           │                                                         
-│                           │                           │                                                         
-│                           ▼                           │                                                         
-│ ┌───────────────────────────────────────────────────┐ │                                                         
-│ │                                                   │ │                                                         
-│ │         Setup Required<br/>State Variables        │ │                                                         
-│ │                                                   │ │                                                         
-│ └─────────────────────────┬─────────────────────────┘ │                                                         
-│                           │                           │                                                         
-│                           │                           │                                                         
-│                           │                           │                                                         
-│                           │                           │                                                         
-│                           ▼                           │                                                         
-│ ┌───────────────────────────────────────────────────┐ │                                                         
-│ │                                                   │ │                                                         
-│ │            Deploy Exploit<br/>Contract            │ │                                                         
-│ │                                                   │ │                                                         
-│ └─────────────────────────┬─────────────────────────┘ │                                                         
-│                           │                           │                                                         
-└───────────────────────────┼───────────────────────────┘                                                         
-                            │                                                                                     
-                            │                                                                                     
-                            │                                                                                     
-┌───────────────────────────┼────────────────────────────────────────────────────────────────────────────────────┐
-│                           │           "LOCAL ANVIL - Exploit Execution"                                        │
-│                           │                                                                                    │
-│                           ▼                                                                                    │
-│ ┌───────────────────────────────────────────────────┐                                                          │
-│ │                                                   │                                                          │
-│ │          Execute Exploit<br/>Transaction          │                                                          │
-│ │                                                   │                                                          │
-│ └─────────────────────────┬─────────────────────────┘                                                          │
-│                           │                                                                                    │
-│                           │                                                                                    │
-│                           │                                                                                    │
-│                           │                                                                                    │
-│                           ▼                                                                                    │
-│ ┌───────────────────────────────────────────────────┐                                                          │
-│ │                                                   │                                                          │
-│ │             Capture State<br/>Changes             │                                                          │
-│ │                                                   │                                                          │
-│ └─────────────────────────┬─────────────────────────┘                                                          │
-│                           │                                                                                    │
-│                           │                                                                                    │
-│                           │                                                                                    │
-│                           │                                                                                    │
-│                           ▼                                                                                    │
-│ ┌───────────────────────────────────────────────────┐                                                          │
-│ │                                                   │                                                          │
-│ │              Exploit<br/>Successful?              ├──────────────Yes──────────────┐                          │
-│ │                                                   │                               │                          │
-│ └─────────────────────────┬─────────────────────────┘                               │                          │
-│                           │                                                         │                          │
-│                           │                                                         │                          │
-│                          No                                                         │                          │
-│                           │                                                         │                          │
-│                           ▼                                                         ▼                          │
-│ ┌───────────────────────────────────────────────────┐     ┌──────────────────────────────────────────────────┐ │
-│ │                                                   │     │                                                  │ │
-│ │          Record: FALSE<br/>Exploit Failed         │     │     Record: TRUE<br/>Vulnerability Confirmed     │ │
-│ │                                                   │     │                                                  │ │
-│ └─────────────────────────┬─────────────────────────┘     └─────────────────────────┬────────────────────────┘ │
-│                           │                                                         │                          │
-└───────────────────────────┼─────────────────────────────────────────────────────────┼──────────────────────────┘
-                            │                                                         │                           
-                            │                                                         │                           
-                            │                                                         │                           
-┌───────────────────────────┼─────────────────────────────────────────────────────────┼──────────────────────────┐
-│                           │           "BASE SEPOLIA - Registry Update"              │                          │
-│                           │                                                         │                          │
-│                           ▼                                                         ▼                          │
-│ ┌───────────────────────────────────────────────────┐     ┌──────────────────────────────────────────────────┐ │
-│ │                                                   │     │                                                  │ │
-│ │ Update ERC-8004<br/>on Sepolia<br/>Status = FALSE │     │ Update ERC-8004<br/>on Sepolia<br/>Status = TRUE │ │
-│ │                                                   │     │                                                  │ │
-│ └─────────────────────────┬─────────────────────────┘     └─────────────────────────┬────────────────────────┘ │
-│                           │                                                         │                          │
-│                           │                                                         │                          │
-│                           │                                                         │                          │
-│                           │                                                         │                          │
-│                           ▼                                                         ▼                          │
-│ ┌───────────────────────────────────────────────────┐     ┌──────────────────────────────────────────────────┐ │
-│ │                                                   │     │                                                  │ │
-│ │          Notify RA:<br/>Validation Failed         │     │     Trigger x402 Payment<br/>on Base Sepolia     │ │
-│ │                                                   │     │                                                  │ │
-│ └─────────────────────────┬─────────────────────────┘     └─────────────────────────┬────────────────────────┘ │
-│                           │                                                         │                          │
-└───────────────────────────┼─────────────────────────────────────────────────────────┼──────────────────────────┘
-                            │                                                         │                           
-                            │                                                         │                           
-                            │                                                         │                           
-┌───────────────────────────┼───────────────────────────┐                             │                           
-│                       "Cleanup"                       │                             │                           
-│                           │                           │                             │                           
-│                           ▼                           │                             │                           
-│ ┌───────────────────────────────────────────────────┐ │                             │                           
-│ │                                                   │ │                             │                           
-│ │        Destroy Sandbox<br/>Clean Resources        │◄┼─────────────────────────────┘                           
-│ │                                                   │ │                                                         
-│ └─────────────────────────┬─────────────────────────┘ │                                                         
-│                           │                           │                                                         
-│                           │                           │                                                         
-│                           │                           │                                                         
-│                           │                           │                                                         
-│                           ▼                           │                                                         
-│ ┌───────────────────────────────────────────────────┐ │                                                         
-│ │                                                   │ │                                                         
-│ │           Ready for Next<br/>Validation           │ │                                                         
-│ │                                                   │ │                                                         
-│ └───────────────────────────────────────────────────┘ │                                                         
-│                                                       │                                                         
-└───────────────────────────────────────────────────────┘                                                         
-```
+    subgraph "LOCAL ANVIL - Sandbox (Port 8546)"
+        PrepSandbox --> SpawnAnvil[Spawn Sandbox Anvil<br/>Fork from Port 8545]
+        SpawnAnvil --> CopyState[Copy Target Contract<br/>State from Main Anvil]
+        CopyState --> SetupState[Setup Required<br/>State Variables]
+        SetupState --> DeployExploit[Deploy Exploit<br/>Contract]
+    end
 
+    subgraph "LOCAL ANVIL - Exploit Execution"
+        DeployExploit --> ExecuteExploit[Execute Exploit<br/>Transaction]
+        ExecuteExploit --> CaptureState[Capture State<br/>Changes]
+        CaptureState --> AnalyzeResult{Exploit<br/>Successful?}
+
+        AnalyzeResult -->|No| RecordFail[Record: FALSE<br/>Exploit Failed]
+        AnalyzeResult -->|Yes| RecordSuccess[Record: TRUE<br/>Vulnerability Confirmed]
+    end
+
+    subgraph "BASE SEPOLIA - Registry Update"
+        RecordFail --> UpdateReg1[Update ERC-8004<br/>on Sepolia<br/>Status = FALSE]
+        RecordSuccess --> UpdateReg2[Update ERC-8004<br/>on Sepolia<br/>Status = TRUE]
+
+        UpdateReg1 --> NotifyRA1[Notify RA:<br/>Validation Failed]
+        UpdateReg2 --> TriggerPayment[Trigger x402 Payment<br/>on Base Sepolia]
+    end
+
+    subgraph "Cleanup"
+        NotifyRA1 --> Cleanup[Destroy Sandbox<br/>Clean Resources]
+        TriggerPayment --> Cleanup
+        Cleanup --> Ready([Ready for Next<br/>Validation])
+    end
+
+    style Receive fill:#e1ffe1
+    style SpawnAnvil fill:#fff4e1
+    style CopyState fill:#fff4e1
+    style ExecuteExploit fill:#fff4e1
+    style AnalyzeResult fill:#fff4e1
+    style UpdateReg1 fill:#ffe1f0
+    style UpdateReg2 fill:#ffe1f0
+    style TriggerPayment fill:#ffe1f0
+```
 
 ### Sandbox Isolation (Local Anvil)
 
+```mermaid
+flowchart TB
+    subgraph "Host System"
+        Backend[Backend Service]
+    end
 
-```
-┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                                                                                                     "LOCAL ANVIL - Sandbox (Port 8546)"                                                                                                      │
-│                                                                                                                                                                                                                                              │
-│                                                                                                                                                                                                                                              │
-│ ┌───────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────┬────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐ │
-│ │                                                 "Forked State"                                                  │                       "Exploit Execution"                                                                              │ │
-│ │                                                           │                                                     │                                                                                                                        │ │
-│ │                                                           │                                                     │                                                                                                                        │ │
-│ │ ┌────────────────────────────────────────────┐            │ ┌─────────────────────────────────────────────────┐ │                        ┌───────────────────────────────────────────────┐         ┌───────────────────────────────────┐ │ │
-│ │ │                                            │            │ │                                                 │ │                        │                                               │         │                                   │ │ │
-│ │ │              Backend Service               ├◄─┐         │ │          Anvil Sandbox<br/>Chain 31338          │ │                        │            Target Contract<br/>Copy├◄────3.─Attack──────┤          Exploit Contract         │ │ │
-│ │ │                                            │  │         │ │                                                 │ │                        │                                          │    │         │                                   │ │ │
-│ │ └──────────────────────┬─────────────────────┘  │         │ └─────────────────────────────────────────────────┘ │                        └──────────────────────────────────────────┼────┘         └───────────────────────────────────┘ │ │
-│ │                        │                        │         │                                                     │                                                                   │                                ▲                   │ │
-│ │                        │                        │         │                                                     │                                                                   │                                │                   │ │
-│ │                        │                        │         │                                                     │                                                                   │                                │                   │ │
-│ │                        │                        │         │                                                     │                                                                   │                                │                   │ │
-│ │                  1. Fork state                  └─────────2.─Deploy─exploit──────────┬─────────6.─Update─registry───────5.─Report─TRUE/FALSE─────────────────────┬──────────────────┴───────4.─State─changes─────────┤                   │ │
-│ ├────────────────────────┼───────────────────────┐          │                          │                          │          │                                     │                                                   │                   │ │
-│ │              "Target Contracts"                │          │                          │                          │          │                                     │                                                   │                   │ │
-│ │                        │                       │          │                          │                          │          │                                     │                                                   │                   │ │
-│ │                        ▼                       │          │                          ▼                          │          │                                     ▼                                                   ▼                   │ │
-│ │ ┌────────────────────────────────────────────┐ │          │ ┌─────────────────────────────────────────────────┐ │          │             ┌───────────────────────────────────────────────┐         ┌─────────────────┴─────────────────┐ │ │
-│ │ │                                            │ │          │ │                                                 │ │          │             │                                               │         │                                   │ │ │
-│ │ │ VulnerableVault<br/>MockDeFi<br/>TestToken │ │          │ │              Forge Test<br/>Runner              │├┼──────────┘             │               ERC-8004 Registry               │         │          Execution Result         │ │ │
-│ │ │                                            │ │          │ │                                                 │ │                        │                                               │         │                                   │ │ │
-│ │ └──────────────────────┬─────────────────────┘ │          │ └─────────────────────────────────────────────────┘ │                        └───────────────────────┬───────────────────────┘         └───────────────────────────────────┘ │ │
-│ │                        │                       │          │                                                     │                                                │                                                                       │ │
-│ ├────────────────────────┼───────────────────────┘          └─────────────────────────────────────────────────────┼────────────────────────────────────────────────┼───────────────────────────────────────────────────────────────────────┘ │
-│ │                      Copy                                                                                       │                                                │                                                                         │
-│ │                        │                                                                                        │                                       7. Trigger payment                                                                 │
-│ │                        ▼                                                                                        │                                                │                                                                         │
-│ │ ┌────────────────────────────────────────────┐              ┌─────────────────────────────────────────────────┐ │                                                │                                                                         │
-│ │ │                                            │              │                                                 │ │                                                │                                                                         │
-│ │ │       State Fork<br/>from Main Anvil       │              │                    BountyPool                   │ ◄────────────────────────────────────────────────┘                                                                         │
-│ │ │                                            │              │                                                 │ │                                                                                                                          │
-│ │ └────────────────────────────────────────────┘              └─────────────────────────────────────────────────┘ │                                                                                                                          │
-│ │                                                                                                                 │                                                                                                                          │
-│ └─────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘                                                                                                                          │
-│                                                                                                                                                                                                                                              │
-└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
-                                                                                                                                                                                                                                                
-                                                                                                                                                                                                                                                
-```
+    subgraph "LOCAL ANVIL - Main (Port 8545)"
+        subgraph "Target Contracts"
+            TargetMain[VulnerableVault<br/>MockDeFi<br/>TestToken]
+        end
+    end
 
+    subgraph "LOCAL ANVIL - Sandbox (Port 8546)"
+        subgraph "Forked State"
+            Anvil[Anvil Sandbox<br/>Chain 31338]
+            Fork[State Fork<br/>from Main Anvil]
+        end
+
+        subgraph "Exploit Execution"
+            Target[Target Contract<br/>Copy]
+            Exploit[Exploit Contract]
+            Forge[Forge Test<br/>Runner]
+        end
+    end
+
+    subgraph "BASE SEPOLIA (Chain 84532)"
+        Registry[ERC-8004 Registry]
+        Payment[BountyPool]
+    end
+
+    Backend -->|1. Fork state| TargetMain
+    TargetMain -->|Copy| Fork
+
+    Backend -->|2. Deploy exploit| Forge
+    Forge --> Exploit
+    Exploit -->|3. Attack| Target
+
+    Target -->|4. State changes| Result[Execution Result]
+    Result -->|5. Report TRUE/FALSE| Backend
+
+    Backend -->|6. Update registry| Registry
+    Registry -->|7. Trigger payment| Payment
+
+    style TargetMain fill:#fff4e1
+    style Anvil fill:#fff4e1
+    style Fork fill:#fff4e1
+    style Exploit fill:#ffe1e1
+    style Registry fill:#ffe1f0
+    style Payment fill:#ffe1f0
+```
 
 ---
 
@@ -1006,577 +367,363 @@
 
 **All payments occur on Base Sepolia (Chain 84532) using testnet USDC**
 
+```mermaid
+flowchart TD
+    subgraph "BASE SEPOLIA - Payment Trigger"
+        RegistryUpdate([ERC-8004 Registry<br/>Status = TRUE<br/>Chain 84532]) --> EventEmit[Emit ValidationConfirmed<br/>Event on Sepolia]
+        EventEmit --> ContractListen[BountyPool Contract<br/>Listens for Event]
+    end
 
-```
-┌─────────────────────────────────────────────────────────┐                                                                                                                         
-│            "BASE SEPOLIA - Payment Trigger"             │                                                                                                                         
-│                                                         │                                                                                                                         
-│                                                         │                                                                                                                         
-│ ┌─────────────────────────────────────────────────────┐ │                                                                                                                         
-│ │                                                     │ │                                                                                                                         
-│ │ ERC-8004 Registry<br/>Status = TRUE<br/>Chain 84532 │ │                                                                                                                         
-│ │                                                     │ │                                                                                                                         
-│ └──────────────────────────┬──────────────────────────┘ │                                                                                                                         
-│                            │                            │                                                                                                                         
-│                            │                            │                                                                                                                         
-│                            │                            │                                                                                                                         
-│                            │                            │                                                                                                                         
-│                            ▼                            │                                                                                                                         
-│ ┌─────────────────────────────────────────────────────┐ │                                                                                                                         
-│ │                                                     │ │                                                                                                                         
-│ │    Emit ValidationConfirmed<br/>Event on Sepolia    │ │                                                                                                                         
-│ │                                                     │ │                                                                                                                         
-│ └──────────────────────────┬──────────────────────────┘ │                                                                                                                         
-│                            │                            │                                                                                                                         
-│                            │                            │                                                                                                                         
-│                            │                            │                                                                                                                         
-│                            │                            │                                                                                                                         
-│                            ▼                            │                                                                                                                         
-│ ┌─────────────────────────────────────────────────────┐ │                                                                                                                         
-│ │                                                     │ │                                                                                                                         
-│ │      BountyPool Contract<br/>Listens for Event      │ │                                                                                                                         
-│ │                                                     │ │                                                                                                                         
-│ └──────────────────────────┬──────────────────────────┘ │                                                                                                                         
-│                            │                            │                                                                                                                         
-└────────────────────────────┼────────────────────────────┘                                                                                                                         
-                             │                                                                                                                                                      
-                             │                                                                                                                                                      
-                             │                                                                                                                                                      
-┌────────────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────────────┐                                             
-│                            │                   "BASE SEPOLIA - Payment Calculation"                                                 │                                             
-│                            │                                                                                                        │                                             
-│                            ▼                                                                                                        │                                             
-│ ┌─────────────────────────────────────────────────────┐                                                                             │                                             
-│ │                                                     │                                                                             │                                             
-│ │             Fetch Validation<br/>Details            │                                                                             │                                             
-│ │                                                     │                                                                             │                                             
-│ └──────────────────────────┬──────────────────────────┘                                                                             │                                             
-│                            │                                                                                                        │                                             
-│                            │                                                                                                        │                                             
-│                            │                                                                                                        │                                             
-│                            │                                                                                                        │                                             
-│                            ▼                                                                                                        │                                             
-│ ┌─────────────────────────────────────────────────────┐                                                                             │                                             
-│ │                                                     │                                                                             │                                             
-│ │            Get Vulnerability<br/>Severity           │                                                                             │                                             
-│ │                                                     │                                                                             │                                             
-│ └──────────────────────────┬──────────────────────────┘                                                                             │                                             
-│                            │                                                                                                        │                                             
-│                            │                                                                                                        │                                             
-│                            │                                                                                                        │                                             
-│                            │                                                                                                        │                                             
-│                            ▼                                                                                                        │                                             
-│ ┌─────────────────────────────────────────────────────┐                                                                             │                                             
-│ │                                                     │                                                                             │                                             
-│ │        Calculate Bounty<br/>Base * Multiplier       │                                                                             │                                             
-│ │                                                     │                                                                             │                                             
-│ └──────────────────────────┬──────────────────────────┘                                                                             │                                             
-│                            │                                                                                                        │                                             
-│                            │                                                                                                        │                                             
-│                            │                                                                                                        │                                             
-│                            │                                                                                                        │                                             
-│                            ▼                                                                                                        │                                             
-│ ┌─────────────────────────────────────────────────────┐                                                                             │                                             
-│ │                                                     │                                                                             │                                             
-│ │            Pool Has<br/>Sufficient USDC?            │   ├───────────────────Yes────────────────────┐                              │                                             
-│ │                                                     │                                              │                              │                                             
-│ └──────────────────────────┬──────────────────────────┘                                              │                              │                                             
-│                            │                                                                         │                              │                                             
-│                            │                                                                         │                              │                                             
-│                           No                                                                         │                              │                                             
-│                            │                                                                         │                              │                                             
-│                            ▼                                                                         ▼                              │                                             
-│ ┌─────────────────────────────────────────────────────┐                ┌──────────────────────────────────────────────────────────┐ │                                             
-│ │                                                     │                │                                                          │ │                                             
-│ │       Queue Payment<br/>Notify Protocol Owner       │                │              Execute x402<br/>USDC Transfer              │◄┼───────────────────────┐                     
-│ │                                                     │                │                                                          │ │                       │                     
-│ └──────────────────────────┬──────────────────────────┘                └─────────────────────────────┬────────────────────────────┘ │                       │                     
-│                            │                                                                         ▲                              │                       │                     
-└────────────────────────────┼─────────────────────────────────────────────────────────────────────────┼──────────────────────────────┘                       │                     
-                             │                                                                         │                                                      │                     
-                             │                                                                         │                                                      │                     
-                             │                                      ┌──────────────────────────────────┤                                                      │                     
-┌────────────────────────────┼──────────────────────────────────────┼──────────────────────────────────┼──────────────────────────────────────────────────────┼────────────────────┐
-│                            │                                      │     "BASE SEPOLIA - USDC Transfer"                                                      │                    │
-│                            │                                      │                                  │                                                      │                    │
-│                            ▼                                      │                                  ▼                                                      │                    │
-│ ┌─────────────────────────────────────────────────────┐           │    ┌──────────────────────────────────────────────────────────┐                         │                    │
-│ │                                                     │           │    │                                                          │                         │                    │
-│ │             Monitor Pool<br/>for Funding            │   ├Funded─┘    │ Transfer USDC<br/>0x036CbD53...<br/>to Researcher Wallet │                         │                    │
-│ │                                                     │                │                                                          │                         │                    │
-│ └─────────────────────────────────────────────────────┘                └─────────────────────────────┬────────────────────────────┘                         │                    │
-│                                                                                                      │                                                      │                    │
-│                                                                                                      │                                                      │                    │
-│                                                                                                      │                                                      │                    │
-│                                                                                                      │                                                      │                    │
-│                                                                                                      │                                                      │                    │
-│ ┌─────────────────────────────────────────────────────┐                                              │                                                      │                    │
-│ │                                                     │                                              │                                                      │                    │
-│ │              Transaction<br/>Confirmed?             │   ├◄──Fail─────┬────Success──────────────────┤                                                      │                    │
-│ │                                                     │                │                             │                                                      │                    │
-│ └──────────────────────────┬──────────────────────────┘                └─────────────────────────────┼──────────────────────────────────────────────────────┤                    │
-│                            ▲                                                                         │                                                      │                    │
-│                            │                                                                         │                                                      │                    │
-│                         Pending                                                                      │                                                      │                    │
-│                            │                                                                         │                                                      │                    │
-│                            ▼                                                                         ▼                                                      ▼                    │
-│ ┌──────────────────────────┴──────────────────────────┐                ┌──────────────────────────────────────────────────────────┐     ┌───────────────────┴──────────────────┐ │
-│ │                                                     │                │                                                          │     │                                      │ │
-│ │           Wait for<br/>Block Confirmation           │                │              Emit PaymentReleased<br/>Event              │     │     Retry Payment<br/>Log Error      │ │
-│ │                                                     │                │                                                          │     │                                      │ │
-│ └─────────────────────────────────────────────────────┘                └─────────────────────────────┬────────────────────────────┘     └──────────────────────────────────────┘ │
-│                                                                                                      │                                                                           │
-└──────────────────────────────────────────────────────────────────────────────────────────────────────┼───────────────────────────────────────────────────────────────────────────┘
-                                                                                                       │                                                                            
-                                                                                                       │                                                                            
-                                                                                                       │                                                                            
-┌──────────────────────────────────────────────────────────────────────────────────────────────────────┼───────────────────────────────────────────────────────────────────────────┐
-│                                                                            "Backend - Post-Payment"  │                                                                           │
-│                                                                                                      │                                                                           │
-│                                                                                                      │                                                                           │
-│ ┌─────────────────────────────────────────────────────┐                                              │                                                                           │
-│ │                                                     │                                              │                                                                           │
-│ │          Update Database<br/>Payment Record         │    ◄─────────────────────────────────────────┘                                                                           │
-│ │                                                     │                                                                                                                          │
-│ └──────────────────────────┬──────────────────────────┘                                                                                                                          │
-│                            │                                                                                                                                                     │
-│                            │                                                                                                                                                     │
-│                            │                                                                                                                                                     │
-│                            │                                                                                                                                                     │
-│                            ▼                                                                                                                                                     │
-│ ┌─────────────────────────────────────────────────────┐                                                                                                                          │
-│ │                                                     │                                                                                                                          │
-│ │                  Notify All Parties                 │   ├────────────┬─────────────────────────────┐                                                                           │
-│ │                                                     │                │                             │                                                                           │
-│ └──────────────────────────┬──────────────────────────┘                └─────────────────────────────┼──────────────────────────────────────────────────────┐                    │
-│                            │                                                                         │                                                      │                    │
-│                            │                                                                         │                                                      │                    │
-│                            │                                                                         │                                                      │                    │
-│                            │                                                                         │                                                      │                    │
-│                            ▼                                                                         ▼                                                      ▼                    │
-│ ┌─────────────────────────────────────────────────────┐                ┌──────────────────────────────────────────────────────────┐     ┌──────────────────────────────────────┐ │
-│ │                                                     │                │                                                          │     │                                      │ │
-│ │        Notify Researcher<br/>Payment Received       │                │       Notify Protocol<br/>Vulnerability + Payment        │     │ Update Dashboard<br/>WebSocket Event │ │
-│ │                                                     │                │                                                          │     │                                      │ │
-│ └─────────────────────────────────────────────────────┘                └──────────────────────────────────────────────────────────┘     └──────────────────────────────────────┘ │
-│                                                                                                                                                                                  │
-└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
-```
+    subgraph "BASE SEPOLIA - Payment Calculation"
+        ContractListen --> FetchDetails[Fetch Validation<br/>Details]
+        FetchDetails --> GetSeverity[Get Vulnerability<br/>Severity]
+        GetSeverity --> CalcAmount[Calculate Bounty<br/>Base * Multiplier]
+        CalcAmount --> CheckPool{Pool Has<br/>Sufficient USDC?}
 
+        CheckPool -->|No| QueuePayment[Queue Payment<br/>Notify Protocol Owner]
+        CheckPool -->|Yes| ExecutePayment[Execute x402<br/>USDC Transfer]
+    end
+
+    subgraph "BASE SEPOLIA - USDC Transfer"
+        ExecutePayment --> TransferUSDC[Transfer USDC<br/>0x036CbD53...<br/>to Researcher Wallet]
+        TransferUSDC --> ConfirmTx{Transaction<br/>Confirmed?}
+
+        ConfirmTx -->|Pending| WaitBlock[Wait for<br/>Block Confirmation]
+        WaitBlock --> ConfirmTx
+        ConfirmTx -->|Success| EmitPayment[Emit PaymentReleased<br/>Event]
+        ConfirmTx -->|Fail| RetryPayment[Retry Payment<br/>Log Error]
+    end
+
+    subgraph "Backend - Post-Payment"
+        EmitPayment --> UpdateDB[Update Database<br/>Payment Record]
+        UpdateDB --> NotifyAll[Notify All Parties]
+
+        NotifyAll --> NotifyRA[Notify Researcher<br/>Payment Received]
+        NotifyAll --> NotifyPA[Notify Protocol<br/>Vulnerability + Payment]
+        NotifyAll --> UpdateDash[Update Dashboard<br/>WebSocket Event]
+    end
+
+    RetryPayment --> ExecutePayment
+    QueuePayment --> MonitorPool[Monitor Pool<br/>for Funding]
+    MonitorPool -->|Funded| ExecutePayment
+
+    style RegistryUpdate fill:#f0e1ff
+    style TransferUSDC fill:#ffe1f0
+    style EmitPayment fill:#e1ffe1
+    style ExecutePayment fill:#ffe1f0
+```
 
 ### Payment Sequence Diagram (Base Sepolia)
 
+```mermaid
+sequenceDiagram
+    participant VA as Validator Agent
+    participant Anvil as Local Anvil<br/>(Exploit Result)
+    participant Reg as ValidationRegistry<br/>(Base Sepolia)
+    participant BP as BountyPool<br/>(Base Sepolia)
+    participant USDC as USDC Token<br/>(Base Sepolia)
+    participant RW as Researcher Wallet
+    participant DB as Database
+    participant WS as WebSocket
 
-```
- ┌─────────────────┐  ┌──────────────────────────────────┐   ┌───────────────────────────────────────┐   ┌───────────────────────────────┐     ┌───────────────────────────────┐   ┌───────────────────┐  ┌──────────┐   ┌───────────┐                       
- │ Validator Agent │  │ Local Anvil<br/>(Exploit Result) │   │ ValidationRegistry<br/>(Base Sepolia) │   │ BountyPool<br/>(Base Sepolia) │     │ USDC Token<br/>(Base Sepolia) │   │ Researcher Wallet │  │ Database │   │ WebSocket │                       
- └────────┬────────┘  └─────────────────┬────────────────┘   └───────────────────┬───────────────────┘   └───────────────┬───────────────┘     └───────────────┬───────────────┘   └─────────┬─────────┘  └─────┬────┘   └─────┬─────┘                       
-          │                             │                                        │                                       │                                     │                             │                  │              │                             
-          │    Exploit result: TRUE     │                                        │                                       │                                     │                             │                  │              │                             
-          ◀─────────────────────────────│                                        │                                       │                                     │                             │                  │              │                             
-          │                             │                                        │                                       │                                     │                             │                  │              │                             
-          │                             │                                        │                 ┌─────────────────────────────────────────┐                 │                             │                  │              │                             
-          │                             │                                        │                 │ All payment ops on Base Sepolia (84532) │                 │                             │                  │              │                             
-          │                             │                                        │                 └─────────────────────────────────────────┘                 │                             │                  │              │                             
-          │                             │                                        │                                       │                                     │                             │                  │              │                             
-          │                  recordResult(validationId, TRUE)                    │                                       │                                     │                             │                  │              │                             
-          │──────────────────────────────────────────────────────────────────────▶                                       │                                     │                             │                  │              │                             
-          │                             │                                        │                                       │                                     │                             │                  │              │                             
-          │                             │                                        ├───┐                                   │                                     │                             │                  │              │                             
-          │                             │                                        │   │ Store validation result           │                                     │                             │                  │              │                             
-          │                             │                                        ◀───┘                                   │                                     │                             │                  │              │                             
-          │                             │                                        │                                       │                                     │                             │                  │              │                             
-          │                             │                                        │    Emit ValidationConfirmed event     │                                     │                             │                  │              │                             
-          │                             │                                        │╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌▶                                     │                             │                  │              │                             
-          │                             │                                        │                                       │                                     │                             │                  │              │                             
-          │                             │                                        │    getValidationDetails(proofHash)    │                                     │                             │                  │              │                             
-          │                             │                                        ◀───────────────────────────────────────│                                     │                             │                  │              │                             
-          │                             │                                        │                                       │                                     │                             │                  │              │                             
-          │                             │                                        │      Return severity, researcher      │                                     │                             │                  │              │                             
-          │                             │                                        │╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌▶                                     │                             │                  │              │                             
-          │                             │                                        │                                       │                                     │                             │                  │              │                             
-          │                             │                                        │                                       ├───┐                                 │                             │                  │              │                             
-          │                             │                                        │                                       │   │ Calculate bounty amount         │                             │                  │              │                             
-          │                             │                                        │                                       ◀───┘                                 │                             │                  │              │                             
-          │                             │                                        │                                       │                                     │                             │                  │              │                             
-          │                             │                                        │                                       │        balanceOf(bountyPool)        │                             │                  │              │                             
-          │                             │                                        │                                       │─────────────────────────────────────▶                             │                  │              │                             
-          │                             │                                        │                                       │                                     │                             │                  │              │                             
-          │                             │                                        │                                       │           Return balance            │                             │                  │              │                             
-          │                             │                                        │                                       ◀╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌│                             │                  │              │                             
-          │                             │                                        │                                       │                                     │                             │                  │              │                             
-      ┌alt [Sufficient Balance]──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐              │              │                             
-      │   │                             │                                        │                                       │                                     │                             │   │              │              │                             
-      │   │                             │                                        │                                       │  safeTransfer(researcher, amount)   │                             │   │              │              │                             
-      │   │                             │                                        │                                       │─────────────────────────────────────▶                             │   │              │              │                             
-      │   │                             │                                        │                                       │                                     │                             │   │              │              │                             
-      │   │                             │                                        │                                       │                                     │    Credit USDC (Sepolia)    │   │              │              │                             
-      │   │                             │                                        │                                       │                                     │─────────────────────────────▶   │              │              │                             
-      │   │                             │                                        │                                       │                                     │                             │   │              │              │                             
-      │   │                             │                                        │                                       │          Transfer success           │                             │   │              │              │                             
-      │   │                             │                                        │                                       ◀╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌│                             │   │              │              │                             
-      │   │                             │                                        │                                       │                                     │                             │   │              │              │                             
-      │   │                             │                                        │                                       ├───┐                                 │                             │   │              │              │                             
-      │   │                             │                                        │                                       │   │ Emit PaymentReleased            │                             │   │              │              │                             
-      │   │                             │                                        │                                       ◀───┘                                 │                             │   │              │              │                             
-      │   │                             │                                        │                                       │                                     │                             │   │              │              │                             
-      ├[Insufficient Balance]╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤              │              │                             
-      │   │                             │                                        │                                       │                                     │                             │   │              │              │                             
-      │   │                             │                                        │                                       ├───┐                                 │                             │   │              │              │                             
-      │   │                             │                                        │                                       │   │ Queue payment                   │                             │   │              │              │                             
-      │   │                             │                                        │                                       ◀───┘                                 │                             │   │              │              │                             
-      │   │                             │                                        │                                       │                                     │                             │   │              │              │                             
-      │   │                             │            Insufficient funds error    │                                       │                                     │                             │   │              │              │                             
-      │   ◀╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌│                                     │                             │   │              │              │                             
-      │   │                             │                                        │                                       │                                     │                             │   │              │              │                             
-      └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘              │              │                             
-          │                             │                                        │                                       │                                     │                             │                  │              │                             
-          │                             │                                        │                                       │                                   Record payment                  │                  │              │                             
-          │                             │                                        │                                       │──────────────────────────────────────────────────────────────────────────────────────▶              │                             
-          │                             │                                        │                                       │                                     │                             │                  │              │                             
-          │                             │                                        │                                       │                                     │Confirmed                    │                  │              │                             
-          │                             │                                        │                                       ◀╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌│              │                             
-          │                             │                                        │                                       │                                     │                             │                  │              │                             
-          │                             │                                        │                                       │                                     │  Emit payment_released      │                  │              │                             
-          │                             │                                        │                                       │─────────────────────────────────────────────────────────────────────────────────────────────────────▶                             
-          │                             │                                        │                                       │                                     │                             │                  │              │                             
-          │                             │                                        │                                       │                                     │                             │                  │              ├╌╌╌┐                         
-          │                             │                                        │                                       │                                     │                             │                  │              │   │ Broadcast to clients    
-          │                             │                                        │                                       │                                     │                             │                  │              ◀╌╌╌┘                         
-          │                             │                                        │                                       │                                     │                             │                  │              │                             
- ┌────────┴────────┐  ┌─────────────────┴────────────────┐   ┌───────────────────┴───────────────────┐   ┌───────────────┴───────────────┐     ┌───────────────┴───────────────┐   ┌─────────┴─────────┐  ┌─────┴────┐   ┌─────┴─────┐                       
- │ Validator Agent │  │ Local Anvil<br/>(Exploit Result) │   │ ValidationRegistry<br/>(Base Sepolia) │   │ BountyPool<br/>(Base Sepolia) │     │ USDC Token<br/>(Base Sepolia) │   │ Researcher Wallet │  │ Database │   │ WebSocket │                       
- └─────────────────┘  └──────────────────────────────────┘   └───────────────────────────────────────┘   └───────────────────────────────┘     └───────────────────────────────┘   └───────────────────┘  └──────────┘   └───────────┘                       
-```
+    Note over Anvil: Exploit executed locally
+    Anvil->>VA: Exploit result: TRUE
 
+    Note over Reg,USDC: All payment ops on Base Sepolia (84532)
+    VA->>Reg: recordResult(validationId, TRUE)
+    Reg->>Reg: Store validation result
+    Reg-->>BP: Emit ValidationConfirmed event
+
+    BP->>Reg: getValidationDetails(proofHash)
+    Reg-->>BP: Return severity, researcher
+
+    BP->>BP: Calculate bounty amount
+    BP->>USDC: balanceOf(bountyPool)
+    USDC-->>BP: Return balance
+
+    alt Sufficient Balance
+        BP->>USDC: safeTransfer(researcher, amount)
+        USDC->>RW: Credit USDC (Sepolia)
+        USDC-->>BP: Transfer success
+        BP->>BP: Emit PaymentReleased
+    else Insufficient Balance
+        BP->>BP: Queue payment
+        BP-->>VA: Insufficient funds error
+    end
+
+    BP->>DB: Record payment
+    DB-->>BP: Confirmed
+
+    BP->>WS: Emit payment_released
+    WS-->>WS: Broadcast to clients
+```
 
 ---
 
 ## 6. Agent-to-Agent Communication
 
+```mermaid
+flowchart TD
+    subgraph "Message Types"
+        M1[SCAN_REQUEST<br/>PA → RA]
+        M2[PROOF_SUBMISSION<br/>RA → VA]
+        M3[VALIDATION_RESULT<br/>VA → RA]
+        M4[STATUS_UPDATE<br/>Any → Dashboard]
+    end
 
-```
-┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────┐ ┌──────────────────────────────────────────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────┐
-│                                                                                   "Message Types"  "Communication Bus"                                                               │                                     │ │                                       "Message Structure"             "Security Layer"           │                                                             │
-│                                                                                                                                                                                      │                                     │ │                                                                                                  │                                                             │
-│                                                                                                                                                                                      │                                     │ │                                                                                                  │                                                             │
-│ ┌──────────────────────────┐     ┌──────────────────────────────┐          ┌─────────────────────────────────────────┐               ┌─────────────────────────────────────────────┐┌┼───────────────────────────────────┐ │ │ ┌─────┐     ┌──────┐     ┌──────┐     ┌────┐     ┌─────────┐     ┌───────────┐     ┌───────────┐ │   ┌───────────────────────────┐     ┌─────────────────────┐ │
-│ │                          │     │                              │          │                                         │               │                                             │││                                   │ │ │ │     │     │      │     │      │     │    │     │         │     │           │     │           │ │   │                           │     │                     │ │
-│ │ SCAN_REQUEST<br/>PA → RA │     │ PROOF_SUBMISSION<br/>RA → VA │          │      VALIDATION_RESULT<br/>VA → RA      │               │      STATUS_UPDATE<br/>Any → Dashboard    ┌─┼┤│Agent Message Bus<br/>Redis PubSub │ │ │ │ Msg │◄─┐  │ type │     │ from │     │ to │     │ payload │     │ signature │     │ timestamp │ │┌──┤ End-to-End<br/>Encryption │  ┌──┤ Message<br/>Signing │ │
-│ │                          │     │                              │          │                                         │               │                                           │ │││                                   │ │ │ │     │  │  │      │     │      │     │    │     │         │     │           │     │           │ ││  │                           │  │  │                     │ │
-│ └──────────────────────────┘     └──────────────────────────────┘          └─────────────────────────────────────────┘               └───────────────────────────────────────────┼─┘└┼───────────────────────────────────┘ │ │ └──┬──┘  │  └──────┘     └──────┘     └────┘     └─────────┘     └───────────┘     └───────────┘ ││  └───────────────────────────┘  │  └─────────────────────┘ │
-│                                                                                                                                                                                  │   │                 ▲                   │ │    │     │                                                                                       ││                                 │                          │
-├──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼───┘                 │                   │ ├────┼─────┼───────────────────────────────────────────────────────────────────────────────────────┘│                                 │                          │
-│                                                                                                                                                                                  │                     │                   │ │    │     │                                                                                        │                                 │                          │
-│                                                                                                                                                                                  │                     │                   │ │    │     │                                                                                        │                                 │                          │
-│               ┌───────────────┬──────────────────┬─────────────────┬───────────────────────Subscribe─────────Subscribe───────┬────PuSubscribe────────────────────────────────────┴─────────────────────┘                   │ │    │     └────────────────────────────────────────────────────────────────────────────────────────┴─────────────────────────────────┘                          │
-│               │               │                  │                 │                            │                            │                                                                                             │ │    │                                                                                                                                                           │
-│               │               │                  │                 │                            │                            │                                                                                             │ │    │                                                                                                                                                           │
-│               │               │                  │                 │                            │                            │                                                                                             │ │    │                                                                                                                                                           │
-│               ▼               │                  ▼                 │                            ▼                            │                                                                                             │ │    │                                                                                                                                                           │
-│ ┌──────────────────────────┐  │  ┌──────────────────────────────┐  │       ┌─────────────────────────────────────────┐       │       ┌─────────────────────────────────────────────┐                                       │ │    │                                                                                                                                                           │
-│ │                          │  │  │                              │  │       │                                         │       │       │                                             │                                       │ │    │                                                                                                                                                           │
-│ │      Protocol Agent      ├──┘  │       Researcher Agent       ├──┘       │             Validator Agent             ├Publish┘       │          Signature<br/>Verification     ◄───┼───────────────────────────────────────┼─┼────┘                                                                                                                                                           │
-│ │                          │     │                              │          │                                         │               │                                             │                                       │ │                                                                                                                                                                │
-│ └──────────────────────────┘     └──────────────────────────────┘          └─────────────────────────────────────────┘               └─────────────────────────────────────────────┘                                       │ │                                                                                                                                                                │
-│                                                                                                                                                                                                                            │ │                                                                                                                                                                │
-└────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘ └────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
-```
+    subgraph "Communication Bus"
+        Bus[Agent Message Bus<br/>Redis PubSub]
 
+        PA[Protocol Agent] -->|Publish| Bus
+        RA[Researcher Agent] -->|Publish| Bus
+        VA[Validator Agent] -->|Publish| Bus
+
+        Bus -->|Subscribe| PA
+        Bus -->|Subscribe| RA
+        Bus -->|Subscribe| VA
+    end
+
+    subgraph "Message Structure"
+        Msg[/"
+        {
+          type: MessageType,
+          from: AgentId,
+          to: AgentId,
+          payload: encrypted,
+          signature: ed25519,
+          timestamp: unix
+        }
+        "/]
+    end
+
+    subgraph "Security Layer"
+        Encrypt[End-to-End<br/>Encryption]
+        Sign[Message<br/>Signing]
+        Verify[Signature<br/>Verification]
+
+        Encrypt --> Msg
+        Sign --> Msg
+        Msg --> Verify
+    end
+
+    style Bus fill:#fff4e1
+    style PA fill:#e1f5ff
+    style RA fill:#ffe1e1
+    style VA fill:#e1ffe1
+```
 
 ### A2A Message Flow
 
+```mermaid
+sequenceDiagram
+    participant PA as Protocol Agent
+    participant Bus as Message Bus
+    participant RA as Researcher Agent
+    participant VA as Validator Agent
 
-```
-┌────────────────┐                         ┌─────────────┐                               ┌──────────────────┐       ┌─────────────────┐               
-│ Protocol Agent │                         │ Message Bus │                               │ Researcher Agent │       │ Validator Agent │               
-└────────┬───────┘                         └──────┬──────┘                               └─────────┬────────┘       └────────┬────────┘               
-         │                                        │                                                │                         │                        
-         │  SCAN_REQUEST {protocolId, priority}   │                                                │                         │                        
-         │────────────────────────────────────────▶                                                │                         │                        
-         │                                        │                                                │                         │                        
-         │                                        │             Deliver SCAN_REQUEST               │                         │                        
-         │                                        │────────────────────────────────────────────────▶                         │                        
-         │                                        │                                                │                         │                        
-         │                                        │                                                ├───┐                     │                        
-         │                                        │                                                │   │ Begin scanning protocol                      
-         │                                        │                                                ◀───┘                     │                        
-         │                                        │                                                │                         │                        
-         │                                        │     ┌─────────────────────┐                    │                         │                        
-         │                                        │     │ Vulnerability Found │                    │                         │                        
-         │                                        │     └─────────────────────┘                    │                         │                        
-         │                                        │                                                │                         │                        
-         │                                        │                                                ├───┐                     │                        
-         │                                        │                                                │   │ Generate encrypted proof                     
-         │                                        │                                                ◀───┘                     │                        
-         │                                        │                                                │                         │                        
-         │                                        │  PROOF_SUBMISSION {proofHash, encryptedData}   │                         │                        
-         │                                        ◀────────────────────────────────────────────────│                         │                        
-         │                                        │                                                │                         │                        
-         │                                        │                        Deliver PROOF_SUBMISSION│                         │                        
-         │                                        │──────────────────────────────────────────────────────────────────────────▶                        
-         │                                        │                                                │                         │                        
-         │                                        │     ┌────────────────────┐                     │                         │                        
-         │                                        │     │ Validation Process │                     │                         │                        
-         │                                        │     └────────────────────┘                     │                         │                        
-         │                                        │                                                │                         │                        
-         │                                        │                                                │                         ├───┐                    
-         │                                        │                                                │                         │   │ Spawn sandbox      
-         │                                        │                                                │                         ◀───┘                    
-         │                                        │                                                │                         │                        
-         │                                        │                                                │                         ├───┐                    
-         │                                        │                                                │                         │   │ Execute exploit    
-         │                                        │                                                │                         ◀───┘                    
-         │                                        │                                                │                         │                        
-         │                                        │                                                │                         ├───┐                    
-         │                                        │                                                │                         │   │ Record result      
-         │                                        │                                                │                         ◀───┘                    
-         │                                        │                                                │                         │                        
-         │                                        │               VALIDATION_RESULT {proofHash, status: TRUE}                │                        
-         │                                        ◀──────────────────────────────────────────────────────────────────────────│                        
-         │                                        │                                                │                         │                        
-         │                                        │           Deliver VALIDATION_RESULT            │                         │                        
-         │                                        │────────────────────────────────────────────────▶                         │                        
-         │                                        │                                                │                         │                        
-         │       Deliver VALIDATION_RESULT        │                                                │                         │                        
-         ◀────────────────────────────────────────│                                                │                         │                        
-         │                                        │                                                │                         │                        
-         │                                        ┌─────────────────────────────────┐              │                         │                        
-         │                                        │ Payment Triggered Automatically │              │                         │                        
-         │                                        └─────────────────────────────────┘              │                         │                        
-         │                                        │                                                │                         │                        
-┌────────┴───────┐                         ┌──────┴──────┐                               ┌─────────┴────────┐       ┌────────┴────────┐               
-│ Protocol Agent │                         │ Message Bus │                               │ Researcher Agent │       │ Validator Agent │               
-└────────────────┘                         └─────────────┘                               └──────────────────┘       └─────────────────┘               
-```
+    Note over PA,VA: Protocol Registration & Scan Request
+    PA->>Bus: SCAN_REQUEST {protocolId, priority}
+    Bus->>RA: Deliver SCAN_REQUEST
+    RA->>RA: Begin scanning protocol
 
+    Note over PA,VA: Vulnerability Found
+    RA->>RA: Generate encrypted proof
+    RA->>Bus: PROOF_SUBMISSION {proofHash, encryptedData}
+    Bus->>VA: Deliver PROOF_SUBMISSION
+
+    Note over PA,VA: Validation Process
+    VA->>VA: Spawn sandbox
+    VA->>VA: Execute exploit
+    VA->>VA: Record result
+
+    VA->>Bus: VALIDATION_RESULT {proofHash, status: TRUE}
+    Bus->>RA: Deliver VALIDATION_RESULT
+    Bus->>PA: Deliver VALIDATION_RESULT
+
+    Note over PA,VA: Payment Triggered Automatically
+```
 
 ---
 
 ## 7. Dashboard Real-time Updates
 
+```mermaid
+flowchart TD
+    subgraph "Backend Events"
+        E1[Protocol Registered]
+        E2[Scan Started]
+        E3[Vulnerability Found]
+        E4[Validation Complete]
+        E5[Payment Released]
+    end
 
-```
-┌───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                                                                     "Backend Events"                                                                      │
-│                                                                                                                                                           │
-│                                                                                                                                                           │
-│ ┌────────────────────────────────┐     ┌────────────────────┐     ┌──────────────────────────┐     ┌────────────────────────┐     ┌─────────────────────┐ │
-│ │                                │     │                    │     │                          │     │                        │     │                     │ │
-│ │      Protocol Registered       │     │    Scan Started    │     │   Vulnerability Found    │     │  Validation Complete   │     │   Payment Released  │ │
-│ │                                │     │                    │     │                          │     │                        │     │                     │ │
-│ └────────────────┬───────────────┘     └──────────┬─────────┘     └─────────────┬────────────┘     └────────────┬───────────┘     └──────────┬──────────┘ │
-│                  │                                │                             │                               │                            │            │
-└──────────────────┼────────────────────────────────┼─────────────────────────────┼───────────────────────────────┼────────────────────────────┼────────────┘
-                   │                                │                             │                               │                            │             
-                   │                                │                             │                               │                            │             
-                   │                                │                             │                               │                            │             
-┌──────────────────┼─────────────────┐              │                             │                               │                            │             
-│        "Socket.io│Server"          │              │                             │                               │                            │             
-│                  │                 │              │                             │                               │                            │             
-│                  ▼                 │              │                             │                               │                            │             
-│ ┌────────────────────────────────┐ │              │                             │                               │                            │             
-│ │                                │ │              │                             │                               │                            │             
-│ │ WebSocket Server<br/>Port 4000 ├◄┼───┬──────────┼─────────────────────────────┴───────────────────────────────┴────────────────────────────┘             
-│ │                                │ │   │          │                                                                                                        
-│ └────────────────┬───────────────┘ │   └──────────┼─────────────────────────────┬───────────────────────────────┬────────────────────────────┐             
-│                  │                 │              │                             │                               │                            │             
-└──────────────────┼─────────────────┘              │                             │                               │                            │             
-                   │                                │                             │                               │                            │             
-                   │                                │                             │                               │                            │             
-                   │                                │                             │                               │                            │             
-┌──────────────────┼────────────────────────────────┼─────────────────────────────┼───────────────────────────────┼────────────────────────────┼────────────┐
-│                  │                                │                  "Event Routing"                            │                            │            │
-│                  │                                │                             │                               │                            │            │
-│                  ▼                                ▼                             ▼                               ▼                            ▼            │
-│ ┌────────────────────────────────┐     ┌────────────────────┐     ┌──────────────────────────┐     ┌────────────────────────┐     ┌─────────────────────┐ │
-│ │                                │     │                    │     │                          │     │                        │     │                     │ │
-│ │        Room: protocols         │     │    Room: scans     │     │  Room: vulnerabilities   │     │     Room: payments     │     │     Room: agents    │ │
-│ │                                │     │                    │     │                          │     │                        │     │                     │ │
-│ └────────────────┬───────────────┘     └──────────┬─────────┘     └─────────────┬────────────┘     └────────────┬───────────┘     └──────────┬──────────┘ │
-│                  │                                │                             │                               │                            │            │
-└──────────────────┼────────────────────────────────┼─────────────────────────────┼───────────────────────────────┼────────────────────────────┼────────────┘
-                   │                                │                             │                               │                            │             
-                   │                                │                             │                               │                            │             
-                   │                                │                             │                               │                            │             
-┌──────────────────┼────────────────────────────────┼─────────────────────────────┼───────────────────────────────┼────────────────────────────┼────────────┐
-│                  │                                │                "Frontend Handlers"                          │                            │            │
-│                  │                                │                             │                               │                            │            │
-│                  ▼                                ▼                             ▼                               ▼                            ▼            │
-│ ┌────────────────────────────────┐     ┌────────────────────┐     ┌──────────────────────────┐     ┌────────────────────────┐     ┌─────────────────────┐ │
-│ │                                │     │                    │     │                          │     │                        │     │                     │ │
-│ │      Update Protocol List      │     │ Update Scan Status │     │ Show Alert + Update List │     │ Update Payment History │     │ Update Agent Status │ │
-│ │                                │     │                    │     │                          │     │                        │     │                     │ │
-│ └────────────────┬───────────────┘     └──────────┬─────────┘     └─────────────┬────────────┘     └────────────┬───────────┘     └──────────┬──────────┘ │
-│                  │                                │                             │                               │                            │            │
-└──────────────────┼────────────────────────────────┼─────────────────────────────┼───────────────────────────────┼────────────────────────────┼────────────┘
-                   │                                │                             │                               │                            │             
-                   │                                │                             │                               │                            │             
-                   │                                │                             │                               │                            │             
-┌──────────────────┼────────────────────────────────┼─────────────────────────────┼───────────────────────────────┼────────────────────────────┼────────────┐
-│                  │                                │              "Dashboard Components"                         │                            │            │
-│                  │                                │                             │                               │                            │            │
-│                  ▼                                ▼                             ▼                               ▼                            ▼            │
-│ ┌────────────────────────────────┐     ┌────────────────────┐     ┌──────────────────────────┐     ┌────────────────────────┐     ┌─────────────────────┐ │
-│ │                                │     │                    │     │                          │     │                        │     │                     │ │
-│ │         ProtocolTable          │     │    ScanProgress    │     │    VulnerabilityAlert    │     │     PaymentHistory     │     │   AgentStatusCards  │ │
-│ │                                │     │                    │     │                          │     │                        │     │                     │ │
-│ └────────────────────────────────┘     └────────────────────┘     └──────────────────────────┘     └────────────────────────┘     └─────────────────────┘ │
-│                                                                                                                                                           │
-└───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
-```
+    subgraph "Socket.io Server"
+        WSS[WebSocket Server<br/>Port 4000]
 
+        E1 --> WSS
+        E2 --> WSS
+        E3 --> WSS
+        E4 --> WSS
+        E5 --> WSS
+    end
+
+    subgraph "Event Routing"
+        WSS --> Room1[Room: protocols]
+        WSS --> Room2[Room: scans]
+        WSS --> Room3[Room: vulnerabilities]
+        WSS --> Room4[Room: payments]
+        WSS --> Room5[Room: agents]
+    end
+
+    subgraph "Frontend Handlers"
+        Room1 --> H1[Update Protocol List]
+        Room2 --> H2[Update Scan Status]
+        Room3 --> H3[Show Alert + Update List]
+        Room4 --> H4[Update Payment History]
+        Room5 --> H5[Update Agent Status]
+    end
+
+    subgraph "Dashboard Components"
+        H1 --> C1[ProtocolTable]
+        H2 --> C2[ScanProgress]
+        H3 --> C3[VulnerabilityAlert]
+        H4 --> C4[PaymentHistory]
+        H5 --> C5[AgentStatusCards]
+    end
+
+    style WSS fill:#fff4e1
+    style H3 fill:#ffe1e1
+    style H4 fill:#e1ffe1
+```
 
 ### WebSocket Event Types
 
+```mermaid
+classDiagram
+    class WebSocketEvent {
+        +string type
+        +string room
+        +object payload
+        +number timestamp
+    }
 
-```
-┌────────────────────┐                                                                                                        
-│ WebSocketEvent     │                                                                                                        
-├────────────────────┤                                                                                                        
-│ +type: string      │                                                                                                        
-│ +room: string      │                                                                                                        
-│ +payload: object   │                                                                                                        
-│ +timestamp: number │                                                                                                        
-└────────────────────┘                                                                                                        
-           △                                                                                                                  
-           └─────────────────────────────────────────────────────────────────────────────────────────────────────┐            
-            │                        │                         │                         │                       │            
-┌──────────────────────┐    ┌─────────────────┐    ┌──────────────────────┐    ┌───────────────────┐    ┌────────────────┐    
-│ ProtocolEvent        │    │ ScanEvent       │    │ VulnerabilityEvent   │    │ PaymentEvent      │    │ AgentEvent     │    
-├──────────────────────┤    ├─────────────────┤    ├──────────────────────┤    ├───────────────────┤    ├────────────────┤    
-│ +protocol_registered │    │ +scan_started   │    │ +vulnerability_found │    │ +payment_pending  │    │ +agent_online  │    
-│ +protocol_updated    │    │ +scan_progress  │    │ +validation_pending  │    │ +payment_released │    │ +agent_offline │    
-│ +pool_funded         │    │ +scan_completed │    │ +validation_complete │    │ +payment_failed   │    │ +agent_busy    │    
-└──────────────────────┘    └─────────────────┘    └──────────────────────┘    └───────────────────┘    └────────────────┘    
-                                                                                                                              
-                                                                                                                              
-```
+    class ProtocolEvent {
+        +protocol_registered
+        +protocol_updated
+        +pool_funded
+    }
 
+    class ScanEvent {
+        +scan_started
+        +scan_progress
+        +scan_completed
+    }
+
+    class VulnerabilityEvent {
+        +vulnerability_found
+        +validation_pending
+        +validation_complete
+    }
+
+    class PaymentEvent {
+        +payment_pending
+        +payment_released
+        +payment_failed
+    }
+
+    class AgentEvent {
+        +agent_online
+        +agent_offline
+        +agent_busy
+    }
+
+    WebSocketEvent <|-- ProtocolEvent
+    WebSocketEvent <|-- ScanEvent
+    WebSocketEvent <|-- VulnerabilityEvent
+    WebSocketEvent <|-- PaymentEvent
+    WebSocketEvent <|-- AgentEvent
+```
 
 ---
 
 ## 8. Error Handling & Recovery
 
+```mermaid
+flowchart TD
+    subgraph "Error Categories"
+        E1[Network Errors<br/>RPC Timeout, API Down]
+        E2[Validation Errors<br/>Invalid Proof, Bad Format]
+        E3[Blockchain Errors<br/>Tx Failed, Gas Issues]
+        E4[Agent Errors<br/>Crash, Timeout]
+    end
 
-```
-┌─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐                                          
-│                                                                                                         "Error Categories"                                                                                                          │                                          
-│                                                                                                                                                                                                                                     │                                          
-│                                                                                                                                                                                                                                     │                                          
-│ ┌──────────────────────────────────────────┐                     ┌─────────────────────────────────────────────────────────┐         ┌─────────────────────────────────────────────┐          ┌───────────────────────────────────┐ │                                          
-│ │                                          │                     │                                                         │         │                                             │          │                                   │ │                                          
-│ │ Network Errors<br/>RPC Timeout, API Down │                     │     Validation Errors<br/>Invalid Proof, Bad Format     │         │ Blockchain Errors<br/>Tx Failed, Gas Issues │          │  Agent Errors<br/>Crash, Timeout  │ │                                          
-│ │                                          │                     │                                                         │         │                                             │          │                                   │ │                                          
-│ └─────────────────────┬────────────────────┘                     └────────────────────────────┬────────────────────────────┘         └──────────────────────┬──────────────────────┘          └─────────────────┬─────────────────┘ │                                          
-│                       │                                                                       │                                                             │                                                   │                   │                                          
-└───────────────────────┼───────────────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────┼───────────────────────────────────────────────────┼───────────────────┘                                          
-                        │                                                                       │                                                             │                                                   │                                                              
-                        │                                                                       │                                                             │                                                   │                                                              
-                        │                                                                       │                                                             │                                                   │                                                              
-┌───────────────────────┼──────────────────────┐                                                │                                                             │                                                   │                                                              
-│              "Error Detection"               │                                                │                                                             │                                                   │                                                              
-│                       │                      │                                                │                                                             │                                                   │                                                              
-│                       ▼                      │                                                │                                                             │                                                   │                                                              
-│ ┌──────────────────────────────────────────┐ │                                                │                                                             │                                                   │                                                              
-│ │                                          │ │                                                │                                                             │                                                   │                                                              
-│ │       Error Handler<br/>Middleware       │ │ ◄──────────────────────────────────────────────┴─────────────────────────────────────────────────────────────┴───────────────────────────────────────────────────┘                                                              
-│ │                                          │ │                                                                                                                                                                                                                                 
-│ └─────────────────────┬────────────────────┘ │                                                                                                                                                                                                                                 
-│                       │                      │                                                                                                                                                                                                                                 
-└───────────────────────┼──────────────────────┘                                                                                                                                                                                                                                 
-                        │                                                                                                                                                                                                                                                        
-                        │                                                                                                                                                                                                                                                        
-                        │                                                                                                                                                                                                                                                        
-┌───────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐                                          
-│                       │                                                                                "Recovery Strategies"                                                                                                        │                                          
-│                       │                                                                                                                                                                                                             │                                          
-│                       ▼                                                                                                                                                                                                             │                                          
-│ ┌──────────────────────────────────────────┐                                                                                                                                                                                        │                                          
-│ │                                          │                                                                                                                                                                                        │                                          
-│ │                Error Type                │  ├───BloAgentin─────┬Permanent───────────────────┐                                                                                                                                     │                                          
-│ │                                          │                     │                            │                                                                                                                                     │                                          
-│ └─────────────────────┬────────────────────┘                     └────────────────────────────┼─────────────────────────────────────────────────────────────┬───────────────────────────────────────────────────┐                   │                                          
-│                       │                                                                       │                                                             │                                                   │                   │                                          
-│                       │                                                                       │                                                             │                                                   │                   │                                          
-│                   Transient                                                                   │                                                             │                                                   │                   │                                          
-│                       │                                                                       │                                                             │                                                   │                   │                                          
-│                       ▼                                                                       ▼                                                             ▼                                                   ▼                   │                                          
-│ ┌──────────────────────────────────────────┐                     ┌─────────────────────────────────────────────────────────┐         ┌─────────────────────────────────────────────┐          ┌───────────────────────────────────┐ │                                          
-│ │                                          │                     │                                                         │         │                                             │          │                                   │ │                                          
-│ │     Exponential Backoff<br/>Retry 3x     │  ├─Fail───┐         │                Log Error<br/>Alert Admin                ├──────┬──┤         Increase Gas<br/>Resubmit Tx        │  Fail─┬──┤   Restart Agent<br/>Resume State  ├─┼───────Fail───────────┐                   
-│ │                                          │           │         │                                                         │      │  │                                             │       │  │                                   │ │                      │                   
-│ └─────────────────────┬────────────────────┘           │         └─────────────────────────────────────────────────────────┘      │  └─────────────────────────────────────────────┘       │  └───────────────────────────────────┘ │                      │                   
-│                       │                                │                                                                          │                                                        │                                        │                      │                   
-└───────────────────────┼────────────────────────────────┼──────────────────────────────────────────────────────────────────────────┼────────────────────────────────────────────────────────┼────────────────────────────────────────┘                      │                   
-                        │                                │                                                                          │                                                        │                                                               │                   
-                        │                                │                                                                          │                                                        │                                                               │                   
-                     Success─────────────────────────────┴─────────────────Success──────────────┬──────Success──────────────────────┴─────────────────────────┬──────────────────────────────┴────────────────────┐                                          │                   
-┌───────────────────────┼───────────────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────┼───────────────────────────────────────────────────┼──────────────────────────────────────────┼──────────────────┐
-│                       │                                                                       │                              "Fallback Actions"             │                                                   │                                          │                  │
-│                       │                                                                       │                                                             │                                                   │                                          │                  │
-│                       ▼                                                                       ▼                                                             ▼                                                   ▼                                          ▼                  │
-│ ┌──────────────────────────────────────────┐                     ┌─────────────────────────────────────────────────────────┐         ┌─────────────────────────────────────────────┐          ┌───────────────────────────────────┐      ┌──────────────────────────────────┐ │
-│ │                                          │                     │                                                         │         │                                             │          │                                   │      │                                  │ │
-│ │              Continue Flow               │                     │           Fallback RPC<br/>or Queue for Later           │         │        Notify Admin<br/>Discord/Slack       │          │ Queue Refund<br/>or Manual Review │      │ Manual Intervention<br/>Required │ │
-│ │                                          │                     │                                                         │         │                                             │          │                                   │      │                                  │ │
-│ └─────────────────────┬────────────────────┘                     └────────────────────────────┬────────────────────────────┘         └─────────────────────────────────────────────┘          └───────────────────────────────────┘      └──────────────────────────────────┘ │
-│                       │                                                                       │                                                                                                                                                                               │
-└───────────────────────┼───────────────────────────────────────────────────────────────────────┼───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
-                        │                                                                       │                                                                                                                                                                                
-                        │                                                                       │                                                                                                                                                                                
-                        │                                                                       │                                                                                                                                                                                
-┌───────────────────────┼──────────────────────┐                                                │                                                                                                                                                                                
-│              "State Recovery"                │                                                │                                                                                                                                                                                
-│                       │                      │                                                │                                                                                                                                                                                
-│                       ▼                      │                                                │                                                                                                                                                                                
-│ ┌──────────────────────────────────────────┐ │                                                │                                                                                                                                                                                
-│ │                                          │ │                                                │                                                                                                                                                                                
-│ │     Save Checkpoint<br/>Redis State      │ │ ◄──────────────────────────────────────────────┘                                                                                                                                                                                
-│ │                                          │ │                                                                                                                                                                                                                                 
-│ └─────────────────────┬────────────────────┘ │                                                                                                                                                                                                                                 
-│                       │                      │                                                                                                                                                                                                                                 
-│                       │                      │                                                                                                                                                                                                                                 
-│                       │                      │                                                                                                                                                                                                                                 
-│                       │                      │                                                                                                                                                                                                                                 
-│                       ▼                      │                                                                                                                                                                                                                                 
-│ ┌──────────────────────────────────────────┐ │                                                                                                                                                                                                                                 
-│ │                                          │ │                                                                                                                                                                                                                                 
-│ │     Resume from<br/>Last Good State      │ │                                                                                                                                                                                                                                 
-│ │                                          │ │                                                                                                                                                                                                                                 
-│ └──────────────────────────────────────────┘ │                                                                                                                                                                                                                                 
-│                                              │                                                                                                                                                                                                                                 
-└──────────────────────────────────────────────┘                                                                                                                                                                                                                                 
-```
+    subgraph "Error Detection"
+        E1 --> Detect[Error Handler<br/>Middleware]
+        E2 --> Detect
+        E3 --> Detect
+        E4 --> Detect
+    end
 
+    subgraph "Recovery Strategies"
+        Detect --> Classify{Error Type}
+
+        Classify -->|Transient| Retry[Exponential Backoff<br/>Retry 3x]
+        Classify -->|Permanent| Log[Log Error<br/>Alert Admin]
+        Classify -->|Blockchain| Resubmit[Increase Gas<br/>Resubmit Tx]
+        Classify -->|Agent| Restart[Restart Agent<br/>Resume State]
+    end
+
+    subgraph "Fallback Actions"
+        Retry -->|Success| Continue[Continue Flow]
+        Retry -->|Fail| Fallback[Fallback RPC<br/>or Queue for Later]
+
+        Log --> Notify[Notify Admin<br/>Discord/Slack]
+
+        Resubmit -->|Success| Continue
+        Resubmit -->|Fail| RefundQueue[Queue Refund<br/>or Manual Review]
+
+        Restart -->|Success| Continue
+        Restart -->|Fail| ManualRestart[Manual Intervention<br/>Required]
+    end
+
+    subgraph "State Recovery"
+        Continue --> Checkpoint[Save Checkpoint<br/>Redis State]
+        Fallback --> Checkpoint
+
+        Checkpoint --> Resume[Resume from<br/>Last Good State]
+    end
+
+    style Detect fill:#ffe1e1
+    style Continue fill:#e1ffe1
+    style Notify fill:#fff4e1
+```
 
 ### Retry Configuration
 
+```mermaid
+flowchart LR
+    subgraph "Retry Policy"
+        Attempt1[Attempt 1<br/>Immediate] -->|Fail| Wait1[Wait 1s]
+        Wait1 --> Attempt2[Attempt 2]
+        Attempt2 -->|Fail| Wait2[Wait 2s]
+        Wait2 --> Attempt3[Attempt 3]
+        Attempt3 -->|Fail| Wait3[Wait 4s]
+        Wait3 --> Attempt4[Attempt 4]
+        Attempt4 -->|Fail| GiveUp[Max Retries<br/>Queue/Alert]
+    end
 
-```
-┌────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                                                                                                              "Retry Policy"                                                                                                                │
-│                                                                                                                                                                                                                                            │
-│                                                                                                                                                                                                                                            │
-│ ┌─────────────────────────┐      ┌────────────────────────────┐      ┌────────────────────────────┐         ┌──────────────────────────────────┐     ┌───────────┐      ┌─────────┐     ┌───────────┐      ┌─────────────────────────────┐ │
-│ │                         │      │                            │      │                            │         │                                  │     │           │      │         │     │           │      │                             │ │
-│ │ Attempt 1<br/>Immediate ├Fail─►│          Wait 1s           ├─────►│         Attempt 2          ├──Fail──►│             Wait 2s              ├────►│ Attempt 3 ├Fail─►│ Wait 4s ├────►│ Attempt 4 ├Fail─►│ Max Retries<br/>Queue/Alert │ │
-│ │                         │      │                            │      │                            │         │                                  │     │           │      │         │     │           │      │                             │ │
-│ └─────────────────────────┘      └────────────────────────────┘      └────────────────────────────┘         └──────────────────────────────────┘     └───────────┘      └─────────┘     └───────────┘      └─────────────────────────────┘ │
-│                                                                                                                                                                                                                                            │
-└────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
-                                                                                                                                                                                                                                              
-┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐                                                                                          
-│                                                                "Circuit Breaker"                                                                 │                                                                                          
-│ ┌─────────────────────────┐      ┌────────────────────────────┐      ┌────────────────────────────┐         ┌──────────────────────────────────┐ │                                                                                          
-│ │                         │      │                            │      │                            │         │                                  │ │                                                                                          
-│ │  Error Rate<br/>Monitor ├>50%─►│ Circuit Open<br/>Fail Fast ├Fail─►┤ Half Open<br/>Test Request ├─Success►│ Circuit Closed<br/>Resume Normal │ │                                                                                          
-│ │                         │      │                            │      │                            │         │                                  │ │                                                                                          
-│ └─────────────────────────┘      └────────────────────────────┘      └────────────────────────────┘         └──────────────────────────────────┘ │                                                                                          
-│                                                                                                                                                  │                                                                                          
-└──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘                                                                                          
-```
+    subgraph "Circuit Breaker"
+        Monitor[Error Rate<br/>Monitor] -->|>50%| Open[Circuit Open<br/>Fail Fast]
+        Open -->|30s| HalfOpen[Half Open<br/>Test Request]
+        HalfOpen -->|Success| Closed[Circuit Closed<br/>Resume Normal]
+        HalfOpen -->|Fail| Open
+    end
 
+    style Attempt1 fill:#e1ffe1
+    style GiveUp fill:#ffe1e1
+    style Open fill:#ffe1e1
+    style Closed fill:#e1ffe1
+```
 
 ---
 

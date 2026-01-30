@@ -5,7 +5,7 @@
 This document catalogs all external API keys, subscriptions, and third-party services required to build, deploy, and operate the Autonomous Bug Bounty Orchestrator platform.
 
 **Key Changes:**
-- **LLM Provider**: Switched to **Kimi 2.5** (Local Inference) for zero-cost AI.
+- **LLM Provider**: Switched to **Kimi AI** (Local Inference) for zero-cost AI.
 - **Database Provider**: Switched to **Supabase** (BaaS) for Database, Auth, and Realtime.
 
 ## Cost Summary
