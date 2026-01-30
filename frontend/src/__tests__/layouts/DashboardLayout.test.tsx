@@ -1,40 +1,52 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
+import { AuthProvider } from '../../lib/auth';
 import DashboardLayout from '../../layouts/DashboardLayout';
 
 describe('DashboardLayout', () => {
   const renderLayout = (children: React.ReactNode = <div>Test Content</div>) => {
     return render(
       <BrowserRouter>
-        <DashboardLayout>{children}</DashboardLayout>
+        <AuthProvider>
+          <DashboardLayout>{children}</DashboardLayout>
+        </AuthProvider>
       </BrowserRouter>
     );
   };
 
-  it('renders sidebar', () => {
+  it('renders sidebar', async () => {
     renderLayout();
-    expect(screen.getByText(/Thunder Security/i)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(/Thunder Security/i)).toBeInTheDocument();
+    });
   });
 
-  it('renders children content', () => {
+  it('renders children content', async () => {
     renderLayout(<div>Custom Test Content</div>);
-    expect(screen.getByText('Custom Test Content')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('Custom Test Content')).toBeInTheDocument();
+    });
   });
 
-  it('has fixed sidebar and fluid content area', () => {
+  it('has fixed sidebar and fluid content area', async () => {
     const { container } = renderLayout();
-    // Check for flex layout
-    expect(container.firstChild).toHaveClass('flex');
+    await waitFor(() => {
+      expect(container.firstChild).toHaveClass('flex');
+    });
   });
 
-  it('content area takes remaining space', () => {
+  it('content area takes remaining space', async () => {
     const { container } = renderLayout();
-    const contentArea = container.querySelector('[data-testid="content-area"]');
-    expect(contentArea).toHaveClass('flex-1');
+    await waitFor(() => {
+      const contentArea = container.querySelector('[data-testid="content-area"]');
+      expect(contentArea).toHaveClass('flex-1');
+    });
   });
 
-  it('has minimum height of screen', () => {
+  it('has minimum height of screen', async () => {
     const { container } = renderLayout();
-    expect(container.firstChild).toHaveClass('min-h-screen');
+    await waitFor(() => {
+      expect(container.firstChild).toHaveClass('min-h-screen');
+    });
   });
 });

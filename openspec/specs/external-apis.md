@@ -11,7 +11,7 @@ Third-party services and API integrations required for the platform.
 
 | Service | Tier | Monthly Cost |
 |---------|------|--------------|
-| Ollama (Local) | Free | $0 |
+| Kimi AI (API) | Usage | ~$10-50 |
 | Supabase | Free/Pro | $0-25 |
 | Alchemy RPC | Growth | $0-49 |
 | Pinata IPFS | Free/Pro | $0-20 |
@@ -22,13 +22,14 @@ Third-party services and API integrations required for the platform.
 
 ## Service Configurations
 
-### 1. Ollama (AI Inference)
+### 1. Kimi AI (Inference)
 ```env
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=deepseek-coder-v2
+KIMI_API_KEY=sk-bw...
+KIMI_BASE_URL=https://api.moonshot.cn/v1
+KIMI_MODEL=kimi-k.25
 ```
-- Hardware: 16GB RAM min, NVIDIA/Apple Silicon recommended
-- Models: `deepseek-coder-v2`, `llama3.1`
+- Provider: Moonshot AI
+- Context Window: 128k+
 
 ### 2. Supabase (Database/Auth)
 ```env

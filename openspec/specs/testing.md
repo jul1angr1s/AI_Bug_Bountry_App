@@ -39,7 +39,7 @@ function invariant_noDoublePay() public { ... }
 ## Backend Testing
 
 ### Mocking Strategy
-- External services (Supabase, RPC, Ollama) mocked for unit tests
+- External services (Supabase, RPC, Kimi AI) mocked for unit tests
 - Fixed prompts + mocked LLM responses for agent logic tests
 
 ### API Testing
