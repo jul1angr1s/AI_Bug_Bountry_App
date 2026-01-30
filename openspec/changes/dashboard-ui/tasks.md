@@ -25,10 +25,10 @@
 
 ## Phase 4: Data Fetching & State
 
-- [ ] **Task 4.1**: Implement TanStack Query hooks for data fetching
-- [ ] **Task 4.2**: Set up Zustand dashboard store
-- [ ] **Task 4.3**: Add loading skeletons for all components
-- [ ] **Task 4.4**: Implement error boundaries
+- [x] **Task 4.1**: Implement TanStack Query hooks for data fetching
+- [x] **Task 4.2**: Set up Zustand dashboard store
+- [x] **Task 4.3**: Add loading skeletons for all components
+- [x] **Task 4.4**: Implement error boundaries
 
 ## Phase 5: Polish & Accessibility
 
