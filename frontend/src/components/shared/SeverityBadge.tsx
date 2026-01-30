@@ -15,13 +15,23 @@ export default function SeverityBadge({ severity, className }: SeverityBadgeProp
     INFO: 'bg-status-info text-white',
   };
 
+  const ariaLabels = {
+    CRITICAL: 'Critical severity',
+    HIGH: 'High severity',
+    MEDIUM: 'Medium severity',
+    LOW: 'Low severity',
+    INFO: 'Information',
+  };
+
   return (
     <span
       className={cn(
-        'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
+        'inline-flex items-center px-2 sm:px-2.5 py-0.5 rounded-full text-xs font-medium whitespace-nowrap',
         colors[severity],
         className
       )}
+      role="status"
+      aria-label={ariaLabels[severity]}
     >
       {severity}
     </span>
