@@ -4,6 +4,7 @@ import { AlertTriangle, RefreshCw } from 'lucide-react';
 interface Props {
   children: ReactNode;
   fallback?: ReactNode;
+  onError?: (error: Error, errorInfo: ErrorInfo) => void;
 }
 
 interface State {
@@ -32,6 +33,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     console.error('ErrorBoundary caught an error:', error, errorInfo);
+    this.props.onError?.(error, errorInfo);
   }
 
   handleReset = () => {
@@ -109,6 +111,7 @@ export class ComponentErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     console.error('ComponentErrorBoundary caught an error:', error, errorInfo);
+    this.props.onError?.(error, errorInfo);
   }
 
   handleReset = () => {
@@ -153,6 +156,21 @@ export class ComponentErrorBoundary extends Component<Props, State> {
 
     return this.props.children;
   }
+}
+
+/**
+ * Wrapper component for catching errors in dashboard sections
+ */
+export function DashboardErrorBoundary({ children }: { children: ReactNode }) {
+  return (
+    <ComponentErrorBoundary
+      onError={(error, errorInfo) => {
+        console.error('Dashboard error:', error, errorInfo);
+      }}
+    >
+      {children}
+    </ComponentErrorBoundary>
+  );
 }
 
 /**
