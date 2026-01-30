@@ -12,103 +12,47 @@ A continuous security auditing platform where autonomous AI agents (powered by M
 
 **Key Design Decision**: Protocols register **GitHub repo URLs** (not deployed contract addresses). Each scan/validation deploys a **fresh contract instance** from source code, ensuring state isolation between agents.
 
-```mermaid
-graph TB
-    subgraph "Frontend Layer"
-        Dashboard[React Dashboard<br/>Real-time Monitoring]
-        WS[WebSocket Client<br/>Live Updates]
-    end
 
-    subgraph "Agent Layer - MCP Powered"
-        PA[Protocol Agent<br/>MCP Server<br/>Registers GitHub repos]
-        RA[Researcher Agent<br/>MCP Server<br/>Vulnerability Scanner]
-        VA[Validator Agent<br/>MCP Server<br/>Exploit Verification]
-        A2A[Agent-to-Agent<br/>Communication Bus]
-    end
-
-    subgraph "Source Code Layer"
-        GitHub[GitHub API<br/>Repo Fetching]
-        CodeCache[(Code Cache<br/>Cloned Repos)]
-        Compiler[Foundry Compiler<br/>forge build]
-    end
-
-    subgraph "Backend Services"
-        API[Node.js API Server<br/>REST + WebSocket]
-        Queue[Agent Message Queue<br/>Event Processing]
-        Scheduler[Scan Scheduler<br/>Continuous Monitoring]
-        SyncWorker[State Reconciliation<br/>Blockchain -> DB Sync]
-    end
-
-    subgraph "Local Anvil - Chain 31337"
-        Anvil[Anvil Node<br/>Local Blockchain]
-        FreshDeploy[Fresh Contract<br/>Per Scan]
-        Sandbox[Exploit Sandbox<br/>Isolated Instance]
-    end
-
-    subgraph "Base Sepolia - Chain 84532"
-        BountyContract[BountyPool<br/>USDC Escrow]
-        ValidationReg[ERC-8004 Registry<br/>Validation States]
-        ProtocolReg[ProtocolRegistry<br/>GitHub URLs + Terms]
-        USDC[USDC Token<br/>0x036CbD53...]
-    end
-
-    subgraph "Storage Layer"
-        PostgreSQL[(PostgreSQL<br/>Protocol Metadata<br/>Bounty History)]
-        Redis[(Redis<br/>Agent State<br/>Message Cache)]
-        IPFS[IPFS/Filecoin<br/>Encrypted Proofs]
-    end
-
-    Dashboard --> API
-    WS --> API
-
-    API --> Queue
-    API --> PostgreSQL
-    API --> Redis
-
-    Queue --> PA
-    Queue --> RA
-    Queue --> VA
-
-    PA <--> A2A
-    RA <--> A2A
-    VA <--> A2A
-
-    RA --> Scheduler
-    Scheduler --> RA
-
-    PA -->|1. Register repo URL| ProtocolReg
-    PA -->|2. Fund pool| BountyContract
-
-    RA -->|3. Clone repo| GitHub
-    GitHub --> CodeCache
-    CodeCache --> Compiler
-    Compiler -->|4. Deploy fresh| FreshDeploy
-    RA -->|5. Scan fresh instance| FreshDeploy
-
-    VA -->|6. Clone & compile| CodeCache
-    VA -->|7. Deploy isolated| Sandbox
-    VA -->|8. Execute exploit| Sandbox
-
-    VA -->|9. Update| ValidationReg
-    ValidationReg -->|10. Trigger| BountyContract
-    BountyContract --> USDC
-
-    RA --> IPFS
-    VA --> IPFS
-
-    style PA fill:#e1f5ff
-    style RA fill:#ffe1e1
-    style VA fill:#e1ffe1
-    style GitHub fill:#f5f5f5
-    style CodeCache fill:#f5f5f5
-    style Compiler fill:#f5f5f5
-    style FreshDeploy fill:#fff4e1
-    style Sandbox fill:#fff4e1
-    style BountyContract fill:#ffe1f0
-    style ValidationReg fill:#f0e1ff
-    style ProtocolReg fill:#e1f5ff
-    style USDC fill:#e1ffe1
 ```
+┌───────────────────────────────────────────────────────────────────────────────────────────────┬────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐ ┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐                                              
+│                                       "Frontend Layer"                                        │                                                                                              "Backend Services"                                                                                                                                                                                                │ │                                                                       "Local Anvil - Chain 31337"                                                                        │                                              
+│                                                                                               │                                                                                                                                                                                                                                                                                                                │ │                                                                                                                                                                          │                                              
+│                                                                                               │                                                                                                                                                                                                                                                                                                                │ │                                                                                                                                                                          │                                              
+│ ┌──────────────────────────────────────────┐     ┌──────────────────────────────────────────┐ │   ┌──────────────────────────────────────────────────────────┐            ┌────────────────────────────────────────────────────────────────────────┐                     ┌─────────────────────────────────────────────────────────┐                        ┌────────────────────────────────────────────────┐ │ │ ┌─────────────────────────────────┐                                                                                                                                      │                                              
+│ │                                          │     │                                          │ │   │                                                          │            │                                                                        │                     │                                                         │                        │                                                │ │ │ │                                 │                                                                                                                                      │                                              
+│ │ React Dashboard<br/>Real-time Monitoring │  ┌──┤    WebSocket Client<br/>Live Updates     │ │┌──┤ Protocol Agent<br/>MCP Server<br/>Registers GitHub repos ├──┬────────►┤       Researcher Agent<br/>MCP Server<br/>Vulnerability Scanner        │5. Scan─fresh─instance Validator Agent<br/>MCP Server<br/>Exploit Verification │      8. Ex9.uUpdateloit│ State Reconciliation<br/>Blockchain -> DB Sync │ │ │ │ Anvil Node<br/>Local Blockchain │                                                                                                                                      │                                              
+│ │                                          │  │  │                                          │ ││  │                                                          │  │         │                                                                        │                  │  │                                                         │                     │  │                                                │ │ │ │                                 │                                                                                                                                      │                                              
+│ └─────────────────────┬────────────────────┘  │  └──────────────────────────────────────────┘ ││  └─────────────────────────────┬────────────────────────────┘  │         └────────────────────────────────────────────────────────────────────────┘                  │  └─────────────────────────────────────────────────────────┘                     │  └────────────────────────────────────────────────┘ │ │ └─────────────────────────────────┘                                                                                                                                      │                                              
+│                       │                       │                                               ││                                ▲                               │                                                                                                     │                                                                                  │                                                     │ │                                                                                                                                                                          │                                              
+├───────────────────────┼───────────────────────┼───────────────────────────────────────────────┘│                                │                               │                                                                                                     │                                                                                  │                                                     │ │                                                                                                                                                                          │                                              
+│                       │                       │                                                │                                │                               │                                                                                                     │                                                                                  │                                                     │ │                                                                                                                                                                          │                                              
+│                       │                       │                                                │                                │                               │                                                                                                     │                                                                                  │                                                     │ │                                                                                                                                                                          │                                              
+│                       ├───────────────────────┘                        ┌───────────────────────┼──────────────────────1.─Register─repo─URL──────────────────────┼────────────────2.─Fund─pool─────────────────┬───────────────────────────────────────────────────────┼───────────────────────────────┬────────────────3.─Clone─repo─────────────────────┴───────────────────────────┬─────────────────────────┼─┼──────────────────┬─────────────────────────────────────────────────┬──────────────────────────────────────┬────────────────────────────────────────┬─────────────────────┼────────────────────────┐                     
+│                       │                                                │                       │                                │                               │                                             │                                                       │                               │                                                                              │                         │ │                  │                                                 │                                      │                                        │                     │                        │                     
+│                       │                                                │                       │                                │                               │                                             │                                                       │                               │                                                                              │                         │ │                  │                                                 │                                      │                                        │                     │                        │                     
+│                       │                                                │                       │                                │                               │                                             │                                                       │                               │                                                                              │                         │ │                  │                                                 │                                      │                                        │                     │                        │                     
+│                       ▼                                                ▼                       │                                ▼                               │                                             ▼                                                       │                               ▼                                                                              ▼                         │ │                  ▼                                                 ▼                                      ▼                                        ▼                     │                        ▼                     
+│ ┌──────────────────────────────────────────┐     ┌──────────────────────────────────────────┐  │  ┌──────────────────────────────────────────────────────────┐  │         ┌────────────────────────────────────────────────────────────────────────┐                  │  ┌────────────────────────────┴────────────────────────────┐                        ┌────────────────────────────────────────────────┐ │ │ ┌─────────────────────────────────┐             ┌────────────────────────────────────┐     ┌─────────────────────────────┐     ┌───────────────────────────────────────┐ │   ┌─────────────────────────────────────────┐
+│ │                                          │     │                                          │  │  │                                                          │  │         │                                                                        │                  │  │                                                         │                        │                                                │ │ │ │                                 │             │                                    │     │                             │     │                                       │ │   │                                         │
+│ │ Node.js API Server<br/>REST + WebSocket  ├──┐  │   Agent-to-Agent<br/>Communication Bus   │  │  │         ProtocolRegistry<br/>GitHub URLs + Terms         │  │         │                       BountyPool<br/>USDC Escrow                       │    ├◄────────────┤  │         Scan Scheduler<br/>Continuous Monitoring        │                        │          GitHub API<br/>Repo Fetching          ├─┼┐│ │   Fresh Contract<br/>Per Scan   │             │ IPFS/Filecoin<br/>Encrypted Proofs │  ┌─►┤ Code Cache<br/>Cloned Repos │     │ Exploit Sandbox<br/>Isolated Instance │ │┌──┤ ERC-8004 Registry<br/>Validation States │
+│ │                                          │  │  │                                          │  │  │                                                          │  │         │                                                                        │                  │  │                                                         │                        │                                                │ │││ │                                 │             │                                    │  │  │                             │     │                                       │ ││  │                                         │
+│ └──────────────────────────────────────────┘  │  └──────────────────────────────────────────┘  │  └──────────────────────────────────────────────────────────┘  │         └────────────────────────────────────────────────────────────────────────┘                  │  └─────────────────────────────────────────────────────────┘                        └────────────────────────────────────────────────┘ │││ └─────────────────────────────────┘             └────────────────────────────────────┘  │  └─────────────────────────────┘     └───────────────────────────────────────┘ ││  └─────────────────────────────────────────┘
+│                                               │                                                │                                                                │                                                                                                     │                                                                                                                                        │││                  ▲                                                                      │                                                                                ││                                             
+│                                               │                                                │                                                                │                                                                                                     │                                                                                                                                        ││└──────────────────┼──────────────────────────────────────────────────────────────────────┼────────────────────────────────────────────────────────────────────────────────┘│                                             
+│                       ┌───────────────────────┼────────────────────────┬───────────────────────┼────────────────────────────────┬───────────────────────────────┴─────────────────────────────────────────────┬───────────────────4.─Deploy─fresh─────────────────────┴───────────────────────────────┬────────────────────────────────────────────────────────────────────────────────────────────────────────┼┴───────────10.─Trigger────────────────────────────────────────────────────────────────────┴─────────────────────────────────────────────────────────────────────────────────┘                                             
+│                       │                       │                        │                       │                                │                                                                             │                                                                                       │                                                                                                        │                                                                                                                                                                                                                           
+│                       ▼                       │                        ▼                       │                                ▼                                                                             ▼                                                                                       ▼                                                                                                        │                                                                                                                                                                                                                           
+│ ┌──────────────────────────────────────────┐  │  ┌─────────────────────┴────────────────────┐  │  ┌──────────────────────────────────────────────────────────┐            ┌────────────────────────────────────────────────────────────────────────┐                     ┌─────────────────────────────────────────────────────────┐                                                                           │                                                                                                                                                                                                                           
+│ │                                          │  │  │                                          │  │  │                                                          │            │                                                                        │                     │                                                         │                                                                           │                                                                                                                                                                                                                           
+│ │     Foundry Compiler<br/>forge build     ├──┘  │ Agent Message Queue<br/>Event Processing ├──┘  │   PostgreSQL<br/>Protocol Metadata<br/>Bounty History    │            │                Redis<br/>Agent State<br/>Message Cache                 │                     │               USDC Token<br/>0x036CbD53...              │                                                                           │                                                                                                                                                                                                                           
+│ │                                          │     │                                          │     │                                                          │            │                                                                        │                     │                                                         │                                                                           │                                                                                                                                                                                                                           
+│ └──────────────────────────────────────────┘     └──────────────────────────────────────────┘     └──────────────────────────────────────────────────────────┘            └────────────────────────────────────────────────────────────────────────┘                     └─────────────────────────────────────────────────────────┘                                                                           │                                                                                                                                                                                                                           
+│                                                                                                                                                                                                                                                                                                                                                                                                                │                                                                                                                                                                                                                           
+└────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘                                                                                                                                                                                                                           
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
+```
+
 
 ## Component Details
 
@@ -384,42 +328,88 @@ Stage 3: Mainnet Deployment
 
 ### Cross-Chain Workflow (GitHub-Based)
 
-```mermaid
-sequenceDiagram
-    participant PA as Protocol Agent
-    participant Sepolia as Base Sepolia
-    participant GitHub as GitHub API
-    participant RA as Researcher Agent
-    participant Anvil as Local Anvil
-    participant VA as Validator Agent
 
-    Note over Sepolia: Registration & Funding
-    PA->>Sepolia: 1. Register GitHub repo URL + terms
-    PA->>Sepolia: 2. Fund bounty pool (USDC)
-
-    Note over GitHub,Anvil: Fresh Deployment Per Scan
-    RA->>GitHub: 3. Clone repo (specific commit)
-    GitHub-->>RA: Source code
-    RA->>RA: 4. Compile with Foundry
-    RA->>Anvil: 5. Deploy FRESH instance
-    RA->>Anvil: 6. Scan fresh contract
-    RA->>RA: 7. Detect vulnerability
-
-    Note over RA,VA: Proof Submission
-    RA->>VA: 8. Submit encrypted proof + commit hash
-
-    Note over GitHub,Anvil: Isolated Validation
-    VA->>GitHub: 9. Clone SAME commit
-    GitHub-->>VA: Source code
-    VA->>Anvil: 10. Deploy to ISOLATED sandbox
-    VA->>Anvil: 11. Execute exploit
-    VA->>VA: 12. Confirm: TRUE/FALSE
-
-    Note over Sepolia: Payment Trigger
-    VA->>Sepolia: 13. Update ERC-8004 Registry
-    Sepolia->>Sepolia: 14. BountyPool releases USDC
-    Sepolia->>RA: 15. Researcher receives payment
 ```
+┌────────────────┐                        ┌──────────────┐     ┌────────────┐                    ┌──────────────────┐             ┌─────────────┐                   ┌─────────────────┐                       
+│ Protocol Agent │                        │ Base Sepolia │     │ GitHub API │                    │ Researcher Agent │             │ Local Anvil │                   │ Validator Agent │                       
+└────────┬───────┘                        └───────┬──────┘     └──────┬─────┘                    └─────────┬────────┘             └──────┬──────┘                   └────────┬────────┘                       
+         │                                        │                   │                                    │                             │                                   │                                
+         │  1. Register GitHub repo URL + terms   │                   │                                    │                             │                                   │                                
+         │────────────────────────────────────────▶                   │                                    │                             │                                   │                                
+         │                                        │                   │                                    │                             │                                   │                                
+         │      2. Fund bounty pool (USDC)        │                   │                                    │                             │                                   │                                
+         │────────────────────────────────────────▶                   │                                    │                             │                                   │                                
+         │                                        │                   │                                    │                             │                                   │                                
+         │                                        │                   │                  ┌───────────────────────────┐                   │                                   │                                
+         │                                        │                   │                  │ Fresh Deployment Per Scan │                   │                                   │                                
+         │                                        │                   │                  └───────────────────────────┘                   │                                   │                                
+         │                                        │                   │                                    │                             │                                   │                                
+         │                                        │                   │  3. Clone repo (specific commit)   │                             │                                   │                                
+         │                                        │                   ◀────────────────────────────────────│                             │                                   │                                
+         │                                        │                   │                                    │                             │                                   │                                
+         │                                        │                   │            Source code             │                             │                                   │                                
+         │                                        │                   │╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌▶                             │                                   │                                
+         │                                        │                   │                                    │                             │                                   │                                
+         │                                        │                   │                                    ├───┐                         │                                   │                                
+         │                                        │                   │                                    │   │ 4. Compile with Foundry │                                   │                                
+         │                                        │                   │                                    ◀───┘                         │                                   │                                
+         │                                        │                   │                                    │                             │                                   │                                
+         │                                        │                   │                                    │  5. Deploy FRESH instance   │                                   │                                
+         │                                        │                   │                                    │─────────────────────────────▶                                   │                                
+         │                                        │                   │                                    │                             │                                   │                                
+         │                                        │                   │                                    │   6. Scan fresh contract    │                                   │                                
+         │                                        │                   │                                    │─────────────────────────────▶                                   │                                
+         │                                        │                   │                                    │                             │                                   │                                
+         │                                        │                   │                                    ├───┐                         │                                   │                                
+         │                                        │                   │                                    │   │ 7. Detect vulnerability │                                   │                                
+         │                                        │                   │                                    ◀───┘                         │                                   │                                
+         │                                        │                   │                                    │                             │                                   │                                
+         │                                        │                   │                                    │                      ┌──────────────────┐                       │                                
+         │                                        │                   │                                    │                      │ Proof Submission │                       │                                
+         │                                        │                   │                                    │                      └──────────────────┘                       │                                
+         │                                        │                   │                                    │                             │                                   │                                
+         │                                        │                   │                                    │             8. Submit encrypted proof + commit hash             │                                
+         │                                        │                   │                                    │─────────────────────────────────────────────────────────────────▶                                
+         │                                        │                   │                                    │                             │                                   │                                
+         │                                        │                   │                     ┌─────────────────────┐                      │                                   │                                
+         │                                        │                   │                     │ Isolated Validation │                      │                                   │                                
+         │                                        │                   │                     └─────────────────────┘                      │                                   │                                
+         │                                        │                   │                                    │                             │                                   │                                
+         │                                        │                   │                                    │   9. Clone SAME commit      │                                   │                                
+         │                                        │                   ◀──────────────────────────────────────────────────────────────────────────────────────────────────────│                                
+         │                                        │                   │                                    │                             │                                   │                                
+         │                                        │                   │                                    │        Source code          │                                   │                                
+         │                                        │                   │╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌▶                                
+         │                                        │                   │                                    │                             │                                   │                                
+         │                                        │                   │                                    │                             │  10. Deploy to ISOLATED sandbox   │                                
+         │                                        │                   │                                    │                             ◀───────────────────────────────────│                                
+         │                                        │                   │                                    │                             │                                   │                                
+         │                                        │                   │                                    │                             │        11. Execute exploit        │                                
+         │                                        │                   │                                    │                             ◀───────────────────────────────────│                                
+         │                                        │                   │                                    │                             │                                   │                                
+         │                                        │                   │                                    │                             │                                   ├───┐                            
+         │                                        │                   │                                    │                             │                                   │   │ 12. Confirm: TRUE/FALSE    
+         │                                        │                   │                                    │                             │                                   ◀───┘                            
+         │                                        │                   │                                    │                             │                                   │                                
+         │                               ┌─────────────────┐          │                                    │                             │                                   │                                
+         │                               │ Payment Trigger │          │                                    │                             │                                   │                                
+         │                               └─────────────────┘          │                                    │                             │                                   │                                
+         │                                        │                   │                                    │                             │                                   │                                
+         │                                        │                   │                          13. Update ERC-8004 Registry            │                                   │                                
+         │                                        ◀──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────│                                
+         │                                        │                   │                                    │                             │                                   │                                
+         │                                        ├───┐               │                                    │                             │                                   │                                
+         │                                        │   │ 14. BountyPool releases USDC                       │                             │                                   │                                
+         │                                        ◀───┘               │                                    │                             │                                   │                                
+         │                                        │                   │                                    │                             │                                   │                                
+         │                                        │            15. Researcher receives payment             │                             │                                   │                                
+         │                                        │────────────────────────────────────────────────────────▶                             │                                   │                                
+         │                                        │                   │                                    │                             │                                   │                                
+┌────────┴───────┐                        ┌───────┴──────┐     ┌──────┴─────┐                    ┌─────────┴────────┐             ┌──────┴──────┐                   ┌────────┴────────┐                       
+│ Protocol Agent │                        │ Base Sepolia │     │ GitHub API │                    │ Researcher Agent │             │ Local Anvil │                   │ Validator Agent │                       
+└────────────────┘                        └──────────────┘     └────────────┘                    └──────────────────┘             └─────────────┘                   └─────────────────┘                       
+```
+
 
 ### Step-by-Step Flow
 

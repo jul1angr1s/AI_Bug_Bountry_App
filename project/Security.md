@@ -8,7 +8,7 @@ This document outlines the security architecture, hardening measures, and best p
 
 ## 1. AI & Agent Security (Local LLM Hardening)
 
-Running local LLMs (Ollama) introduces specific attack vectors covering prompt injection, hallucination, and sandbox escapes.
+Running local LLMs (Kimi 2.5) introduces specific attack vectors covering prompt injection, hallucination, and sandbox escapes.
 
 ### 1.1 Model & Prompt Hardening
 - **System Prompt Guardrails**: All agent system prompts must include strict output format enforcement and "refusal" instructions for unsafe operations.

@@ -5,7 +5,7 @@
 This document defines the specialized AI development subagents required to build the Autonomous Bug Bounty Orchestrator platform.
 
 **Key Changes:**
-- **AI Core**: Transitioned to **Ollama** for local, cost-efficient inference.
+- **AI Core**: Transitioned to **Kimi AI (Moonshot)** for high-performance cloud-native inference.
 - **Data Core**: Transitioned to **Supabase** for Backend-as-a-Service capabilities.
 
 ---
@@ -62,7 +62,7 @@ This document defines the specialized AI development subagents required to build
 **Expertise**:
 - Express.js / Node.js
 - **Supabase Admin / Prisma Connectivity**
-- **Ollama Integration (AI Service Layer)**
+- **Kimi AI Integration (AI Service Layer)**
 - Redis/BullMQ
 
 **Required Skills**:
@@ -74,14 +74,14 @@ This document defines the specialized AI development subagents required to build
 **Primary Responsibilities**:
 - Express API server
 - Prisma schema for Supabase Postgres
-- **Ollama Service** for routing prompts to local LLM
+- **Kimi AI Service** for routing prompts to Moonshot API
 - Supabase Auth middleware integration
 - x402 payment processing logic
 
 **Outputs**:
 ```
 backend/src/services/
-├── OllamaService.ts         # Handles local model inference
+├── KimiService.ts              # Handles Moonshot API interaction
 ├── SupabaseService.ts       # Service role operations
 ```
 
@@ -98,24 +98,24 @@ backend/src/services/
 
 **Expertise**:
 - MCP SDK
-- **Ollama API / SDK**
+- **Kimi AI API / SDK**
 - Agent-to-Agent Communication
-- System Prompt Engineering for Local Models
+- Prompt Engineering for Kimi k.25
 
 **Required Skills**:
 - `mcp-builder`
-- `ollama`
+- `openai-sdk-mastery`
 - `typescript-expert`
 
 **Assignments**:
-- Build Protocol/Researcher/Validator agents using **Ollama** as the brain.
-- Optimize context windows for local model constraints.
+- Build Protocol/Researcher/Validator agents using **Kimi AI** as the brain.
+- Optimize prompts for `kimi-k.25` model characteristics.
 
 **Outputs**:
 ```
 backend/src/agents/
 ├── core/
-│   └── LocalLLMClient.ts    # Wrapper for Ollama
+│   └── KimiClient.ts        # Wrapper for Moonshot API
 ```
 
 ---
@@ -130,14 +130,13 @@ backend/src/agents/
 **Expertise**:
 - Docker & Docker Compose
 - **Supabase Local Development** (CLI)
-- **Ollama Docker Setup**
+- **Kimi 2.5 Docker Setup**
 
 **Required Skills**:
 - `docker-patterns`
 - `supabase-cli-mastery`
 
 **Primary Responsibilities**:
-- Docker Compose including `ollama` service (or host networking).
 - Supabase local setup (`supabase start`).
 - Railway deployment config (connecting to managed Supabase).
 
@@ -154,17 +153,17 @@ backend/src/agents/
 | Task | Subagent | Dependencies |
 |------|----------|--------------|
 | **Supabase Setup** | DevOps | None |
-| **Ollama Setup** | DevOps | None (Local Install) |
+| **Kimi 2.5 Setup** | DevOps | None (Local Install) |
 | Contract Interfaces | Smart Contract | None |
 | UI Components | Frontend | None |
 
 ### Phase 2: Core Implementation
 | Task | Subagent | Dependencies |
 |------|----------|--------------|
-| **Ollama Service** | Backend | Ollama Setup, Supabase DB |
+| **Kimi 2.5 Service** | Backend | Kimi 2.5 Setup, Supabase DB |
 | **Supabase Auth** | Frontend | Supabase Setup |
 | Dashboard Pages | Frontend | UI Components |
-| Agent Core | MCP Agent | Ollama Service |
+| Agent Core | MCP Agent | Kimi 2.5 Service |
 
 ---
 
@@ -173,9 +172,9 @@ backend/src/agents/
 | Subagent | AI Skills | Data Skills |
 |----------|-----------|-------------|
 | **Frontend** | - | ✅ supabase-client |
-| **Backend** | ✅ ollama-sdk | ✅ supabase-admin<br>✅ prisma-postgres |
-| **MCP Agent** | ✅ local-llm-prompting<br>✅ ollama-tools | - |
-| **DevOps** | ✅ ollama-docker | ✅ supabase-cli |
+| **Backend** | ✅ kimi-ai-integration | ✅ supabase-admin<br>✅ prisma-postgres |
+| **MCP Agent** | ✅ kimi-prompting | - |
+| **DevOps** | ✅ cloud-infra | ✅ supabase-cli |
 
 ---
 
@@ -183,18 +182,18 @@ backend/src/agents/
 
 | Subagent | Acceptance Criteria |
 |----------|---------------------|
-| **Backend** | API routes working with **Supabase**, AI endpoints return responses from **Ollama**. |
-| **MCP Agent** | Agents successfully reason using **Local LLM** (e.g. DeepSeek). |
-| **DevOps** | Local stack spins up with `supabase start` and accessible `ollama`. |
+| **Backend** | API routes working with **Supabase**, AI endpoints return responses from **Kimi AI**. |
+| **MCP Agent** | Agents successfully reason using **Kimi AI** (k.25). |
+| **DevOps** | Local stack spins up with `supabase start` and accessible API. |
 
 ---
 
 ## Quick Reference (New Commands)
 
 ```bash
-# Activate Backend with Ollama
-@backend-subagent: Implement OllamaService to chat with deepseek-coder-v2
+# Activate Backend with Kimi AI
+@backend-subagent: Implement KimiService to chat with Moonshot API
 
 # DevOps: Setup Local Stack
-@devops-subagent: Create docker-compose with Supabase and Ollama services
+@devops-subagent: Create local dev environment with Supabase
 ```
