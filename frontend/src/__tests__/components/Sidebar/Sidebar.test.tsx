@@ -42,7 +42,7 @@ describe('Sidebar', () => {
   it('has fixed width of 200px', async () => {
     const { container } = renderSidebar();
     await waitFor(() => {
-      const sidebar = container.firstChild as HTMLElement;
+      const sidebar = container.querySelector('aside') as HTMLElement;
       expect(sidebar).toHaveClass('w-[200px]');
     });
   });
@@ -50,7 +50,7 @@ describe('Sidebar', () => {
   it('has dark background matching design system', async () => {
     const { container } = renderSidebar();
     await waitFor(() => {
-      const sidebar = container.firstChild as HTMLElement;
+      const sidebar = container.querySelector('aside') as HTMLElement;
       expect(sidebar).toHaveClass('bg-navy-800');
     });
   });

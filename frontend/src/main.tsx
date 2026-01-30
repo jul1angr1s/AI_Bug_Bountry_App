@@ -11,12 +11,13 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import App from './App';
 import './index.css';
 
-// Create a QueryClient instance
+// Create a QueryClient instance with retry logic and exponential backoff
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 5, // 5 minutes
-      retry: 1,
+      retry: 3,
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+      staleTime: 1000 * 60, // 1 minute
       refetchOnWindowFocus: false,
     },
   },
