@@ -1,5 +1,5 @@
 import { SiweMessage } from 'siwe';
-import { BrowserProvider } from 'ethers';
+import { BrowserProvider, getAddress } from 'ethers';
 
 /**
  * Generate a SIWE message for signing
@@ -12,9 +12,12 @@ export async function createSiweMessage(
   const origin = window.location.origin;
   const nonce = generateNonce();
 
+  // Ensure address is properly checksummed (EIP-55)
+  const checksummedAddress = getAddress(address);
+
   const message = new SiweMessage({
     domain,
-    address,
+    address: checksummedAddress,
     statement,
     uri: origin,
     version: '1',
@@ -90,7 +93,8 @@ export async function connectWallet(): Promise<string> {
       throw new Error('No accounts found. Please unlock your wallet.');
     }
 
-    return accounts[0];
+    // Return checksummed address (EIP-55)
+    return getAddress(accounts[0]);
   } catch (error) {
     if ((error as { code?: number }).code === 4001) {
       throw new Error('User rejected the connection request.');
@@ -111,7 +115,9 @@ export async function getCurrentWalletAddress(): Promise<string | null> {
     const accounts = await window.ethereum.request({
       method: 'eth_accounts',
     });
-    return (accounts as string[])[0] || null;
+    const address = (accounts as string[])[0];
+    // Return checksummed address (EIP-55)
+    return address ? getAddress(address) : null;
   } catch (error) {
     console.error('Error getting wallet address:', error);
     return null;
