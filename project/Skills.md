@@ -8,7 +8,7 @@ This project requires specialized AI agent skills for both frontend development 
 |--------|--------|---------|
 | Frontend | [Vercel Agent Skills](https://github.com/vercel-labs/agent-skills) | React/Next.js optimization, UI patterns |
 | Security | [Trail of Bits Skills](https://github.com/trailofbits/skills) | Smart contract vulnerability analysis |
-| Platform | [External Agent Skills](https://skills.sh) | Supabase, x402, Prisma, TypeScript, NodeJS, MCP, Kimi 2.5 |
+| Platform | [External Agent Skills](https://skills.sh) | Supabase, x402, Prisma, TypeScript, NodeJS, MCP, Kimi AI |
 
 ---
 
@@ -32,7 +32,7 @@ npx skills add <owner/repo>
 | **Prisma** | `sickn33/antigravity-awesome-skills/prisma-expert` | `npx skills add sickn33/antigravity-awesome-skills/prisma-expert` |
 | **TypeScript** | `sickn33/antigravity-awesome-skills/typescript-expert` | `npx skills add sickn33/antigravity-awesome-skills/typescript-expert` |
 | **MCP** | `anthropics/skills/mcp-builder` | `npx skills add anthropics/skills/mcp-builder` |
-| **Kimi 2.5** | `rawveg/skillsforge-marketplace/kimi-ai` | `npx skills add rawveg/skillsforge-marketplace/kimi-ai` |
+| **Kimi AI** | `rawveg/skillsforge-marketplace/kimi-ai` | `npx skills add rawveg/skillsforge-marketplace/kimi-ai` |
 
 ---
 

@@ -78,7 +78,7 @@ backend/
 │   │   ├── KimiService.ts      <-- UPDATED
 │   │   └── ...
 │   ├── lib/
-│   │   ├── supabase.ts
+│   │   ├── supabase.ts       <-- NEW
 │   │   └── prisma.ts
 │   └── ...
 ```
@@ -109,10 +109,10 @@ backend/
 | **Frontend** | Vercel / Railway Static |
 | **Backend API** | Railway Node.js |
 | **Database** | **Supabase (Managed)** |
-| **Agents** | Railway (Custom Docker with Kimi 2.5 access*) |
-| **Kimi 2.5** | **Local Machine** (Dev) / **GPU Cloud** (Prod) |
+| **Agents** | Railway (Custom Docker with Kimi AI access*) |
+| **Kimi AI** | **Local Machine** (Dev) / **GPU Cloud** (Prod) |
 
-*> Note: For production, Kimi 2.5 needs a GPU node. We may deploy Kimi 2.5 on a GPU instance (e.g., Railway GPU service or separate provider) and expose the URL to the Backend.*
+*> Note: For production, Kimi AI needs a GPU node. We may deploy Kimi AI on a GPU instance (e.g., Railway GPU service or separate provider) and expose the URL to the Backend.*
 
 ### Environment Variables (Updated)
 
@@ -139,7 +139,7 @@ DATABASE_URL=postgres://postgres:[PASSWORD]@db.xyz.supabase.co:6543/postgres?pgb
     "@prisma/client": "^5.10.0"
   },
   "remove": [
-    "kimi-ai"
+    "ollama"
   ]
 }
 ```
