@@ -5,7 +5,7 @@
 ![Thunder Security](https://img.shields.io/badge/Thunder_Security-Autonomous_AI-blue?style=for-the-badge)
 ![Build Status](https://img.shields.io/badge/build-passing-brightgreen?style=for-the-badge)
 ![Test Coverage](https://img.shields.io/badge/coverage-100%25-success?style=for-the-badge)
-![License](https://img.shields.io/badge/license-MIT-blue?style=for-the-badge)
+![License](https://img.shields.io/badge/license-Apache--2.0-blue?style=for-the-badge)
 
 ### 🤖 AI-Powered Security Intelligence • ⛓️ Blockchain-Native Payments • 🔒 Continuous Protocol Protection
 
@@ -33,10 +33,10 @@ Traditional bug bounty programs are:
 
 An **autonomous orchestrator** powered by local AI that:
 - 🔍 **Scans continuously** - Monitors your protocols around the clock
-- 🤖 **3 Specialized AI Agents** - Protocol, Researcher, and Validator working in harmony
+- 🤖 **4 Specialized AI Agents** - Protocol, Researcher, Validator, and Frontend QA working in harmony
 - ⚓ **On-chain payments** - Instant, transparent USDC bounties via Base L2
 - 📊 **Real-time dashboard** - Watch your security posture in real-time
-- 🧠 **Local AI** - Powered by Ollama (DeepSeek/Llama 3) - your data stays yours
+- 🧠 **Cloud-Native AI** - Powered by Kimi AI (Moonshot) - high-performance inference at scale
 
 ---
 
@@ -46,7 +46,7 @@ An **autonomous orchestrator** powered by local AI that:
 
 <table>
 <tr>
-<td width="33%" align="center">
+<td width="25%" align="center">
 
 **🛡️ Protocol Agent**
 
@@ -55,7 +55,7 @@ Detects anomalies
 Triggers scans on changes
 
 </td>
-<td width="33%" align="center">
+<td width="25%" align="center">
 
 **🔬 Researcher Agent**
 
@@ -64,13 +64,22 @@ Discovers vulnerabilities
 Generates PoC exploits
 
 </td>
-<td width="33%" align="center">
+<td width="25%" align="center">
 
 **✅ Validator Agent**
 
 Verifies findings
 Prevents false positives
 Calculates severity scores
+
+</td>
+<td width="25%" align="center">
+
+**🔍 Frontend QA Agent**
+
+Inspects Chrome DevTools
+Monitors console errors
+Verifies UI/UX state
 
 </td>
 </tr>
@@ -163,7 +172,8 @@ graph TB
         PROTOCOL[🛡️ Protocol Agent<br/>Contract Monitoring]
         RESEARCHER[🔬 Researcher Agent<br/>Vulnerability Analysis]
         VALIDATOR[✅ Validator Agent<br/>Finding Verification]
-        OLLAMA[🧠 Ollama<br/>DeepSeek · Llama 3]
+        QA[🔍 Frontend QA Agent<br/>UI/UX Verification]
+        KIMI[🧠 Kimi AI<br/>k.25 Model]
     end
 
     subgraph "Data Layer"
@@ -190,9 +200,10 @@ graph TB
     QUEUE --> RESEARCHER
     QUEUE --> VALIDATOR
 
-    PROTOCOL --> OLLAMA
-    RESEARCHER --> OLLAMA
-    VALIDATOR --> OLLAMA
+    PROTOCOL --> KIMI
+    RESEARCHER --> KIMI
+    VALIDATOR --> KIMI
+    QA --> KIMI
 
     API <--> DB
     REALTIME --> WS_SERVER
@@ -202,7 +213,7 @@ graph TB
     CONTRACTS --> USDC
 
     style UI fill:#3B82F6,stroke:#1E40AF,stroke-width:3px,color:#fff
-    style OLLAMA fill:#10B981,stroke:#059669,stroke-width:3px,color:#fff
+    style KIMI fill:#10B981,stroke:#059669,stroke-width:3px,color:#fff
     style CONTRACTS fill:#F59E0B,stroke:#D97706,stroke-width:3px,color:#fff
     style DB fill:#8B5CF6,stroke:#7C3AED,stroke-width:3px,color:#fff
 ```
@@ -216,7 +227,8 @@ sequenceDiagram
     participant Queue as 📋 Job Queue
     participant Researcher as 🔬 Researcher Agent
     participant Validator as ✅ Validator Agent
-    participant Ollama as 🧠 Ollama AI
+    participant QA as 🔍 Frontend QA Agent
+    participant Kimi as 🧠 Kimi AI
     participant Contract as 💰 Smart Contract
     participant Dashboard as 📊 Dashboard
 
@@ -225,16 +237,16 @@ sequenceDiagram
     Protocol->>Queue: Create Scan Task
 
     Queue->>Researcher: Assign Scan Job
-    Researcher->>Ollama: Analyze Contract Code
-    Ollama-->>Researcher: Security Analysis
+    Researcher->>Kimi: Analyze Contract Code
+    Kimi-->>Researcher: Security Analysis
 
     alt Vulnerability Found
         Researcher->>Researcher: Generate PoC Exploit
         Researcher->>Queue: Submit Finding
 
         Queue->>Validator: Validate Finding
-        Validator->>Ollama: Verify PoC
-        Ollama-->>Validator: Validation Result
+        Validator->>Kimi: Verify PoC
+        Kimi-->>Validator: Validation Result
 
         alt Finding Confirmed
             Validator->>Validator: Calculate Severity
@@ -245,6 +257,9 @@ sequenceDiagram
             Contract-->>Dashboard: Emit Event
 
             Dashboard->>Dashboard: Show Alert Banner
+            Dashboard->>QA: Trigger UI Validation
+            QA->>Kimi: Verify Dashboard Update
+            Kimi-->>QA: UI Verified
             Dashboard->>Dashboard: Update Metrics
             Dashboard->>Dashboard: Add to Table
         else False Positive
@@ -364,7 +379,7 @@ flowchart TB
 
 - **Node.js** 20.x LTS
 - **npm** 10.x or **yarn** 1.22+
-- **Ollama** (for local AI)
+- **Kimi AI API Key** (Moonshot AI)
 - **Supabase** account
 - **Git**
 
@@ -375,19 +390,11 @@ git clone https://github.com/jul1angr1s/AI_Bug_Bountry_App.git
 cd AI_Bug_Bountry_App
 ```
 
-### 2️⃣ Install Ollama & Models
+### 2️⃣ Get Kimi AI API Key
 
-```bash
-# Install Ollama (macOS)
-brew install ollama
-
-# Start Ollama service
-ollama serve
-
-# Pull AI models
-ollama pull deepseek-coder-v2
-ollama pull llama3.1
-```
+1. Sign up at [Moonshot AI Platform](https://platform.moonshot.cn/)
+2. Create an API Key
+3. Ensure you have access to the `kimi-k.25` model
 
 ### 3️⃣ Setup Frontend
 
@@ -452,7 +459,7 @@ AI_Bug_Bountry_App/
 │   │   ├── api/              # REST endpoints
 │   │   ├── services/         # Business logic
 │   │   │   ├── AgentOrchestrator.ts
-│   │   │   └── OllamaService.ts
+│   │   │   └── KimiService.ts
 │   │   ├── lib/              # Utilities
 │   │   └── prisma/           # Database schema
 │   └── package.json
@@ -534,16 +541,16 @@ npm run test:ui
 
 ### AI & Blockchain
 
-![Ollama](https://img.shields.io/badge/Ollama-Local_AI-000000?style=flat-square)
+![Kimi AI](https://img.shields.io/badge/Kimi_AI-Moonshot-blue?style=flat-square)
 ![Solidity](https://img.shields.io/badge/Solidity-0.8.20-363636?style=flat-square&logo=solidity&logoColor=white)
 ![x402](https://img.shields.io/badge/x402-Agent_Payments-FF6B6B?style=flat-square)
 ![ERC8004](https://img.shields.io/badge/ERC--8004-Agent_Trust-4ECDC4?style=flat-square)
 
 #### AI Layer
-- **Ollama** - Local LLM inference engine
-- **DeepSeek Coder V2** - Smart contract analysis model
-- **Llama 3.1** - Advanced reasoning model
+- **Kimi AI (Moonshot)** - High-performance LLM inference engine
+- **kimi-k.25** - Advanced model for code analysis and reasoning
 - **MCP SDK** - Model Context Protocol for agent communication
+- **Chrome DevTools MCP** - Direct browser interaction for QA agents
 
 #### Blockchain Layer
 - **Solidity 0.8.20** - Smart contract language
@@ -592,7 +599,7 @@ npm run test:ui
 - [ ] API integration with TanStack Query
 - [ ] Zustand state management
 - [ ] Backend API implementation
-- [ ] Ollama AI agent services
+- [ ] Kimi AI agent services
 - [ ] Smart contract deployment
 - [ ] SIWE authentication flow
 - [ ] Keyboard navigation
@@ -656,7 +663,7 @@ All PRs must:
 
 ## 📜 License
 
-This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the **Apache License 2.0** - see the [LICENSE](LICENSE) file for details.
 
 ---
 
@@ -670,8 +677,8 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 ### 🤖 AI & Technology
 - **OpenAI** - Inspiration for autonomous agents
 - **Anthropic** - Claude for development assistance
-- **Ollama** - Local AI infrastructure
-- **DeepSeek** - Advanced code analysis models
+- **Moonshot AI** - Providing Kimi k.25 for advanced intelligence and autonomous reasoning
+- **Anthropic** - Claude for development assistance and agentic orchestration
 
 ### ⛓️ Blockchain Infrastructure
 - **Base** - L2 scaling solution
