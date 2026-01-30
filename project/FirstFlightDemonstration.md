@@ -724,58 +724,110 @@ io.to("payments").emit("payment:released", {
 
 ## Complete Sequence Diagram
 
-```mermaid
-sequenceDiagram
-    participant Owner as Protocol Owner
-    participant PA as Protocol Agent
-    participant Sepolia as Base Sepolia
-    participant GitHub as GitHub
-    participant RA as Researcher Agent
-    participant Anvil as Local Anvil
-    participant Quimera as Quimera AI
-    participant IPFS as Pinata IPFS
-    participant VA as Validator Agent
-    participant Sandbox as Anvil Sandbox
-    participant BP as BountyPool
-    participant Researcher as Researcher Wallet
-    participant Dashboard as Dashboard
 
-    Note over Owner,Dashboard: PHASE 1: Registration
-    Owner->>PA: Register Thunder Loan
-    PA->>GitHub: Validate repo exists
-    PA->>Sepolia: registerProtocol()
-    PA->>Sepolia: depositBounty($10,000)
-    Sepolia-->>Dashboard: protocol:registered
-
-    Note over Owner,Dashboard: PHASE 2: Scanning
-    RA->>GitHub: Clone repo
-    RA->>Anvil: Deploy fresh ThunderLoan
-    RA->>Quimera: Analyze contract
-    Quimera-->>RA: CRITICAL: Oracle manipulation
-
-    Note over Owner,Dashboard: PHASE 3: Proof
-    RA->>RA: Generate exploit PoC
-    RA->>IPFS: Store encrypted proof
-    RA->>VA: PROOF_SUBMISSION (A2A)
-    RA-->>Dashboard: vuln:discovered
-
-    Note over Owner,Dashboard: PHASE 4: Validation
-    VA->>GitHub: Clone same commit
-    VA->>Sandbox: Deploy isolated instance
-    VA->>Sandbox: Execute exploit
-    Sandbox-->>VA: SUCCESS - Profit extracted
-
-    Note over Owner,Dashboard: PHASE 5: Payment
-    VA->>Sepolia: recordResult(TRUE)
-    Sepolia->>BP: releaseBounty()
-    BP->>Researcher: Transfer $5,000 USDC
-    Sepolia-->>Dashboard: vuln:confirmed
-    Sepolia-->>Dashboard: payment:released
-
-    Note over Owner,Dashboard: PHASE 6: Notification
-    Dashboard-->>Owner: 🔔 Vulnerability in your protocol!
-    Dashboard-->>Researcher: 💰 Payment received!
 ```
+┌────────────────┐         ┌────────────────┐           ┌──────────────┐  ┌────────┐  ┌──────────────────┐             ┌─────────────┐    ┌────────────┐   ┌─────────────┐   ┌─────────────────┐              ┌───────────────┐  ┌────────────┐         ┌───────────────────┐         ┌───────────┐   
+│ Protocol Owner │         │ Protocol Agent │           │ Base Sepolia │  │ GitHub │  │ Researcher Agent │             │ Local Anvil │    │ Quimera AI │   │ Pinata IPFS │   │ Validator Agent │              │ Anvil Sandbox │  │ BountyPool │         │ Researcher Wallet │         │ Dashboard │   
+└────────┬───────┘         └────────┬───────┘           └───────┬──────┘  └────┬───┘  └─────────┬────────┘             └──────┬──────┘    └──────┬─────┘   └──────┬──────┘   └────────┬────────┘              └───────┬───────┘  └──────┬─────┘         └─────────┬─────────┘         └─────┬─────┘   
+         │                          │                           │              │                │                             │                  │                │                   │                               │                 │                         │                         │         
+         │  Register Thunder Loan   │                           │              │                │                             │                  │                │                   │                               │                 │                         │                         │         
+         │──────────────────────────▶                           │              │                │                             │                  │                │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │                             │                  │                │                   │                               │                 │                         │                         │         
+         │                          │          Validate repo exists            │                │                             │                  │                │                   │                               │                 │                         │                         │         
+         │                          │──────────────────────────────────────────▶                │                             │                  │                │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │                             │                  │                │                   │                               │                 │                         │                         │         
+         │                          │    registerProtocol()     │              │                │                             │                  │                │                   │                               │                 │                         │                         │         
+         │                          │───────────────────────────▶              │                │                             │                  │                │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │                             │                  │                │                   │                               │                 │                         │                         │         
+         │                          │  depositBounty($10,000)   │              │                │                             │                  │                │                   │                               │                 │                         │                         │         
+         │                          │───────────────────────────▶              │                │                             │                  │                │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │                             │                  │                │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │                             │                  │                │  protocol:registered                              │                 │                         │                         │         
+         │                          │                           │╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌▶         
+         │                          │                           │              │                │                             │                  │                │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │                             │         ┌───────────────────┐     │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │                             │         │ PHASE 2: Scanning │     │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │                             │         └───────────────────┘     │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │                             │                  │                │                   │                               │                 │                         │                         │         
+         │                          │                           │              │  Clone repo    │                             │                  │                │                   │                               │                 │                         │                         │         
+         │                          │                           │              ◀────────────────│                             │                  │                │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │                             │                  │                │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │  Deploy fresh ThunderLoan   │                  │                │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │─────────────────────────────▶                  │                │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │                             │                  │                │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │               Analyze contract                 │                │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │────────────────────────────────────────────────▶                │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │                             │                  │                │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │         CRITICAL: Oracle manipulation          │                │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                ◀╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌│                │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │                             │                  │                │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │                             │          ┌────────────────┐       │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │                             │          │ PHASE 3: Proof │       │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │                             │          └────────────────┘       │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │                             │                  │                │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                ├───┐                         │                  │                │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │   │ Generate exploit PoC    │                  │                │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                ◀───┘                         │                  │                │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │                             │                  │                │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │                      Store encrypted proof     │                │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │─────────────────────────────────────────────────────────────────▶                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │                             │                  │                │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │                             │ PROOF_SUBMISSION (A2A)            │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │─────────────────────────────────────────────────────────────────────────────────────▶                               │                 │                         │                         │         
+         │                          │                           │              │                │                             │                  │                │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │                             │                  │                │                   │vuln:discovered                │                 │                         │                         │         
+         │                          │                           │              │                │╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌▶         
+         │                          │                           │              │                │                             │                  │                │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │                             │        ┌─────────────────────┐    │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │                             │        │ PHASE 4: Validation │    │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │                             │        └─────────────────────┘    │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │                             │                  │                │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │                         Clone same commit      │                │                   │                               │                 │                         │                         │         
+         │                          │                           │              ◀──────────────────────────────────────────────────────────────────────────────────────────────────────│                               │                 │                         │                         │         
+         │                          │                           │              │                │                             │                  │                │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │                             │                  │                │                   │   Deploy isolated instance    │                 │                         │                         │         
+         │                          │                           │              │                │                             │                  │                │                   │───────────────────────────────▶                 │                         │                         │         
+         │                          │                           │              │                │                             │                  │                │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │                             │                  │                │                   │        Execute exploit        │                 │                         │                         │         
+         │                          │                           │              │                │                             │                  │                │                   │───────────────────────────────▶                 │                         │                         │         
+         │                          │                           │              │                │                             │                  │                │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │                             │                  │                │                   │  SUCCESS - Profit extracted   │                 │                         │                         │         
+         │                          │                           │              │                │                             │                  │                │                   ◀╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌│                 │                         │                         │         
+         │                          │                           │              │                │                             │                  │                │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │                             │         ┌──────────────────┐      │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │                             │         │ PHASE 5: Payment │      │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │                             │         └──────────────────┘      │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │                             │                  │                │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │                 recordResult(TRUE)             │                │                   │                               │                 │                         │                         │         
+         │                          │                           ◀─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────│                               │                 │                         │                         │         
+         │                          │                           │              │                │                             │                  │                │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │                             │              releaseBounty()      │                   │                               │                 │                         │                         │         
+         │                          │                           │───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────▶                         │                         │         
+         │                          │                           │              │                │                             │                  │                │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │                             │                  │                │                   │                               │                 │  Transfer $5,000 USDC   │                         │         
+         │                          │                           │              │                │                             │                  │                │                   │                               │                 │─────────────────────────▶                         │         
+         │                          │                           │              │                │                             │                  │                │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │                             │                  │                │    vuln:confirmed │                               │                 │                         │                         │         
+         │                          │                           │╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌▶         
+         │                          │                           │              │                │                             │                  │                │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │                             │                  │                │   payment:released│                               │                 │                         │                         │         
+         │                          │                           │╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌▶         
+         │                          │                           │              │                │                             │                  │                │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │                             │       ┌───────────────────────┐   │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │                             │       │ PHASE 6: Notification │   │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │                             │       └───────────────────────┘   │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │                             │                  │                │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │                             │  🔔 Vulnerability in your protocol!                   │                               │                 │                         │                         │         
+         ◀╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌│         
+         │                          │                           │              │                │                             │                  │                │                   │                               │                 │                         │                         │         
+         │                          │                           │              │                │                             │                  │                │                   │                               │                 │                         │  💰 Payment received!   │         
+         │                          │                           │              │                │                             │                  │                │                   │                               │                 │                         ◀╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌│         
+         │                          │                           │              │                │                             │                  │                │                   │                               │                 │                         │                         │         
+┌────────┴───────┐         ┌────────┴───────┐           ┌───────┴──────┐  ┌────┴───┐  ┌─────────┴────────┐             ┌──────┴──────┐    ┌──────┴─────┐   ┌──────┴──────┐   ┌────────┴────────┐              ┌───────┴───────┐  ┌──────┴─────┐         ┌─────────┴─────────┐         ┌─────┴─────┐   
+│ Protocol Owner │         │ Protocol Agent │           │ Base Sepolia │  │ GitHub │  │ Researcher Agent │             │ Local Anvil │    │ Quimera AI │   │ Pinata IPFS │   │ Validator Agent │              │ Anvil Sandbox │  │ BountyPool │         │ Researcher Wallet │         │ Dashboard │   
+└────────────────┘         └────────────────┘           └──────────────┘  └────────┘  └──────────────────┘             └─────────────┘    └────────────┘   └─────────────┘   └─────────────────┘              └───────────────┘  └────────────┘         └───────────────────┘         └───────────┘   
+```
+
 
 ---
 

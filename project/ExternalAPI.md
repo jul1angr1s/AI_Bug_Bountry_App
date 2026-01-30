@@ -5,14 +5,14 @@
 This document catalogs all external API keys, subscriptions, and third-party services required to build, deploy, and operate the Autonomous Bug Bounty Orchestrator platform.
 
 **Key Changes:**
-- **LLM Provider**: Switched to **Ollama** (Local Inference) for zero-cost AI.
+- **LLM Provider**: Switched to **Kimi 2.5** (Local Inference) for zero-cost AI.
 - **Database Provider**: Switched to **Supabase** (BaaS) for Database, Auth, and Realtime.
 
 ## Cost Summary
 
 | Category | Service | Tier | Estimated Monthly Cost |
 |----------|---------|------|------------------------|
-| AI/Agents | **Ollama** (Local) | Free | **$0** |
+| AI/Agents | **Kimi AI** (Moonshot) | Pay-as-you-go | **$2-10/mo** |
 | Database/Auth | **Supabase** | Free/Pro | $0-$25/mo |
 | Blockchain RPC | Alchemy | Growth | Free → $49/mo |
 | Contract Verification | Basescan | Free | $0 |
@@ -25,50 +25,44 @@ This document catalogs all external API keys, subscriptions, and third-party ser
 
 ---
 
-## 1. AI & Agent Services (Local Inference)
+## 1. AI & Agent Services (Moonshot AI)
 
-### Ollama (Local LLM) 🦙
+### Kimi AI (Moonshot) 🚀
 
-**Purpose**: Powers MCP agents (Protocol, Researcher, Validator) with open-source AI models locally.
+**Purpose**: Powers MCP agents (Protocol, Researcher, Validator) with high-performance reasoning via Kimi k.25.
 
 | Field | Value |
 |-------|-------|
-| **Provider** | Ollama (Local) |
-| **URL** | http://localhost:11434 |
-| **Auth Type** | None (Local) |
-| **Env Variable** | `OLLAMA_BASE_URL` |
+| **Provider** | Moonshot AI |
+| **URL** | https://api.moonshot.cn/v1 |
+| **Auth Type** | Bearer Token (API Key) |
+| **Env Variable** | `MOONSHOT_API_KEY`, `KIMI_MODEL` |
 | **Required For** | MCP Agent Subagent, All agent operations |
-| **Recommended Models** | `deepseek-coder-v2`, `llama3.1`, `mistral` |
-
-**Hardware Requirements**:
-- **RAM**: 16GB minimum (32GB recommended for larger models)
-- **GPU**: NVIDIA GPU / Apple Silicon (M1/M2/M3) recommended
+| **Recommended Models** | `kimi-k.25` |
 
 **Setup Steps**:
-```bash
-# 1. Download & Install Ollama from https://ollama.com
-# 2. Pull required models
-ollama pull deepseek-coder-v2
-ollama pull llama3.1
-
-# 3. Start server
-ollama serve
-```
+1. Sign up at [Moonshot AI Platform](https://platform.moonshot.cn/)
+2. Create an API Key in the dashboard
+3. Ensure the `kimi-k.25` model is available to your account
 
 **Environment Configuration**:
 ```bash
 # .env
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=deepseek-coder-v2
+MOONSHOT_API_KEY=your_moonshot_api_key_here
+KIMI_MODEL=kimi-k.25
 ```
 
 **SDK Integration**:
 ```typescript
-import { Ollama } from 'ollama';
+import OpenAI from 'openai';
 
-const ollama = new Ollama({ host: process.env.OLLAMA_BASE_URL });
-const response = await ollama.chat({
-  model: process.env.OLLAMA_MODEL,
+const moonshot = new OpenAI({
+  apiKey: process.env.MOONSHOT_API_KEY,
+  baseURL: "https://api.moonshot.cn/v1",
+});
+
+const response = await moonshot.chat.completions.create({
+  model: process.env.KIMI_MODEL,
   messages: [{ role: 'user', content: 'Analyze this smart contract...' }]
 });
 ```
@@ -191,10 +185,9 @@ npm install @supabase/supabase-js
 # Autonomous Bug Bounty Orchestrator
 # ============================================
 
-# ============ AI & AGENTS (OLLAMA) ============
-OLLAMA_BASE_URL=http://localhost:11434
-# Recommended Models: deepseek-coder-v2, llama3.1
-OLLAMA_MODEL=deepseek-coder-v2
+# ============ AI & AGENTS (KIMI AI) ============
+MOONSHOT_API_KEY=your_key_here
+KIMI_MODEL=kimi-k.25
 
 # ============ DATABASE (SUPABASE) ============
 SUPABASE_URL=https://xyz.supabase.co
