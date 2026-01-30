@@ -6,55 +6,65 @@ This document details all system integrations, event hooks, real-time synchroniz
 
 ## Integration Architecture
 
+```mermaid
+graph TB
+    subgraph "External Services"
+        GitHub[GitHub API]
+        Sepolia[Base Sepolia RPC]
+        IPFS[IPFS/Pinata]
+    end
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐ ┌─────────────────────────────────────────────────────────────────────┐ ┌───────────────────────────────────────────────────────────────────────┐
-│                             "External Services"                             │ │                           "Event Sources"                           │ │                            "Hooks System"                             │
-│                                                                             │ │                                                                     │ │                                                                       │
-│                                                                             │ │                                                                     │ │                                                                       │
-│ ┌─────────────────┐             ┌──────────────────┐     ┌────────────────┐ │ │ ┌──────────────────┐     ┌──────────────┐     ┌───────────────────┐ │ │ ┌──────────────────┐     ┌───────────────────┐     ┌────────────────┐ │
-│ │                 │             │                  │     │                │ │ │ │                  │     │              │     │                   │ │ │ │                  │     │                   │     │                │ │
-│ │    GitHub API   │      ┌──────┤ Base Sepolia RPC │  ┌──┤  IPFS/Pinata   │ │┌┼─┤ WebSocket Server │  ┌──┤ Redis PubSub │  ┌──┤ Blockchain Events │ │ │ │ Pre-Action Hooks │     │ Post-Action Hooks │     │ Error Handlers │ │
-│ │                 │      │      │                  │  │  │                │ │││ │                  │  │  │              │  │  │                   │ │ │ │                  │     │                   │     │                │ │
-│ └────────┬────────┘      │      └──────────────────┘  │  └────────────────┘ │││ └──────────────────┘  │  └──────────────┘  │  └───────────────────┘ │ │ └─────────┬────────┘     └─────────┬─────────┘     └────────┬───────┘ │
-│          │               │                            │                     │││           ▲           │          ▲         │                        │ │           │                        │                        │         │
-└──────────┼───────────────┼────────────────────────────┼─────────────────────┘│└───────────┼───────────┼──────────┼─────────┼────────────────────────┘ └───────────┼────────────────────────┼────────────────────────┼─────────┘
-           │               │                            │                      │            │           │          │         │                                      │                        │                        │          
-           │               │                            │                      │            │           │          │         │                                      │                        │                        │          
-           ├───────────────┼────────────────┬───────────┴───────────┬──────────┴────────────┴───────────┴──────────┴─────────┘                                      │                        │                        │          
-┌──────────┼───────────────┼────────────────┼──────────┬────────────┼──────────────────────────────────┐                                                            │                        │                        │          
-│          │          "Frontend"            │  "Backend"            │                                  │                                                            │                        │                        │          
-│          │               │                │          │            │                                  │                                                            │                        │                        │          
-│          ▼               │                ▼          │            ▼                                  │                                                            │                        │                        │          
-│ ┌─────────────────┐      │      ┌──────────────────┐ │   ┌────────────────┐     ┌──────────────────┐ │                                                            │                        │                        │          
-│ │                 │      │      │                  │ │   │                │     │                  │ │                                                            │                        │                        │          
-│ │   Express API   ├──────┘      │ React Dashboard  │ │   │ BullMQ Workers │     │    MCP Agents    │◄┼────────────────────────────────────────────────────────────┴────────────────────────┴────────────────────────┘          
-│ │                 │             │                  │ │   │                │     │                  │ │                                                                                                                         
-│ └─────────────────┘             └─────────┬────────┘ │   └────────────────┘     └──────────────────┘ │                                                                                                                         
-│                                           ▲          │                                               │                                                                                                                         
-├───────────────────────────────────────────┼──────────┼───────────────────────────────────────────────┘                                                                                                                         
-│                                           │          │                                                                                                                                                                         
-│                                           │          │                                                                                                                                                                         
-│                                           │          │                                                                                                                                                                         
-│ ┌─────────────────┐                       │          │                                                                                                                                                                         
-│ │                 │                       │          │                                                                                                                                                                         
-│ │  Zustand Store  │◄──────────────────────┤          │                                                                                                                                                                         
-│ │                 │                       │          │                                                                                                                                                                         
-│ └────────┬────────┘                       │          │                                                                                                                                                                         
-│          │                                │          │                                                                                                                                                                         
-│          │                                │          │                                                                                                                                                                         
-│          │                                │          │                                                                                                                                                                         
-│          │                                │          │                                                                                                                                                                         
-│          ▼                                │          │                                                                                                                                                                         
-│ ┌─────────────────┐                       │          │                                                                                                                                                                         
-│ │                 │                       │          │                                                                                                                                                                         
-│ │ Event Listeners ├──────Auto-update──────┘          │                                                                                                                                                                         
-│ │                 │                                  │                                                                                                                                                                         
-│ └─────────────────┘                                  │                                                                                                                                                                         
-│                                                      │                                                                                                                                                                         
-└──────────────────────────────────────────────────────┘                                                                                                                                                                         
-```
+    subgraph "Event Sources"
+        WSS[WebSocket Server]
+        Redis[Redis PubSub]
+        Chain[Blockchain Events]
+    end
 
+    subgraph "Hooks System"
+        PreHooks[Pre-Action Hooks]
+        PostHooks[Post-Action Hooks]
+        ErrorHooks[Error Handlers]
+    end
+
+    subgraph "Frontend"
+        Dashboard[React Dashboard]
+        Store[Zustand Store]
+        Listeners[Event Listeners]
+    end
+
+    subgraph "Backend"
+        API[Express API]
+        Workers[BullMQ Workers]
+        Agents[MCP Agents]
+    end
+
+    GitHub --> API
+    Sepolia --> API
+    IPFS --> API
+
+    API --> WSS
+    API --> Redis
+    Chain --> API
+
+    WSS --> Dashboard
+    Redis --> Workers
+    Chain --> Workers
+
+    PreHooks --> Agents
+    PostHooks --> Agents
+    ErrorHooks --> Agents
+
+    Dashboard --> Store
+    Store --> Listeners
+    Listeners -->|Auto-update| Dashboard
+
+    style WSS fill:#fff4e1
+    style Redis fill:#fff4e1
+    style Chain fill:#fff4e1
+    style PreHooks fill:#e1ffe1
+    style PostHooks fill:#e1ffe1
+    style ErrorHooks fill:#ffe1e1
+```
 
 ---
 
@@ -593,109 +603,50 @@ Keep frontend state synchronized with backend in real-time, with automatic recov
 
 ### State Sync Architecture
 
+```mermaid
+sequenceDiagram
+    participant FE as Frontend
+    participant Store as Zustand Store
+    participant WS as WebSocket
+    participant API as REST API
+    participant BE as Backend
 
-```
-┌──────────┐                               ┌───────────────┐   ┌───────────┐  ┌──────────┐        ┌─────────┐   
-│ Frontend │                               │ Zustand Store │   │ WebSocket │  │ REST API │        │ Backend │   
-└─────┬────┘                               └───────┬───────┘   └─────┬─────┘  └─────┬────┘        └────┬────┘   
-      │                                            │                 │              │                  │        
-      │                               GET /protocols                 │              │                  │        
-      │─────────────────────────────────────────────────────────────────────────────▶                  │        
-      │                                            │                 │              │                  │        
-      │                                            │                 │              │    Query DB      │        
-      │                                            │                 │              │──────────────────▶        
-      │                                            │                 │              │                  │        
-      │                                            │                 │              │  Protocol list   │        
-      │                                            │                 │              ◀╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌│        
-      │                                            │                 │              │                  │        
-      │                                JSON response                 │              │                  │        
-      ◀╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌│                  │        
-      │                                            │                 │              │                  │        
-      │            setProtocols(data)              │                 │              │                  │        
-      │────────────────────────────────────────────▶                 │              │                  │        
-      │                                            │                 │              │                  │        
-      │                                     ┌───────────────────┐    │              │                  │        
-      │                                     │ Real-time Updates │    │              │                  │        
-      │                                     └───────────────────┘    │              │                  │        
-      │                                            │                 │              │                  │        
-      │                     protocol:registered    │                 │              │                  │        
-      ◀──────────────────────────────────────────────────────────────│              │                  │        
-      │                                            │                 │              │                  │        
-      │             addProtocol(data)              │                 │              │                  │        
-      │────────────────────────────────────────────▶                 │              │                  │        
-      │                                            │                 │              │                  │        
-      │            Re-render component             │                 │              │                  │        
-      ◀────────────────────────────────────────────│                 │              │                  │        
-      │                                            │                 │              │                  │        
-      │                                    ┌────────────────────┐    │              │                  │        
-      │                                    │ Optimistic Updates │    │              │                  │        
-      │                                    └────────────────────┘    │              │                  │        
-      │                                            │                 │              │                  │        
-      │  updateProtocol(id, status) [optimistic]   │                 │              │                  │        
-      │────────────────────────────────────────────▶                 │              │                  │        
-      │                                            │                 │              │                  │        
-      │                            PATCH /protocols/:id              │              │                  │        
-      │─────────────────────────────────────────────────────────────────────────────▶                  │        
-      │                                            │                 │              │                  │        
-      │                                            │                 │              │    Update DB     │        
-      │                                            │                 │              │──────────────────▶        
-      │                                            │                 │              │                  │        
-  ┌alt [Success]───────────────────────────────────────────────────────────────────────────────────────────┐    
-  │   │                                            │                 │              │                  │   │    
-  │   │                                            │                 │              │     Updated      │   │    
-  │   │                                            │                 │              ◀╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌│   │    
-  │   │                                            │                 │              │                  │   │    
-  │   │                                   200 OK   │                 │              │                  │   │    
-  │   ◀╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌│                  │   │    
-  │   │                                            │                 │              │                  │   │    
-  │   │             confirmUpdate(id)              │                 │              │                  │   │    
-  │   │────────────────────────────────────────────▶                 │              │                  │   │    
-  │   │                                            │                 │              │                  │   │    
-  ├[Failure]╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤    
-  │   │                                            │                 │              │                  │   │    
-  │   │                                            │                 │              │      Error       │   │    
-  │   │                                            │                 │              ◀╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌│   │    
-  │   │                                            │                 │              │                  │   │    
-  │   │                                  400 Error │                 │              │                  │   │    
-  │   ◀╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌│                  │   │    
-  │   │                                            │                 │              │                  │   │    
-  │   │            rollbackUpdate(id)              │                 │              │                  │   │    
-  │   │────────────────────────────────────────────▶                 │              │                  │   │    
-  │   │                                            │                 │              │                  │   │    
-  │   ├───┐                                        │                 │              │                  │   │    
-  │   │   │ Show error toast                       │                 │              │                  │   │    
-  │   ◀───┘                                        │                 │              │                  │   │    
-  │   │                                            │                 │              │                  │   │    
-  │   │                                    ┌─────────────────────┐   │              │                  │   │    
-  │   │                                    │ Connection Recovery │   │              │                  │   │    
-  │   │                                    └─────────────────────┘   │              │                  │   │    
-  │   │                                            │                 │              │                  │   │    
-  └────────────────────────────────────────────────────────────────────────────────────────────────────────┘    
-      │                                            │                 │              │                  │        
-      │                         Disconnect         │                 │              │                  │        
-      ◀╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌│              │                  │        
-      │                                            │                 │              │                  │        
-      ├───┐                                        │                 │              │                  │        
-      │   │ Show "Reconnecting..."                 │                 │              │                  │        
-      ◀───┘                                        │                 │              │                  │        
-      │                                            │                 │              │                  │        
-      │                          GET /sync?lastEventId=xyz           │              │                  │        
-      │─────────────────────────────────────────────────────────────────────────────▶                  │        
-      │                                            │                 │              │                  │        
-      │                                Missed events                 │              │                  │        
-      ◀╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌│                  │        
-      │                                            │                 │              │                  │        
-      │            applyEvents(events)             │                 │              │                  │        
-      │────────────────────────────────────────────▶                 │              │                  │        
-      │                                            │                 │              │                  │        
-      │                          Reconnect         │                 │              │                  │        
-      │──────────────────────────────────────────────────────────────▶              │                  │        
-      │                                            │                 │              │                  │        
-┌─────┴────┐                               ┌───────┴───────┐   ┌─────┴─────┐  ┌─────┴────┐        ┌────┴────┐   
-│ Frontend │                               │ Zustand Store │   │ WebSocket │  │ REST API │        │ Backend │   
-└──────────┘                               └───────────────┘   └───────────┘  └──────────┘        └─────────┘   
-```
+    Note over FE,BE: Initial Load
+    FE->>API: GET /protocols
+    API->>BE: Query DB
+    BE-->>API: Protocol list
+    API-->>FE: JSON response
+    FE->>Store: setProtocols(data)
 
+    Note over FE,BE: Real-time Updates
+    WS->>FE: protocol:registered
+    FE->>Store: addProtocol(data)
+    Store->>FE: Re-render component
+
+    Note over FE,BE: Optimistic Updates
+    FE->>Store: updateProtocol(id, status) [optimistic]
+    FE->>API: PATCH /protocols/:id
+    API->>BE: Update DB
+
+    alt Success
+        BE-->>API: Updated
+        API-->>FE: 200 OK
+        FE->>Store: confirmUpdate(id)
+    else Failure
+        BE-->>API: Error
+        API-->>FE: 400 Error
+        FE->>Store: rollbackUpdate(id)
+        FE->>FE: Show error toast
+    end
+
+    Note over FE,BE: Connection Recovery
+    WS--xFE: Disconnect
+    FE->>FE: Show "Reconnecting..."
+    FE->>API: GET /sync?lastEventId=xyz
+    API-->>FE: Missed events
+    FE->>Store: applyEvents(events)
+    FE->>WS: Reconnect
+```
 
 ### Zustand Store with Sync
 
