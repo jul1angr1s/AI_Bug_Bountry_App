@@ -81,7 +81,7 @@ fi
 -   **Fork Testing**: Tests must run against a forked Anvil state of Base Sepolia for realistic dependency mocking.
 
 ### 3.2 Backend & Agents
--   **Mocking**: External services (Supabase, Blockchain RPC, Ollama) must be mocked for unit tests.
+-   **Mocking**: External services (Supabase, Blockchain RPC, Kimi 2.5) must be mocked for unit tests.
 -   **AI Determinism**: For Agent tests, use "Fixed Prompts" and "Mocked LLM Responses" to test the *logic* surrounding the AI, not the AI itself (which is non-deterministic).
 
 ---
@@ -92,7 +92,7 @@ fi
 The `FirstFlightDemonstration.md` script is converted into an automated test suite runs daily.
 
 **Scenario**:
-1.  **Spin Up**: Local Docker environment (Supabase + Ollama + Anvil).
+1.  **Spin Up**: Local Docker environment (Supabase + Kimi 2.5 + Anvil).
 2.  **Register**: Programmatically register a "VulnerableVault" via API.
 3.  **Scan**: Trigger Researcher Agent scan.
 4.  **Assert**:

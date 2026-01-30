@@ -11,8 +11,8 @@
 │                        BACKEND                                  │
 │  Node.js · Express · TypeScript · Prisma · Supabase (DB)       │
 ├────────────────────────────────────────────────────────────────┤
-│                        AGENTS (LOCAL AI)                        │
-│  Ollama (DeepSeek/Llama 3) · MCP SDK · Custom Tools            │
+│                        AGENTS (Kimi AI)                        │
+│  Kimi AI (k.25 Model) · MCP SDK · Custom Tools                 │
 ├────────────────────────────────────────────────────────────────┤
 │                        BLOCKCHAIN                               │
 │  Solidity · Foundry · Viem · Base L2 · USDC                    │
@@ -75,30 +75,29 @@ backend/
 │   ├── api/                 # REST Endpoints
 │   ├── services/
 │   │   ├── AgentOrchestrator.ts
-│   │   ├── OllamaService.ts  <-- NEW
+│   │   ├── KimiService.ts      <-- UPDATED
 │   │   └── ...
 │   ├── lib/
-│   │   ├── supabase.ts       <-- NEW
+│   │   ├── supabase.ts
 │   │   └── prisma.ts
 │   └── ...
 ```
 
 ---
 
-## Agent Layer (Local AI)
+## Agent Layer (Kimi AI)
 
 ### AI Model Provider
-| Technology | Purpose | Agent Skill |
-|------------|---------|-------------|
-| **Ollama** | Local LLM Inference Engine | `ollama` |
-| **DeepSeek Coder V2** | Primary Coding/Scanning Model | - |
-| **Llama 3.1** | General Reasoning Model | - |
+| Technology | Purpose | Provider |
+|------------|---------|----------|
+| **Kimi AI** | High-performance LLM | Moonshot AI |
+| **Kimi k.25** | Primary Coding/Scanning Model | Moonshot AI |
 
 ### Tools & SDKs
-| Technology | Purpose | Agent Skill |
-|------------|---------|-------------|
-| `ollama-js` | Node.js Client for Ollama | `ollama` |
-| @modelcontextprotocol/sdk | MCP implementation | `mcp-builder` |
+| Technology | Purpose |
+|------------|---------|
+| `openai` SDK | Node.js Client (Compatible with Moonshot) |
+| @modelcontextprotocol/sdk | MCP implementation |
 
 ---
 
@@ -110,17 +109,17 @@ backend/
 | **Frontend** | Vercel / Railway Static |
 | **Backend API** | Railway Node.js |
 | **Database** | **Supabase (Managed)** |
-| **Agents** | Railway (Custom Docker with Ollama access*) |
-| **Ollama** | **Local Machine** (Dev) / **GPU Cloud** (Prod) |
+| **Agents** | Railway (Custom Docker with Kimi 2.5 access*) |
+| **Kimi 2.5** | **Local Machine** (Dev) / **GPU Cloud** (Prod) |
 
-*> Note: For production, Ollama needs a GPU node. We may deploy Ollama on a GPU instance (e.g., Railway GPU service or separate provider) and expose the URL to the Backend.*
+*> Note: For production, Kimi 2.5 needs a GPU node. We may deploy Kimi 2.5 on a GPU instance (e.g., Railway GPU service or separate provider) and expose the URL to the Backend.*
 
 ### Environment Variables (Updated)
 
 ```bash
 # AI Provider
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=deepseek-coder-v2
+MOONSHOT_API_KEY=your_key_here
+KIMI_MODEL=kimi-k.25
 
 # Supabase
 SUPABASE_URL=https://xyz.supabase.co
@@ -135,12 +134,12 @@ DATABASE_URL=postgres://postgres:[PASSWORD]@db.xyz.supabase.co:6543/postgres?pgb
 ```json
 {
   "dependencies": {
-    "ollama": "^0.5.0",
+    "openai": "^4.2.0",
     "@supabase/supabase-js": "^2.39.0",
     "@prisma/client": "^5.10.0"
   },
   "remove": [
-    "@anthropic-ai/sdk"
+    "kimi-ai"
   ]
 }
 ```
