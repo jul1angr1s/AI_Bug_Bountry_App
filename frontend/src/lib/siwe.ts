@@ -81,10 +81,10 @@ export async function connectWallet(): Promise<string> {
   }
 
   try {
-    const provider = new BrowserProvider(window.ethereum);
-
-    // Request account access
-    const accounts = await provider.send('eth_requestAccounts', []);
+    // Request account access using window.ethereum directly
+    const accounts = (await window.ethereum.request({
+      method: 'eth_requestAccounts',
+    })) as string[];
 
     if (!accounts || accounts.length === 0) {
       throw new Error('No accounts found. Please unlock your wallet.');
@@ -108,9 +108,10 @@ export async function getCurrentWalletAddress(): Promise<string | null> {
   }
 
   try {
-    const provider = new BrowserProvider(window.ethereum);
-    const accounts = await provider.send('eth_accounts', []);
-    return accounts[0] || null;
+    const accounts = await window.ethereum.request({
+      method: 'eth_accounts',
+    });
+    return (accounts as string[])[0] || null;
   } catch (error) {
     console.error('Error getting wallet address:', error);
     return null;
@@ -148,7 +149,6 @@ declare global {
     ethereum?: {
       isMetaMask?: boolean;
       request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
-      send: (method: string, params?: unknown[]) => Promise<unknown>;
       on: (event: string, handler: (...args: unknown[]) => void) => void;
       removeListener: (event: string, handler: (...args: unknown[]) => void) => void;
     };
