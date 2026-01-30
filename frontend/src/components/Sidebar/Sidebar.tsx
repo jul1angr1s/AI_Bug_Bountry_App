@@ -26,7 +26,7 @@ export default function Sidebar() {
       </nav>
 
       {/* User Profile */}
-      <UserProfile role="Security Ops" walletAddress="0x1234567890abcdef1234567890abcdef12345678" />
+      <UserProfile />
     </aside>
   );
 }
