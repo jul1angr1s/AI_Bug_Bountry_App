@@ -130,7 +130,7 @@ backend/src/agents/
 **Expertise**:
 - Docker & Docker Compose
 - **Supabase Local Development** (CLI)
-- **Kimi 2.5 Docker Setup**
+- **Kimi AI Docker Setup**
 
 **Required Skills**:
 - `docker-patterns`
@@ -153,17 +153,17 @@ backend/src/agents/
 | Task | Subagent | Dependencies |
 |------|----------|--------------|
 | **Supabase Setup** | DevOps | None |
-| **Kimi 2.5 Setup** | DevOps | None (Local Install) |
+| **Kimi AI Setup** | DevOps | None (Local Install) |
 | Contract Interfaces | Smart Contract | None |
 | UI Components | Frontend | None |
 
 ### Phase 2: Core Implementation
 | Task | Subagent | Dependencies |
 |------|----------|--------------|
-| **Kimi 2.5 Service** | Backend | Kimi 2.5 Setup, Supabase DB |
+| **Kimi AI Service** | Backend | Kimi AI Setup, Supabase DB |
 | **Supabase Auth** | Frontend | Supabase Setup |
 | Dashboard Pages | Frontend | UI Components |
-| Agent Core | MCP Agent | Kimi 2.5 Service |
+| Agent Core | MCP Agent | Kimi AI Service |
 
 ---
 

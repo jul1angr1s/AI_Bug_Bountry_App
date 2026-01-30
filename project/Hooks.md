@@ -62,7 +62,7 @@ These hooks allow the **Swarm Orchestrator Agent** to manage the lifecycle of su
 4.  **Resume**: Orchestrator releases tasks to Validator.
 
 ### 2.3 Self-Healing Hooks
-**Trigger**: Agent (Kimi 2.5 process) stops responding or errors out repeatedly.
+**Trigger**: Agent (Kimi AI process) stops responding or errors out repeatedly.
 **Action**:
 1.  **Detect**: Service Monitor sees heartbeat failure.
 2.  **Restart**: `docker restart agent-container`.
