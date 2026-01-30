@@ -2,16 +2,15 @@
 
 ## Overview
 
-MCP-powered AI agents using Ollama for local inference. Three specialized agent types coordinate via Redis PubSub.
+MCP-powered AI agents using Kimi k.25 for inference. Three specialized agent types coordinate via Redis PubSub.
 
 ## Source Documentation
 - **Primary**: [project/Subagents.md](../../project/Subagents.md)
 - **Supporting**: [project/Skills.md](../../project/Skills.md)
 
 ## AI Stack
-- **Engine**: Ollama (local)
-- **Primary Model**: DeepSeek Coder V2 (code analysis)
-- **Secondary Model**: Llama 3.1 (general reasoning)
+- **Provider**: Kimi AI (Moonshot)
+- **Model**: Kimi k.25
 - **SDK**: @modelcontextprotocol/sdk
 
 ## Agent Types
@@ -65,6 +64,24 @@ MCP-powered AI agents using Ollama for local inference. Three specialized agent 
 - Execute exploit against clean instance
 - Capture and verify state changes
 - Update ERC-8004 registry (triggers payment)
+- Update scan status in real-time
+
+### 4. Frontend QA Agent
+**Purpose**: Automated frontend debugging and UI verification
+
+**MCP Tools**:
+- `chrome_devtools` - Inspect and control Chrome instance
+- `console_logs` - Read browser console logs
+- `network_monitor` - Analyze network requests
+- `dom_inspector` - Query/manipulate DOM elements
+- `screenshot` - Capture UI state
+
+**Responsibilities**:
+- Monitor browser console for errors
+- Inspect DOM structure for layout issues
+- Verify network request payloads/responses
+- Debug real-time WebSocket updates
+- Execute UI tests in headless Chrome
 
 ## Agent-to-Agent Communication
 
@@ -95,5 +112,5 @@ MCP-powered AI agents using Ollama for local inference. Three specialized agent 
 
 ## Required Skills
 - `mcp-builder` - MCP server implementation
-- `ollama` - Local LLM integration
+- `kimi-integration` - Kimi AI API integration
 - `typescript-expert` - Type-safe agent code

@@ -33,11 +33,12 @@ context: |
   - Redis 7.x + BullMQ (job queues)
   - Socket.io (WebSocket server)
 
-  ### AI/Agents (Local Inference)
-  - Ollama (local LLM engine)
-  - Models: DeepSeek Coder V2, Llama 3.1
+  ### AI/Agents
+  - Provider: Kimi AI (Moonshot)
+  - Model: Kimi k.25
   - MCP SDK (@modelcontextprotocol/sdk)
-  - Agent Types: Protocol Agent, Researcher Agent, Validator Agent
+  - Dev Tools: Chrome DevTools MCP
+  - Agent Types: Protocol Agent, Researcher Agent, Validator Agent, Frontend QA Agent
 
   ### Blockchain
   - Solidity 0.8.24

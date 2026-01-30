@@ -4,6 +4,17 @@
 
 The Autonomous Bug Bounty Orchestrator uses a hybrid deployment model with MCP-powered AI agents for automated security auditing.
 
+## Architectural Patterns
+
+The system adheres to the following architectural principles to ensure maintainability, testability, and scalability:
+
+- **Modular Monolith**: The application is structured as a single deployable unit but organized into distinct, loosely coupled modules based on business domains (e.g., Protocol Management, Scanning, Validation).
+- **Hexagonal Architecture (Ports and Adapters)**: The core logic is isolated from external concerns. 
+  - **Core**: Contains the domain entities and business rules.
+  - **Ports**: Interface definitions that the core uses to interact with the outside world (Input/Driving Ports and Output/Driven Ports).
+  - **Adapters**: Implementations of ports (e.g., REST controllers, Database repositories, Blockchain clients).
+- **Clean Architecture**: Dependencies point inwards. The domain layer has no dependencies on frameworks, databases, or UI.
+
 ## Source Documentation
 - **Primary**: [project/Architecture.md](../../project/Architecture.md)
 - **Supporting**: [project/Workflows.md](../../project/Workflows.md)

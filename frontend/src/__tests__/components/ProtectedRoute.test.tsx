@@ -1,18 +1,30 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { AuthProvider } from '../../lib/auth';
+import { vi } from 'vitest';
 import ProtectedRoute from '../../components/ProtectedRoute';
+import * as auth from '../../lib/auth';
+
+// Mock the useAuth hook
+vi.mock('../../lib/auth', () => ({
+  useAuth: vi.fn(),
+  AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
 
 describe('ProtectedRoute', () => {
   it('renders ProtectedRoute component', () => {
-    // This test verifies the component can be instantiated
+    vi.spyOn(auth, 'useAuth').mockReturnValue({
+      user: { id: '1', wallet: '0x123', role: 'User' },
+      session: {} as any,
+      loading: false,
+      signIn: vi.fn(),
+      signOut: vi.fn(),
+    });
+
     const { container } = render(
       <BrowserRouter>
-        <AuthProvider>
-          <ProtectedRoute>
-            <div>Protected Content</div>
-          </ProtectedRoute>
-        </AuthProvider>
+        <ProtectedRoute>
+          <div>Protected Content</div>
+        </ProtectedRoute>
       </BrowserRouter>
     );
 
@@ -20,46 +32,54 @@ describe('ProtectedRoute', () => {
   });
 
   it('renders children when user is authenticated', async () => {
-    // Set up authenticated state
-    localStorage.setItem('wallet', '0x123');
+    vi.spyOn(auth, 'useAuth').mockReturnValue({
+      user: { id: '1', wallet: '0x123', role: 'User' },
+      session: {} as any,
+      loading: false,
+      signIn: vi.fn(),
+      signOut: vi.fn(),
+    });
 
     render(
       <BrowserRouter>
-        <AuthProvider>
-          <ProtectedRoute>
-            <div>Protected Content</div>
-          </ProtectedRoute>
-        </AuthProvider>
+        <ProtectedRoute>
+          <div>Protected Content</div>
+        </ProtectedRoute>
       </BrowserRouter>
     );
 
-    // Should eventually show protected content
-    await screen.findByText('Protected Content');
-
-    // Cleanup
-    localStorage.removeItem('wallet');
+    await waitFor(() => {
+      expect(screen.getByText('Protected Content')).toBeInTheDocument();
+    });
   });
 
   it('redirects to login when user is not authenticated', async () => {
-    // Ensure no stored wallet
-    localStorage.removeItem('wallet');
+    vi.spyOn(auth, 'useAuth').mockReturnValue({
+      user: null,
+      session: null,
+      loading: false,
+      signIn: vi.fn(),
+      signOut: vi.fn(),
+    });
 
     render(
       <BrowserRouter>
-        <AuthProvider>
-          <Routes>
-            <Route path="/" element={
+        <Routes>
+          <Route
+            path="/"
+            element={
               <ProtectedRoute>
                 <div>Protected Content</div>
               </ProtectedRoute>
-            } />
-            <Route path="/login" element={<div>Login Page</div>} />
-          </Routes>
-        </AuthProvider>
+            }
+          />
+          <Route path="/login" element={<div>Login Page</div>} />
+        </Routes>
       </BrowserRouter>
     );
 
-    // Should redirect to login
-    await screen.findByText('Login Page');
+    await waitFor(() => {
+      expect(screen.getByText('Login Page')).toBeInTheDocument();
+    });
   });
 });
