@@ -2,11 +2,10 @@ import { Routes, Route } from 'react-router-dom';
 import DashboardLayout from './layouts/DashboardLayout';
 import Dashboard from './pages/Dashboard';
 import { Toaster } from './components/Toaster';
-import { ErrorBoundary } from './components/ErrorBoundary';
 
 function App() {
   return (
-    <ErrorBoundary>
+    <>
       <DashboardLayout>
         <Routes>
           <Route path="/" element={<Dashboard />} />
@@ -17,7 +16,7 @@ function App() {
         </Routes>
       </DashboardLayout>
       <Toaster />
-    </ErrorBoundary>
+    </>
   );
 }
 

@@ -1,10 +1,10 @@
-import React, { Component, ReactNode } from 'react';
+import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 
 interface Props {
   children: ReactNode;
   fallback?: ReactNode;
-  onError?: (error: Error, errorInfo: React.ErrorInfo) => void;
+  onError?: (error: Error, errorInfo: ErrorInfo) => void;
 }
 
 interface State {
@@ -13,8 +13,7 @@ interface State {
 }
 
 /**
- * Error Boundary component to catch JavaScript errors in child components
- * and display a fallback UI instead of crashing the entire app
+ * Error Boundary component to catch and handle React errors
  */
 export class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
@@ -32,13 +31,16 @@ export class ErrorBoundary extends Component<Props, State> {
     };
   }
 
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+  componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     console.error('ErrorBoundary caught an error:', error, errorInfo);
     this.props.onError?.(error, errorInfo);
   }
 
   handleReset = () => {
-    this.setState({ hasError: false, error: null });
+    this.setState({
+      hasError: false,
+      error: null,
+    });
   };
 
   render() {
@@ -48,23 +50,33 @@ export class ErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <div className="min-h-[400px] flex items-center justify-center p-8">
-          <div className="max-w-md w-full bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-lg p-8 text-center">
+        <div className="min-h-screen flex items-center justify-center bg-navy-950 p-4">
+          <div className="max-w-md w-full bg-navy-800 rounded-lg p-8 text-center">
             <div className="flex justify-center mb-4">
-              <div className="p-3 bg-red-500/10 rounded-full">
-                <AlertTriangle className="h-12 w-12 text-red-500" />
+              <div className="h-16 w-16 rounded-full bg-red-500/10 flex items-center justify-center">
+                <AlertTriangle className="h-8 w-8 text-red-500" />
               </div>
             </div>
-            <h2 className="text-2xl font-bold text-white mb-2">
+
+            <h1 className="text-2xl font-bold text-white mb-2">
               Something went wrong
-            </h2>
+            </h1>
+
             <p className="text-gray-400 mb-6">
-              {this.state.error?.message ||
-                'An unexpected error occurred. Please try again.'}
+              We encountered an unexpected error. Please try refreshing the page.
             </p>
+
+            {this.state.error && (
+              <div className="bg-navy-900 rounded p-4 mb-6 text-left">
+                <p className="text-xs text-red-400 font-mono break-all">
+                  {this.state.error.message}
+                </p>
+              </div>
+            )}
+
             <button
               onClick={this.handleReset}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-primary hover:bg-blue-600 text-white rounded-lg transition-colors"
             >
               <RefreshCw className="h-4 w-4" />
               Try Again
@@ -79,49 +91,100 @@ export class ErrorBoundary extends Component<Props, State> {
 }
 
 /**
+ * Smaller error boundary for component-level errors
+ */
+export class ComponentErrorBoundary extends Component<Props, State> {
+  constructor(props: Props) {
+    super(props);
+    this.state = {
+      hasError: false,
+      error: null,
+    };
+  }
+
+  static getDerivedStateFromError(error: Error): State {
+    return {
+      hasError: true,
+      error,
+    };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
+    console.error('ComponentErrorBoundary caught an error:', error, errorInfo);
+    this.props.onError?.(error, errorInfo);
+  }
+
+  handleReset = () => {
+    this.setState({
+      hasError: false,
+      error: null,
+    });
+  };
+
+  render() {
+    if (this.state.hasError) {
+      if (this.props.fallback) {
+        return this.props.fallback;
+      }
+
+      return (
+        <div className="bg-navy-800 rounded-lg p-6 text-center">
+          <div className="flex justify-center mb-3">
+            <div className="h-12 w-12 rounded-full bg-red-500/10 flex items-center justify-center">
+              <AlertTriangle className="h-6 w-6 text-red-500" />
+            </div>
+          </div>
+
+          <h3 className="text-lg font-semibold text-white mb-2">
+            Failed to load component
+          </h3>
+
+          <p className="text-sm text-gray-400 mb-4">
+            This component encountered an error and couldn't be displayed.
+          </p>
+
+          <button
+            onClick={this.handleReset}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-navy-900 hover:bg-navy-700 text-white rounded transition-colors text-sm"
+          >
+            <RefreshCw className="h-3 w-3" />
+            Retry
+          </button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+/**
  * Wrapper component for catching errors in dashboard sections
  */
 export function DashboardErrorBoundary({ children }: { children: ReactNode }) {
   return (
-    <ErrorBoundary
+    <ComponentErrorBoundary
       onError={(error, errorInfo) => {
         console.error('Dashboard error:', error, errorInfo);
       }}
     >
       {children}
-    </ErrorBoundary>
+    </ComponentErrorBoundary>
   );
 }
 
 /**
- * Lightweight error fallback for individual components
+ * Hook-based error boundary wrapper
  */
-export function ComponentErrorFallback({
-  error,
-  resetError,
-}: {
-  error: Error;
-  resetError?: () => void;
-}) {
-  return (
-    <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
-      <div className="flex items-start gap-3">
-        <AlertTriangle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
-        <div className="flex-1 min-w-0">
-          <h3 className="text-sm font-semibold text-red-400 mb-1">
-            Error loading component
-          </h3>
-          <p className="text-sm text-gray-400">{error.message}</p>
-          {resetError && (
-            <button
-              onClick={resetError}
-              className="mt-2 text-sm text-blue-400 hover:text-blue-300 underline"
-            >
-              Retry
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
+export function withErrorBoundary<P extends object>(
+  Component: React.ComponentType<P>,
+  fallback?: ReactNode
+) {
+  return function WithErrorBoundary(props: P) {
+    return (
+      <ComponentErrorBoundary fallback={fallback}>
+        <Component {...props} />
+      </ComponentErrorBoundary>
+    );
+  };
 }
