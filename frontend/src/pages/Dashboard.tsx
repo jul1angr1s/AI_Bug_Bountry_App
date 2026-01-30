@@ -4,6 +4,20 @@ import StatisticsPanel from '@/components/Dashboard/StatisticsPanel';
 import AgentStatusGrid from '@/components/Dashboard/AgentStatusGrid';
 import VulnerabilitiesTable from '@/components/Dashboard/VulnerabilitiesTable';
 import CriticalAlertBanner from '@/components/Dashboard/CriticalAlertBanner';
+import {
+  ProtocolOverviewSkeleton,
+  StatisticsPanelSkeleton,
+  AgentStatusGridSkeleton,
+  VulnerabilitiesTableSkeleton,
+} from '@/components/shared/LoadingSkeleton';
+import { DashboardErrorBoundary } from '@/components/ErrorBoundary';
+import {
+  useProtocol,
+  useVulnerabilities,
+  useAgents,
+  useStats,
+} from '@/hooks/useDashboardData';
+import { useDashboardStore } from '@/stores/dashboardStore';
 import type {
   Protocol,
   DashboardStats,
@@ -100,13 +114,49 @@ const mockAlert: Alert = {
 };
 
 export default function Dashboard() {
+  // For demo purposes, using a hardcoded protocol ID
+  // In production, this would come from route params or user selection
+  const protocolId = '1';
+
+  // Fetch data using TanStack Query
+  const {
+    data: protocol = mockProtocol,
+    isLoading: protocolLoading,
+    error: protocolError,
+  } = useProtocol(protocolId);
+  const {
+    data: vulnerabilities = mockVulnerabilities,
+    isLoading: vulnLoading,
+    error: vulnError,
+  } = useVulnerabilities(protocolId);
+  const {
+    data: agents = mockAgents,
+    isLoading: agentsLoading,
+    error: agentsError,
+  } = useAgents();
+  const {
+    data: stats = mockStats,
+    isLoading: statsLoading,
+    error: statsError,
+  } = useStats();
+
+  // Use Zustand store for alerts
+  const dismissAlert = useDashboardStore((state) => state.dismissAlert);
+
   const [alert, setAlert] = useState<Alert | null>(mockAlert);
 
   const handleDismissAlert = (id: string) => {
+    dismissAlert(id);
     if (alert?.id === id) {
       setAlert(null);
     }
   };
+
+  // Handle errors
+  const error = protocolError || vulnError || agentsError || statsError;
+  if (error) {
+    console.error('Dashboard error:', error);
+  }
 
   return (
     <div className="p-8 space-y-6">
@@ -122,28 +172,50 @@ export default function Dashboard() {
       )}
 
       {/* Protocol Overview & Statistics */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-1">
-          <ProtocolOverview protocol={mockProtocol} />
+      <DashboardErrorBoundary>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-1">
+            {protocolLoading ? (
+              <ProtocolOverviewSkeleton />
+            ) : (
+              <ProtocolOverview protocol={protocol} />
+            )}
+          </div>
+          <div className="lg:col-span-2">
+            {statsLoading ? (
+              <StatisticsPanelSkeleton />
+            ) : (
+              <StatisticsPanel stats={stats} />
+            )}
+          </div>
         </div>
-        <div className="lg:col-span-2">
-          <StatisticsPanel stats={mockStats} />
-        </div>
-      </div>
+      </DashboardErrorBoundary>
 
       {/* Agent Status */}
-      <div>
-        <h2 className="text-xl font-semibold text-white mb-4">Agent Status</h2>
-        <AgentStatusGrid agents={mockAgents} />
-      </div>
+      <DashboardErrorBoundary>
+        <div>
+          <h2 className="text-xl font-semibold text-white mb-4">Agent Status</h2>
+          {agentsLoading ? (
+            <AgentStatusGridSkeleton />
+          ) : (
+            <AgentStatusGrid agents={agents} />
+          )}
+        </div>
+      </DashboardErrorBoundary>
 
       {/* Vulnerabilities */}
-      <div>
-        <h2 className="text-xl font-semibold text-white mb-4">
-          Recent Vulnerabilities
-        </h2>
-        <VulnerabilitiesTable vulnerabilities={mockVulnerabilities} />
-      </div>
+      <DashboardErrorBoundary>
+        <div>
+          <h2 className="text-xl font-semibold text-white mb-4">
+            Recent Vulnerabilities
+          </h2>
+          {vulnLoading ? (
+            <VulnerabilitiesTableSkeleton />
+          ) : (
+            <VulnerabilitiesTable vulnerabilities={vulnerabilities} />
+          )}
+        </div>
+      </DashboardErrorBoundary>
     </div>
   );
 }
