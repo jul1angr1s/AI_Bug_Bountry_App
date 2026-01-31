@@ -252,3 +252,85 @@ export async function confirmFundingEvent(
     console.error('Error confirming funding event:', error);
   }
 }
+
+export interface ProtocolOverview {
+  id: string;
+  githubUrl: string;
+  branch: string;
+  contractPath: string;
+  contractName: string;
+  status: string;
+  registrationState: string | null;
+  ownerAddress: string;
+  totalBountyPool: number;
+  availableBounty: number;
+  paidBounty: number;
+  createdAt: string;
+  updatedAt: string;
+  stats: {
+    vulnerabilityCount: number;
+    scanCount: number;
+    lastScanAt: string | null;
+  };
+}
+
+export async function getProtocolById(
+  protocolId: string,
+  userId?: string
+): Promise<ProtocolOverview | null> {
+  try {
+    const whereClause: any = { id: protocolId };
+
+    // If userId is provided, ensure user owns the protocol
+    if (userId) {
+      whereClause.authUserId = userId;
+    }
+
+    const protocol = await prisma.protocol.findFirst({
+      where: whereClause,
+      include: {
+        vulnerabilities: {
+          select: { id: true },
+        },
+        scans: {
+          select: {
+            id: true,
+            startedAt: true,
+          },
+          orderBy: { startedAt: 'desc' },
+          take: 1,
+        },
+      },
+    });
+
+    if (!protocol) {
+      return null;
+    }
+
+    const overview: ProtocolOverview = {
+      id: protocol.id,
+      githubUrl: protocol.githubUrl,
+      branch: protocol.branch,
+      contractPath: protocol.contractPath,
+      contractName: protocol.contractName,
+      status: protocol.status,
+      registrationState: protocol.registrationState,
+      ownerAddress: protocol.ownerAddress,
+      totalBountyPool: protocol.totalBountyPool,
+      availableBounty: protocol.availableBounty,
+      paidBounty: protocol.paidBounty,
+      createdAt: protocol.createdAt.toISOString(),
+      updatedAt: protocol.updatedAt.toISOString(),
+      stats: {
+        vulnerabilityCount: protocol.vulnerabilities.length,
+        scanCount: protocol.scans.length,
+        lastScanAt: protocol.scans[0]?.startedAt?.toISOString() || null,
+      },
+    };
+
+    return overview;
+  } catch (error) {
+    console.error('Error fetching protocol:', error);
+    return null;
+  }
+}

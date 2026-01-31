@@ -14,6 +14,7 @@ import { createResearcherWorker } from './worker.js';
 import { getPrismaClient } from '../../lib/prisma.js';
 import { ScanState } from '@prisma/client';
 import { scanRepository } from '../../db/repositories.js';
+import { pathToFileURL } from 'node:url';
 
 // Feature flag to enable/disable Researcher Agent
 const RESEARCHER_ENABLED = process.env.RESEARCHER_ENABLED !== 'false';
@@ -111,7 +112,9 @@ export function getResearcherStatus(): {
 }
 
 // Standalone mode
-if (require.main === module) {
+const isMain = import.meta.url === pathToFileURL(process.argv[1] || '').href;
+
+if (isMain) {
   console.log('[Researcher Agent] Starting in standalone mode...');
   
   startResearcherAgent().catch((error) => {
