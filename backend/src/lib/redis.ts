@@ -11,7 +11,8 @@ export function getRedisClient(): Redis {
     }
 
     redisClient = new Redis(redisUrl, {
-      maxRetriesPerRequest: 3,
+      // BullMQ requires this to be null for blocking commands.
+      maxRetriesPerRequest: null,
       enableReadyCheck: true,
       retryStrategy: (times: number) => {
         if (times > 3) {

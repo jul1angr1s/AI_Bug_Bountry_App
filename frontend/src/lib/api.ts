@@ -88,3 +88,166 @@ export async function fetchStats(): Promise<DashboardStats> {
 
   return response.json();
 }
+
+// ========== Scan API Functions (Task 5.1-5.2) ==========
+
+export interface Scan {
+  id: string;
+  protocolId: string;
+  state: 'QUEUED' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'CANCELED';
+  currentStep?: string;
+  startedAt: string;
+  finishedAt?: string;
+  findingsCount: number;
+  errorCode?: string;
+  errorMessage?: string;
+  retryCount: number;
+  protocol?: {
+    id: string;
+    githubUrl: string;
+    contractName: string;
+  };
+}
+
+export interface CreateScanRequest {
+  protocolId: string;
+  branch?: string;
+  commitHash?: string;
+}
+
+export interface Finding {
+  id: string;
+  vulnerabilityType: string;
+  severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'INFO';
+  status: 'PENDING' | 'VALIDATED' | 'REJECTED' | 'DUPLICATE';
+  filePath: string;
+  lineNumber?: number;
+  description: string;
+  confidenceScore: number;
+  createdAt: string;
+  proofs?: Array<{
+    id: string;
+    status: string;
+    submittedAt: string;
+  }>;
+}
+
+/**
+ * Create a new scan job
+ */
+export async function createScan(request: CreateScanRequest): Promise<{ scanId: string; state: string }> {
+  const headers = await getAuthHeaders();
+  const response = await fetch(`${API_BASE_URL}/api/v1/scans`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(request),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to create scan: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Fetch scans for a protocol
+ */
+export async function fetchScans(protocolId: string, limit: number = 10): Promise<{ scans: Scan[]; total: number }> {
+  const headers = await getAuthHeaders();
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/scans?protocolId=${protocolId}&limit=${limit}`,
+    { headers }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch scans: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Fetch scan details
+ */
+export async function fetchScan(scanId: string): Promise<Scan> {
+  const headers = await getAuthHeaders();
+  const response = await fetch(`${API_BASE_URL}/api/v1/scans/${scanId}`, {
+    headers,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch scan: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Cancel a scan
+ */
+export async function cancelScan(scanId: string): Promise<{ id: string; state: string }> {
+  const headers = await getAuthHeaders();
+  const response = await fetch(`${API_BASE_URL}/api/v1/scans/${scanId}`, {
+    method: 'DELETE',
+    headers,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to cancel scan: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Fetch findings for a scan
+ */
+export async function fetchScanFindings(scanId: string): Promise<{
+  scanId: string;
+  findings: Finding[];
+  total: number;
+}> {
+  const headers = await getAuthHeaders();
+  const response = await fetch(`${API_BASE_URL}/api/v1/scans/${scanId}/findings`, {
+    headers,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch findings: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Subscribe to scan progress via SSE
+ */
+export function subscribeToScanProgress(
+  scanId: string,
+  onProgress: (data: {
+    scanId: string;
+    step?: string;
+    state: string;
+    timestamp: string;
+  }) => void,
+  onError?: (error: Event) => void
+): () => void {
+  const eventSource = new EventSource(
+    `${API_BASE_URL}/api/v1/scans/${scanId}/progress`
+  );
+
+  eventSource.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    onProgress(data);
+  };
+
+  if (onError) {
+    eventSource.onerror = onError;
+  }
+
+  // Return cleanup function
+  return () => {
+    eventSource.close();
+  };
+}
