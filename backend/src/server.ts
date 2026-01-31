@@ -11,6 +11,7 @@ import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { createSocketServer } from './websocket/server.js';
 import { registerSocketHandlers } from './websocket/handlers.js';
 import { getPrismaClient } from './lib/prisma.js';
+import { startValidatorAgent, stopValidatorAgent } from './agents/validator/index.js';
 
 const app = express();
 
@@ -35,8 +36,16 @@ const server = http.createServer(app);
 const io = createSocketServer(server);
 registerSocketHandlers(io);
 
-server.listen(config.PORT, () => {
+server.listen(config.PORT, async () => {
   console.log(`Backend listening on port ${config.PORT} (${config.NODE_ENV})`);
+
+  // Start Validator Agent
+  try {
+    await startValidatorAgent();
+    console.log('Validator Agent started successfully');
+  } catch (error) {
+    console.error('Failed to start Validator Agent:', error);
+  }
 });
 
 const prisma = getPrismaClient();
@@ -48,6 +57,14 @@ async function shutdown(signal: string): Promise<void> {
     console.error('Shutdown timeout, forcing exit');
     process.exit(1);
   }, 10_000);
+
+  // Stop Validator Agent first
+  try {
+    await stopValidatorAgent();
+    console.log('Validator Agent stopped');
+  } catch (error) {
+    console.error('Error stopping Validator Agent:', error);
+  }
 
   server.close(() => {
     io.close(() => {
