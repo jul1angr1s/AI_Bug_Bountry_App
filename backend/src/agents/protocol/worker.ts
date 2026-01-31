@@ -5,6 +5,7 @@ import { emitAgentTaskUpdate, emitProtocolStatusChange } from '../../websocket/e
 import { cloneRepository, cleanupRepository } from './steps/clone.js';
 import { verifyContractPath, listSolidityFiles } from './steps/verify.js';
 import { compileContract, calculateRiskScore } from './steps/compile.js';
+import { ProtocolRegistryClient } from '../../blockchain/index.js';
 
 const prisma = getPrismaClient();
 
@@ -136,30 +137,46 @@ export async function processProtocolRegistration(
     });
 
     // =================
-    // STEP 5: On-chain Registration (MVP: Simulated)
+    // STEP 5: On-chain Registration (Base Sepolia)
     // =================
     await emitAgentTaskUpdate('protocol-agent', 'Registering on-chain', 85);
     await job.updateProgress(85);
 
-    // TODO: In production, integrate with ProtocolRegistry on Base Sepolia
-    // For MVP, we simulate successful on-chain registration
-    const mockTxHash = `0x${Array(64).fill(0).map(() =>
-      Math.floor(Math.random() * 16).toString(16)
-    ).join('')}`;
+    // Register protocol on-chain using ProtocolRegistry contract
+    const registryClient = new ProtocolRegistryClient();
 
-    console.log(`[Protocol Agent] On-chain registration simulated: ${mockTxHash}`);
+    const onChainResult = await registryClient.registerProtocol(
+      protocol.githubUrl,
+      protocol.contractPath,
+      protocol.contractName,
+      JSON.stringify(protocol.bountyTerms || {})
+    );
+
+    console.log(`[Protocol Agent] On-chain registration successful`);
+    console.log(`  Protocol ID: ${onChainResult.protocolId}`);
+    console.log(`  TX Hash: ${onChainResult.txHash}`);
+    console.log(`  Block: ${onChainResult.blockNumber}`);
+
+    // Update database with on-chain protocol ID and transaction hash
+    await prisma.protocol.update({
+      where: { id: protocolId },
+      data: {
+        onChainProtocolId: onChainResult.protocolId,
+        registrationTxHash: onChainResult.txHash,
+      },
+    });
 
     // =================
     // STEP 6: Update Protocol Status
     // =================
-    await updateProtocolRegistrationState(protocolId, 'ACTIVE', mockTxHash);
+    await updateProtocolRegistrationState(protocolId, 'ACTIVE', onChainResult.txHash);
     await job.updateProgress(95);
 
     // Emit protocol status change event
     await emitProtocolStatusChange(protocolId, {
       status: 'ACTIVE',
       registrationState: 'ACTIVE',
-      registrationTxHash: mockTxHash,
+      registrationTxHash: onChainResult.txHash,
       riskScore,
     });
 
@@ -182,7 +199,7 @@ export async function processProtocolRegistration(
     return {
       success: true,
       protocolId,
-      txHash: mockTxHash,
+      txHash: onChainResult.txHash,
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
