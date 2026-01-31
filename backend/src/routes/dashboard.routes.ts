@@ -26,6 +26,14 @@ router.get('/stats', requireAuth, dashboardRateLimits.stats, validateRequest({ q
   try {
     const { protocolId } = req.query as { protocolId?: string };
     const userId = req.user?.id;
+    const cacheKey = CACHE_KEYS.DASHBOARD_STATS(protocolId, userId);
+    const cached = await getCache(cacheKey);
+
+    if (cached) {
+      res.setHeader('Cache-Control', 'private, max-age=30');
+      res.setHeader('X-Cache', 'HIT');
+      return res.json({ data: cached });
+    }
 
     const stats = await getDashboardStats(protocolId, userId);
 
@@ -39,11 +47,8 @@ router.get('/stats', requireAuth, dashboardRateLimits.stats, validateRequest({ q
       });
     }
 
-    const cacheKey = CACHE_KEYS.DASHBOARD_STATS(protocolId);
-    const cached = await getCache(cacheKey);
-
     res.setHeader('Cache-Control', 'private, max-age=30');
-    res.setHeader('X-Cache', cached ? 'HIT' : 'MISS');
+    res.setHeader('X-Cache', 'MISS');
     
     res.json({ data: stats });
   } catch (error) {
@@ -62,14 +67,19 @@ router.get('/stats', requireAuth, dashboardRateLimits.stats, validateRequest({ q
 router.get('/agents', requireAuth, requireAdmin, dashboardRateLimits.agents, validateRequest({ query: agentQuerySchema }), async (req: Request, res: Response) => {
   try {
     const { type } = req.query as { type?: 'PROTOCOL' | 'RESEARCHER' | 'VALIDATOR' };
+    const cacheKey = CACHE_KEYS.AGENT_STATUS(type);
+    const cached = await getCache(cacheKey);
+
+    if (cached) {
+      res.setHeader('Cache-Control', 'private, max-age=10');
+      res.setHeader('X-Cache', 'HIT');
+      return res.json({ data: cached });
+    }
 
     const agents = await getAgentStatus(type);
 
-    const cacheKey = CACHE_KEYS.AGENT_STATUS;
-    const cached = await getCache(cacheKey);
-
     res.setHeader('Cache-Control', 'private, max-age=10');
-    res.setHeader('X-Cache', cached ? 'HIT' : 'MISS');
+    res.setHeader('X-Cache', 'MISS');
     
     res.json({ data: agents });
   } catch (error) {
@@ -131,6 +141,21 @@ router.get(
         status?: 'OPEN' | 'ACKNOWLEDGED' | 'RESOLVED' | 'DISMISSED';
       };
 
+      const cacheKey = CACHE_KEYS.PROTOCOL_VULNERABILITIES(
+        id,
+        parseInt(page, 10),
+        parseInt(limit, 10),
+        sort,
+        severity,
+        status
+      );
+      const cached = await getCache(cacheKey);
+      if (cached) {
+        res.setHeader('Cache-Control', 'private, max-age=60');
+        res.setHeader('X-Cache', 'HIT');
+        return res.json({ data: cached });
+      }
+
       const vulnerabilities = await getProtocolVulnerabilities(
         id,
         parseInt(page, 10),
@@ -150,16 +175,8 @@ router.get(
         });
       }
 
-      const cacheKey = CACHE_KEYS.PROTOCOL_VULNERABILITIES(
-        id,
-        parseInt(page, 10),
-        parseInt(limit, 10),
-        sort
-      );
-      const cached = await getCache(cacheKey);
-
       res.setHeader('Cache-Control', 'private, max-age=60');
-      res.setHeader('X-Cache', cached ? 'HIT' : 'MISS');
+      res.setHeader('X-Cache', 'MISS');
       
       res.json({ data: vulnerabilities });
     } catch (error) {

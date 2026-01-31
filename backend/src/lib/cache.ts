@@ -1,10 +1,24 @@
 import { getRedisClient } from './redis.js';
 
 export const CACHE_KEYS = {
-  DASHBOARD_STATS: (protocolId?: string) => protocolId ? `dashboard:stats:${protocolId}` : 'dashboard:stats:global',
-  AGENT_STATUS: 'agent:status',
-  PROTOCOL_VULNERABILITIES: (protocolId: string, page: number, limit: number, sort: string) => 
-    `protocol:vulnerabilities:${protocolId}:${page}:${limit}:${sort}`,
+  DASHBOARD_STATS: (protocolId?: string, userId?: string) => {
+    if (protocolId) {
+      return `dashboard:stats:protocol:${protocolId}`;
+    }
+    if (userId) {
+      return `dashboard:stats:user:${userId}`;
+    }
+    return 'dashboard:stats:global';
+  },
+  AGENT_STATUS: (type?: string) => `agent:status:${type ?? 'all'}`,
+  PROTOCOL_VULNERABILITIES: (
+    protocolId: string,
+    page: number,
+    limit: number,
+    sort: string,
+    severity?: string,
+    status?: string
+  ) => `protocol:vulnerabilities:${protocolId}:${page}:${limit}:${sort}:${severity ?? 'all'}:${status ?? 'all'}`,
 };
 
 export const CACHE_TTL = {

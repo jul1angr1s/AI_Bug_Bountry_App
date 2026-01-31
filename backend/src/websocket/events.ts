@@ -73,7 +73,7 @@ export async function emitAgentTaskUpdate(
   ioInstance.to('agents').emit('agent:task_update', event);
   
   // Invalidate agent status cache
-  await invalidateCache(CACHE_KEYS.AGENT_STATUS);
+  await invalidateCachePattern('agent:status:*');
 }
 
 export async function emitBountyPoolUpdated(
@@ -102,7 +102,7 @@ export async function emitBountyPoolUpdated(
   ioInstance.to(`protocol:${protocolId}`).emit('bounty_pool:updated', event);
   
   // Invalidate dashboard stats cache
-  await invalidateCache(CACHE_KEYS.DASHBOARD_STATS(protocolId));
+  await invalidateCachePattern(`dashboard:stats:*`);
 }
 
 export async function emitVulnerabilityStatusChanged(
@@ -135,6 +135,6 @@ export async function emitVulnerabilityStatusChanged(
   ioInstance.to(`protocol:${protocolId}`).emit('vuln:status_changed', event);
   
   // Invalidate caches
-  await invalidateCache(CACHE_KEYS.DASHBOARD_STATS(protocolId));
+  await invalidateCachePattern(`dashboard:stats:*`);
   await invalidateCachePattern(`protocol:vulnerabilities:${protocolId}:*`);
 }

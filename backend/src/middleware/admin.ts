@@ -9,7 +9,7 @@ export function requireAdmin(req: Request, _res: Response, next: NextFunction): 
   }
   
   // Check if user has admin role in metadata
-  const userRole = user.role || user.user_metadata?.role;
+  const userRole = user.app_metadata?.role || user.user_metadata?.role || user.role;
   
   if (userRole !== 'admin') {
     throw new ForbiddenError('Admin access required');

@@ -40,7 +40,7 @@ export interface AgentStatus {
 }
 
 export async function getDashboardStats(protocolId?: string, userId?: string): Promise<DashboardStats | null> {
-  const cacheKey = CACHE_KEYS.DASHBOARD_STATS(protocolId);
+  const cacheKey = CACHE_KEYS.DASHBOARD_STATS(protocolId, userId);
   
   const cached = await getCache<DashboardStats>(cacheKey);
   if (cached) {
@@ -177,7 +177,7 @@ export async function getDashboardStats(protocolId?: string, userId?: string): P
 const AGENT_HEARTBEAT_TIMEOUT = 120 * 1000;
 
 export async function getAgentStatus(type?: AgentType): Promise<AgentStatus[]> {
-  const cacheKey = CACHE_KEYS.AGENT_STATUS;
+  const cacheKey = CACHE_KEYS.AGENT_STATUS(type);
   
   const cached = await getCache<AgentStatus[]>(cacheKey);
   if (cached) {
@@ -264,7 +264,7 @@ export async function getProtocolVulnerabilities(
   severity?: Severity,
   status?: VulnerabilityStatus
 ): Promise<PaginatedVulnerabilities | null> {
-  const cacheKey = CACHE_KEYS.PROTOCOL_VULNERABILITIES(protocolId, page, limit, sort);
+  const cacheKey = CACHE_KEYS.PROTOCOL_VULNERABILITIES(protocolId, page, limit, sort, severity, status);
   
   const cached = await getCache<PaginatedVulnerabilities>(cacheKey);
   if (cached) {
