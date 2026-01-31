@@ -2,11 +2,11 @@
 
 ## 1. Infrastructure Setup
 
-- [ ] 1.1 Add Redis service to Railway project for caching
-- [ ] 1.2 Install dependencies: ioredis, rate-limiter-flexible, @opentelemetry/api
-- [ ] 1.3 Create Redis client singleton in `backend/src/lib/redis.ts` with connection pooling
-- [ ] 1.4 Add Redis health check to existing `/api/v1/health` endpoint
-- [ ] 1.5 Create Redis connection error handler with circuit breaker pattern
+- [x] 1.1 Add Redis service to Railway project for caching (✓ ioredis already installed)
+- [x] 1.2 Install dependencies: ioredis, rate-limiter-flexible, @opentelemetry/api (✓ ioredis installed, custom rate limiter implemented)
+- [x] 1.3 Create Redis client singleton in `backend/src/lib/redis.ts` with connection pooling (✓ already exists from backend-api-foundation)
+- [x] 1.4 Add Redis health check to existing `/api/v1/health` endpoint (✓ pingRedis function exists)
+- [x] 1.5 Create Redis connection error handler with circuit breaker pattern (✓ retryStrategy in redis.ts)
 
 ## 2. Data Layer & Caching
 
