@@ -111,11 +111,6 @@ graph TD
     E -.->|Events| R[Dashboard]
     N -.->|Events| R
     O -.->|Events| R
-
-    style E fill:#90EE90
-    style N fill:#90EE90
-    style O fill:#90EE90
-    style Q fill:#FFD700
 ```
 
 ### E2E Test Executed on Base Sepolia
@@ -340,9 +335,9 @@ npm test
 
 ### Implementation Summaries
 
-- [**Phase 3B Completion**](PHASE_3B_COMPLETION_SUMMARY.md) - Smart contract deployment summary
-- [**Phase 3B Implementation**](PHASE_3B_IMPLEMENTATION_SUMMARY.md) - Technical implementation details
-- [**Security Verification**](SECURITY_AND_OPENSPEC_VERIFICATION.md) - Security audit and OpenSpec status
+- [**Phase 3B Completion**](docs/PHASE_3B_COMPLETION_SUMMARY.md) - Smart contract deployment summary
+- [**Phase 3B Implementation**](docs/PHASE_3B_IMPLEMENTATION_SUMMARY.md) - Technical implementation details
+- [**Security Verification**](docs/SECURITY_AND_OPENSPEC_VERIFICATION.md) - Security audit and OpenSpec status
 
 ### OpenSpec Framework
 
