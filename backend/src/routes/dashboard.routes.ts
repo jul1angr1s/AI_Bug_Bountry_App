@@ -8,6 +8,7 @@ import {
   getAgentStatus,
   getProtocolVulnerabilities,
 } from '../services/dashboard.service.js';
+import { getProtocolById } from '../services/protocol.service.js';
 import {
   statsQuerySchema,
   agentQuerySchema,
@@ -100,15 +101,20 @@ router.get('/protocols/:id', requireAuth, dashboardRateLimits.protocols, validat
     const { id } = req.params;
     const userId = req.user?.id;
 
-    // This will be implemented when we create the protocol service
-    // For now, return 501
-    res.status(501).json({
-      error: {
-        code: 'NotImplemented',
-        message: 'Protocol overview endpoint not yet implemented',
-        requestId: req.id,
-      },
-    });
+    const protocol = await getProtocolById(id, userId);
+
+    if (!protocol) {
+      return res.status(404).json({
+        error: {
+          code: 'PROTOCOL_NOT_FOUND',
+          message: 'Protocol not found or access denied',
+          requestId: req.id,
+        },
+      });
+    }
+
+    res.setHeader('Cache-Control', 'private, max-age=60');
+    res.json({ data: protocol });
   } catch (error) {
     console.error('Error in protocol endpoint:', error);
     res.status(503).json({

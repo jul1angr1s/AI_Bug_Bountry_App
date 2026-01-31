@@ -14,7 +14,7 @@ describe('ProtectedRoute', () => {
   it('renders ProtectedRoute component', () => {
     vi.spyOn(auth, 'useAuth').mockReturnValue({
       user: { id: '1', wallet: '0x123', role: 'User' },
-      session: {} as any,
+      session: null,
       loading: false,
       signIn: vi.fn(),
       signOut: vi.fn(),
@@ -34,7 +34,7 @@ describe('ProtectedRoute', () => {
   it('renders children when user is authenticated', async () => {
     vi.spyOn(auth, 'useAuth').mockReturnValue({
       user: { id: '1', wallet: '0x123', role: 'User' },
-      session: {} as any,
+      session: null,
       loading: false,
       signIn: vi.fn(),
       signOut: vi.fn(),
