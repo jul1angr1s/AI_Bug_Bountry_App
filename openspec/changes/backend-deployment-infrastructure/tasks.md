@@ -29,15 +29,15 @@
 **IMPORTANT:** Use docker-expert skill for troubleshooting any Docker issues in this phase.
 
 - [x] 4.1 Copy .env.docker.example to .env.local and configure Supabase credentials
-- [ ] 4.2 Build development Docker image using docker-expert guidance: `npm run docker:build:dev`
-- [ ] 4.3 Start full stack with docker-compose: `npm run docker:up`
-- [ ] 4.4 Verify PostgreSQL health check passes (use docker-expert for troubleshooting)
-- [ ] 4.5 Verify Redis health check passes (use docker-expert for troubleshooting)
-- [ ] 4.6 Verify backend health check passes at http://localhost:3000/api/v1/health
-- [ ] 4.7 Test hot-reload by editing src/routes/health.ts and verifying restart
-- [ ] 4.8 Test database connection by running Prisma Studio: `docker exec thunder-backend npx prisma studio`
-- [ ] 4.9 Test Redis connection by checking logs for successful connection
-- [ ] 4.10 Run smoke tests inside container: `docker exec thunder-backend npm run smoke`
+- [x] 4.2 Build development Docker image using docker-expert guidance: `npm run docker:build:dev`
+- [x] 4.3 Start full stack with docker-compose: `npm run docker:up`
+- [x] 4.4 Verify PostgreSQL health check passes (use docker-expert for troubleshooting)
+- [x] 4.5 Verify Redis health check passes (use docker-expert for troubleshooting)
+- [x] 4.6 Verify backend health check passes at http://localhost:3000/api/v1/health
+- [x] 4.7 Test hot-reload by editing src/routes/health.ts and verifying restart
+- [x] 4.8 Test database connection by running Prisma Studio: `docker exec thunder-backend npx prisma studio`
+- [x] 4.9 Test Redis connection by checking logs for successful connection
+- [x] 4.10 Run smoke tests inside container: `docker exec thunder-backend npm run smoke`
 
 ## 5. Production Docker Image Testing - Use `/skill:docker-expert`
 
