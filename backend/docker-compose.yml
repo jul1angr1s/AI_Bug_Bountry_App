@@ -47,6 +47,7 @@ services:
       # Mount source code for hot-reload
       - ./src:/app/src:ro
       - ./prisma:/app/prisma:ro
+      - ./tests:/app/tests:ro
       # Preserve node_modules in container
       - /app/node_modules
     depends_on:
