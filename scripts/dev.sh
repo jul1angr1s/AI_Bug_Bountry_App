@@ -221,9 +221,13 @@ else
 fi
 
 if [ "${START_RESEARCHER_WORKER:-1}" = "1" ]; then
-  echo "Starting researcher worker..."
-  (cd "$ROOT_DIR/backend" && npm run researcher:worker) &
-  pids+=($!)
+  if rg -q '"researcher:worker"' "$ROOT_DIR/backend/package.json" 2>/dev/null; then
+    echo "Starting researcher worker..."
+    (cd "$ROOT_DIR/backend" && npm run researcher:worker) &
+    pids+=($!)
+  else
+    echo "Skipping researcher worker (script not found in backend/package.json)"
+  fi
 else
   echo "Skipping researcher worker (START_RESEARCHER_WORKER=0)"
 fi
