@@ -7,8 +7,8 @@ import { io } from 'socket.io-client';
 import { createClient } from '@supabase/supabase-js';
 
 const BASE_URL = 'http://localhost:3000';
-const SUPABASE_URL = 'https://ekxbtdlnbellyhovgoxw.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVreGJ0ZGxuYmVsbHlob3Znb3h3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk3MzMyNjcsImV4cCI6MjA1MzA5MjY3fQ.HPqn5lz8gDEmZrGw7rqK1ENCTTrVb-BYq1o2NY2yqbc';
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 
 async function runWebSocketTests() {
   console.log('🧪 Starting WebSocket Tests...\n');
@@ -47,6 +47,10 @@ async function runWebSocketTests() {
   // Task 12.8: Test WebSocket with valid JWT
   console.log('\n12.8 Testing WebSocket with Valid JWT...');
   
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    throw new Error('Missing SUPABASE_URL or SUPABASE_ANON_KEY environment variables for websocket tests.');
+  }
+
   const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   
   // Note: For a real test, we'd need to sign in. For now, we'll test with anon token
