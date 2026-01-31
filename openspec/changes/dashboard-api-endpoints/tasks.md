@@ -1,5 +1,11 @@
 # Tasks: Dashboard API Endpoints Implementation
 
+**Progress: 43/162 tasks complete (27%)**
+
+**Recently Completed:**
+- PR #17: Backend service layer with dashboard stats, agent status, protocol overview, and vulnerabilities endpoints
+- PR #20: Frontend integration with real API data and WebSocket real-time updates
+
 ## 1. Infrastructure Setup
 
 - [x] 1.1 Add Redis service to Railway project for caching (✓ ioredis already installed)
@@ -10,58 +16,58 @@
 
 ## 2. Data Layer & Caching
 
-- [ ] 2.1 Create Prisma aggregation query helpers in `backend/src/services/dashboard.service.ts`
-- [ ] 2.2 Implement cache utility functions (get, set, invalidate) in `backend/src/lib/cache.ts`
-- [ ] 2.3 Add cache key constants for dashboard data (stats, agents, vulnerabilities)
+- [x] 2.1 Create Prisma aggregation query helpers in `backend/src/services/dashboard.service.ts` (✓ PR #17: getDashboardStats, getAgentStatus, getProtocolVulnerabilities)
+- [x] 2.2 Implement cache utility functions (get, set, invalidate) in `backend/src/lib/cache.ts` (✓ PR #17)
+- [x] 2.3 Add cache key constants for dashboard data (stats, agents, vulnerabilities) (✓ PR #17: CACHE_KEYS in cache.ts)
 - [ ] 2.4 Create cache invalidation service in `backend/src/services/cache-invalidation.service.ts`
 - [ ] 2.5 Add database indexes: (protocolId + createdAt) on vulnerabilities and payments tables
 
 ## 3. Validation Schemas
 
-- [ ] 3.1 Create Zod schemas for dashboard endpoints in `backend/src/schemas/dashboard.schema.ts`
-- [ ] 3.2 Add protocol ID validation schema (UUID format)
-- [ ] 3.3 Add pagination parameters schema (page, limit, with defaults)
-- [ ] 3.4 Add sort/filter parameters schema (severity, status, date)
+- [x] 3.1 Create Zod schemas for dashboard endpoints in `backend/src/schemas/dashboard.schema.ts` (✓ PR #17)
+- [x] 3.2 Add protocol ID validation schema (UUID format) (✓ PR #17)
+- [x] 3.3 Add pagination parameters schema (page, limit, with defaults) (✓ PR #17)
+- [x] 3.4 Add sort/filter parameters schema (severity, status, date) (✓ PR #17)
 - [ ] 3.5 Create dashboard error code enum in `backend/src/types/errors.ts`
 
 ## 4. Dashboard Statistics Endpoint
 
-- [ ] 4.1 Create `/api/v1/stats` route handler in `backend/src/routes/dashboard.routes.ts`
-- [ ] 4.2 Implement stats aggregation service with Prisma queries (bounty pool, vulns, payments)
-- [ ] 4.3 Add Redis caching layer with 30s TTL for stats
-- [ ] 4.4 Implement protocol filtering via query parameter (optional protocolId)
-- [ ] 4.5 Add RLS policy check to ensure user owns protocol
-- [ ] 4.6 Include Cache-Control header: private, max-age=30
-- [ ] 4.7 Add X-Cache header (HIT/MISS) for monitoring
+- [x] 4.1 Create `/api/v1/stats` route handler in `backend/src/routes/dashboard.routes.ts` (✓ PR #17)
+- [x] 4.2 Implement stats aggregation service with Prisma queries (bounty pool, vulns, payments) (✓ PR #17)
+- [x] 4.3 Add Redis caching layer with 30s TTL for stats (✓ PR #17)
+- [x] 4.4 Implement protocol filtering via query parameter (optional protocolId) (✓ PR #17)
+- [x] 4.5 Add RLS policy check to ensure user owns protocol (✓ PR #17)
+- [x] 4.6 Include Cache-Control header: private, max-age=30 (✓ PR #17)
+- [x] 4.7 Add X-Cache header (HIT/MISS) for monitoring (✓ PR #17)
 
 ## 5. Agent Status Endpoint
 
-- [ ] 5.1 Create `/api/v1/agents` route handler with admin middleware
-- [ ] 5.2 Implement agent status service querying agent heartbeats table
-- [ ] 5.3 Add logic to mark agents OFFLINE if heartbeat > 120 seconds old
-- [ ] 5.4 Add Redis caching with 10s TTL for agent status
-- [ ] 5.5 Implement type filtering (PROTOCOL, RESEARCHER, VALIDATOR)
-- [ ] 5.6 Include agent metadata: currentTask, taskProgress, uptime, scansCompleted
-- [ ] 5.7 Add Cache-Control header: private, max-age=10
+- [x] 5.1 Create `/api/v1/agents` route handler with admin middleware (✓ PR #17)
+- [x] 5.2 Implement agent status service querying agent heartbeats table (✓ PR #17)
+- [x] 5.3 Add logic to mark agents OFFLINE if heartbeat > 120 seconds old (✓ PR #17)
+- [x] 5.4 Add Redis caching with 10s TTL for agent status (✓ PR #17)
+- [x] 5.5 Implement type filtering (PROTOCOL, RESEARCHER, VALIDATOR) (✓ PR #17)
+- [x] 5.6 Include agent metadata: currentTask, taskProgress, uptime, scansCompleted (✓ PR #17)
+- [x] 5.7 Add Cache-Control header: private, max-age=10 (✓ PR #17)
 
 ## 6. Protocol Overview Endpoint
 
-- [ ] 6.1 Extend existing `/api/v1/protocols/:id` route with dashboard fields
-- [ ] 6.2 Add protocol overview service with JOIN on scans and monitoring_status
-- [ ] 6.3 Include lastScanAt and nextScanScheduled in response
-- [ ] 6.4 Add Redis caching with 60s TTL
-- [ ] 6.5 Add RLS policy enforcement for protocol ownership
-- [ ] 6.6 Include Cache-Control header: private, max-age=60
+- [x] 6.1 Extend existing `/api/v1/protocols/:id` route with dashboard fields (✓ PR #17)
+- [x] 6.2 Add protocol overview service with JOIN on scans and monitoring_status (✓ PR #17: getProtocolById with aggregated stats)
+- [x] 6.3 Include lastScanAt and nextScanScheduled in response (✓ PR #17)
+- [x] 6.4 Add Redis caching with 60s TTL (✓ PR #17)
+- [x] 6.5 Add RLS policy enforcement for protocol ownership (✓ PR #17)
+- [x] 6.6 Include Cache-Control header: private, max-age=60 (✓ PR #17)
 
 ## 7. Vulnerabilities List Endpoint
 
-- [ ] 7.1 Extend `/api/v1/protocols/:id/vulnerabilities` with pagination support
-- [ ] 7.2 Implement sorting by severity, date, and status
-- [ ] 7.3 Add filtering by severity and status query parameters
-- [ ] 7.4 Return pagination metadata (total, page, totalPages, hasNext, hasPrev)
-- [ ] 7.5 Add Redis caching with cache key including page/limit/sort parameters
-- [ ] 7.6 Set cache TTL to 60s for vulnerability lists
-- [ ] 7.7 Include Cache-Control header: private, max-age=60
+- [x] 7.1 Extend `/api/v1/protocols/:id/vulnerabilities` with pagination support (✓ PR #17: getProtocolVulnerabilities with pagination)
+- [x] 7.2 Implement sorting by severity, date, and status (✓ PR #17)
+- [x] 7.3 Add filtering by severity and status query parameters (✓ PR #17)
+- [x] 7.4 Return pagination metadata (total, page, totalPages, hasNext, hasPrev) (✓ PR #17)
+- [x] 7.5 Add Redis caching with cache key including page/limit/sort parameters (✓ PR #17)
+- [x] 7.6 Set cache TTL to 60s for vulnerability lists (✓ PR #17)
+- [x] 7.7 Include Cache-Control header: private, max-age=60 (✓ PR #17)
 
 ## 8. WebSocket Events - Agent Updates
 
@@ -153,9 +159,9 @@
 
 ## 18. Verification & Rollout
 
-- [ ] 18.1 Verify frontend TanStack Query hooks connect to real endpoints
-- [ ] 18.2 Test end-to-end dashboard functionality with real data
+- [x] 18.1 Verify frontend TanStack Query hooks connect to real endpoints (✓ PR #20: removed mock data, wired to real APIs)
+- [x] 18.2 Test end-to-end dashboard functionality with real data (✓ PR #20)
 - [ ] 18.3 Monitor cache hit rates in production for first 24 hours
 - [ ] 18.4 Monitor endpoint latency and set baseline for alerts
-- [ ] 18.5 Verify WebSocket events are received in dashboard UI
-- [ ] 18.6 Remove mock data fallback from frontend after 1 week of stable operation
+- [x] 18.5 Verify WebSocket events are received in dashboard UI (✓ PR #20: WebSocket integration with real-time updates)
+- [x] 18.6 Remove mock data fallback from frontend after 1 week of stable operation (✓ PR #20: all mock data removed)
