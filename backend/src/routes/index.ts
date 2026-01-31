@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import healthRouter from './health.js';
+import dashboardRouter from './dashboard.routes.js';
 
 const router = Router();
 
@@ -9,6 +10,9 @@ router.use((req, res, next) => {
 });
 
 router.use(healthRouter);
+
+// Dashboard API endpoints
+router.use(dashboardRouter);
 
 router.use('/protocols', (_req, res) => {
   res.status(501).json({

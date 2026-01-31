@@ -13,6 +13,7 @@ const envSchema = z.object({
   SUPABASE_ANON_KEY: z.string(),
   SUPABASE_SERVICE_ROLE_KEY: z.string(),
   FRONTEND_URL: z.string().url(),
+  REDIS_URL: z.string().url().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);
