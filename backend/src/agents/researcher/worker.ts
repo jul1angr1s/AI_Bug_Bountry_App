@@ -5,6 +5,16 @@ import { getPrismaClient } from '../../lib/prisma.js';
 import { getRedisClient } from '../../lib/redis.js';
 import { emitScanStarted, emitScanProgress, emitScanCompleted } from '../../websocket/events.js';
 import { ScanJobData } from '../../queues/scanQueue.js';
+import { ChildProcess } from 'child_process';
+import {
+  executeCloneStep,
+  executeCompileStep,
+  executeDeployStep,
+  executeAnalyzeStep,
+  executeProofGenerationStep,
+  executeSubmitStep,
+  cleanupResources,
+} from './steps/index.js';
 
 // Error codes for structured error handling
 export const ScanErrorCodes = {
@@ -186,6 +196,11 @@ async function executeScanPipeline(
   const protocol = scan.protocol;
   let findingsCount = 0;
 
+  // State variables for cleanup
+  let anvilProcess: ChildProcess | undefined;
+  let clonedPath: string | undefined;
+  let deploymentAddress: string | undefined;
+
   // Check for cancellation
   if (job && (await job.isFailed())) {
     throw new Error(ScanErrorCodes.CANCELED);
@@ -195,16 +210,24 @@ async function executeScanPipeline(
   const cloneStep = await scanStepRepository.startStep(scanId, ScanStep.CLONE);
   try {
     await emitScanProgress(scanId, protocolId, 'CLONE', ScanState.RUNNING, 10, 'Cloning repository...');
-    
-    // TODO: Implement actual Git clone (Task 3.2)
-    console.log(`[Scan ${scanId}] Cloning ${protocol.githubUrl} at ${targetBranch || 'default branch'}`);
-    
+
+    const cloneResult = await executeCloneStep({
+      scanId,
+      protocolId,
+      repoUrl: protocol.githubUrl,
+      targetBranch,
+      targetCommitHash,
+    });
+
+    clonedPath = cloneResult.clonedPath;
+
     await scanStepRepository.completeStep(cloneStep.id, {
       repoUrl: protocol.githubUrl,
-      branch: targetBranch || 'main',
-      commitHash: targetCommitHash,
+      branch: cloneResult.branch,
+      commitHash: cloneResult.commitHash,
+      clonedPath: cloneResult.clonedPath,
     });
-    
+
     await emitScanProgress(scanId, protocolId, 'CLONE', ScanState.RUNNING, 20, 'Repository cloned');
   } catch (error) {
     await handleStepFailure(scanId, protocolId, cloneStep.id, ScanErrorCodes.CLONE_FAILED, error);
@@ -213,17 +236,29 @@ async function executeScanPipeline(
 
   // Step 2: Compile Contracts
   const compileStep = await scanStepRepository.startStep(scanId, ScanStep.COMPILE);
+  let compilationResult;
   try {
     await emitScanProgress(scanId, protocolId, 'COMPILE', ScanState.RUNNING, 30, 'Compiling contracts...');
-    
-    // TODO: Implement Foundry compilation (Task 3.2)
-    console.log(`[Scan ${scanId}] Compiling contracts at ${protocol.contractPath}`);
-    
-    await scanStepRepository.completeStep(compileStep.id, {
+
+    if (!clonedPath) {
+      throw new Error('No cloned path available from previous step');
+    }
+
+    compilationResult = await executeCompileStep({
+      clonedPath,
       contractPath: protocol.contractPath,
       contractName: protocol.contractName,
     });
-    
+
+    await scanStepRepository.completeStep(compileStep.id, {
+      contractPath: protocol.contractPath,
+      contractName: protocol.contractName,
+      success: compilationResult.success,
+      artifactsPath: compilationResult.artifactsPath,
+      errors: compilationResult.errors,
+      warnings: compilationResult.warnings,
+    });
+
     await emitScanProgress(scanId, protocolId, 'COMPILE', ScanState.RUNNING, 40, 'Compilation successful');
   } catch (error) {
     await handleStepFailure(scanId, protocolId, compileStep.id, ScanErrorCodes.COMPILE_FAILED, error);
@@ -234,17 +269,29 @@ async function executeScanPipeline(
   const deployStep = await scanStepRepository.startStep(scanId, ScanStep.DEPLOY);
   try {
     await emitScanProgress(scanId, protocolId, 'DEPLOY', ScanState.RUNNING, 50, 'Deploying to Anvil...');
-    
-    // TODO: Implement Anvil deployment (Task 3.2)
-    console.log(`[Scan ${scanId}] Deploying to local Anvil`);
-    
-    await scanStepRepository.completeStep(deployStep.id, {
-      anvilPort: 8545,
-      deploymentTx: '0x...', // Placeholder
+
+    if (!compilationResult?.abi || !compilationResult?.bytecode) {
+      throw new Error('No ABI or bytecode available from compilation step');
+    }
+
+    const deployResult = await executeDeployStep({
+      abi: compilationResult.abi,
+      bytecode: compilationResult.bytecode,
+      contractName: protocol.contractName,
     });
-    
+
+    anvilProcess = deployResult.anvilProcess;
+    deploymentAddress = deployResult.deploymentAddress;
+
+    await scanStepRepository.completeStep(deployStep.id, {
+      anvilPort: deployResult.anvilPort,
+      deploymentAddress: deployResult.deploymentAddress,
+      deploymentTx: deployResult.transactionHash,
+    });
+
     await emitScanProgress(scanId, protocolId, 'DEPLOY', ScanState.RUNNING, 60, 'Deployment complete');
   } catch (error) {
+    await cleanupResources(anvilProcess);
     await handleStepFailure(scanId, protocolId, deployStep.id, ScanErrorCodes.DEPLOY_FAILED, error);
     throw error;
   }
@@ -253,40 +300,34 @@ async function executeScanPipeline(
   const analyzeStep = await scanStepRepository.startStep(scanId, ScanStep.ANALYZE);
   try {
     await emitScanProgress(scanId, protocolId, 'ANALYZE', ScanState.RUNNING, 70, 'Running static analysis...');
-    
-    // TODO: Implement static analysis (Task 3.2)
-    // This is where you'd integrate with Slither, Mythril, etc.
-    console.log(`[Scan ${scanId}] Running static analysis`);
-    
-    // Mock findings for now
-    const mockFindings = [
-      {
-        vulnerabilityType: 'REENTRANCY',
-        severity: 'CRITICAL',
-        filePath: `${protocol.contractPath}/${protocol.contractName}.sol`,
-        lineNumber: 45,
-        functionSelector: '0x3ccfd60b',
-        description: 'Potential reentrancy vulnerability in withdraw function',
-        confidenceScore: 0.85,
-      },
-    ];
-    
+
+    if (!clonedPath) {
+      throw new Error('No cloned path available from previous step');
+    }
+
+    const analysisResult = await executeAnalyzeStep({
+      clonedPath,
+      contractPath: protocol.contractPath,
+      contractName: protocol.contractName,
+    });
+
     // Store findings
-    for (const finding of mockFindings) {
+    for (const finding of analysisResult.findings) {
       await findingRepository.createFinding({
         scanId,
         ...finding,
       });
       findingsCount++;
     }
-    
+
     await scanStepRepository.completeStep(analyzeStep.id, {
-      findingsCount: mockFindings.length,
-      analysisTools: ['slither', 'mythril'],
+      findingsCount: analysisResult.findings.length,
+      analysisTools: analysisResult.toolsUsed,
     });
-    
+
     await emitScanProgress(scanId, protocolId, 'ANALYZE', ScanState.RUNNING, 80, `Found ${findingsCount} vulnerabilities`);
   } catch (error) {
+    await cleanupResources(anvilProcess);
     await handleStepFailure(scanId, protocolId, analyzeStep.id, ScanErrorCodes.ANALYSIS_FAILED, error);
     throw error;
   }
@@ -295,71 +336,61 @@ async function executeScanPipeline(
   const proofStep = await scanStepRepository.startStep(scanId, ScanStep.PROOF_GENERATION);
   try {
     await emitScanProgress(scanId, protocolId, 'PROOF_GENERATION', ScanState.RUNNING, 90, 'Generating proofs...');
-    
+
     // Get findings to generate proofs for
     const findings = await findingRepository.getFindingsByScan(scanId);
-    
-    // TODO: Implement proof generation (Task 3.2)
-    for (const finding of findings) {
-      // Generate encrypted proof
-      const proofPayload = JSON.stringify({
-        vulnerabilityId: finding.id,
-        exploit: '/* exploit code here */',
-        expectedOutcome: 'Drain contract balance',
-      });
-      
-      // TODO: Implement encryption (Task 4.1)
-      const encryptedPayload = Buffer.from(proofPayload).toString('base64'); // Placeholder
-      
-      // Create proof record
-      await proofRepository.createProof({
-        scanId,
-        findingId: finding.id,
-        encryptedPayload,
-        researcherSignature: '0x...', // Placeholder - Task 4.1
-        encryptionKeyId: 'validator-key-1', // Placeholder - Task 4.1
-      });
+
+    if (!clonedPath) {
+      throw new Error('No cloned path available from previous step');
     }
-    
-    await scanStepRepository.completeStep(proofStep.id, {
-      proofsGenerated: findings.length,
+
+    const proofGenResult = await executeProofGenerationStep({
+      scanId,
+      findings,
+      clonedPath,
+      deploymentAddress,
     });
-    
+
+    await scanStepRepository.completeStep(proofStep.id, {
+      proofsGenerated: proofGenResult.proofsCreated,
+    });
+
     await emitScanProgress(scanId, protocolId, 'PROOF_GENERATION', ScanState.RUNNING, 95, 'Proofs generated');
   } catch (error) {
+    await cleanupResources(anvilProcess);
     await handleStepFailure(scanId, protocolId, proofStep.id, ScanErrorCodes.PROOF_GENERATION_FAILED, error);
     throw error;
   }
 
-  // Step 6: Submit to Validator (Task 3.3)
+  // Step 6: Submit to Validator
   const submitStep = await scanStepRepository.startStep(scanId, ScanStep.SUBMIT);
   try {
     await emitScanProgress(scanId, protocolId, 'SUBMIT', ScanState.RUNNING, 98, 'Submitting to Validator Agent...');
-    
-    // Publish proof submission to Redis for Validator Agent
-    const redis = getRedisClient();
+
+    // Get proofs for submission
     const proofs = await proofRepository.getProofsByScan(scanId);
-    
-    for (const proof of proofs) {
-      await redis.publish('PROOF_SUBMISSION', JSON.stringify({
-        scanId,
-        protocolId,
-        commitHash: targetCommitHash || 'latest',
-        proofRef: proof.id,
-        signature: proof.researcherSignature,
-        timestamp: new Date().toISOString(),
-      }));
-      
-      // Update proof status
-      await proofRepository.updateProofStatus(proof.id, 'SUBMITTED');
-    }
-    
-    await scanStepRepository.completeStep(submitStep.id, {
-      proofsSubmitted: proofs.length,
+
+    const submitResult = await executeSubmitStep({
+      scanId,
+      protocolId,
+      proofs: proofs.map(p => ({ id: p.id, findingId: p.findingId || '' } as any)),
+      targetCommitHash,
+      anvilProcess,
     });
-    
+
+    // Clear anvilProcess reference after cleanup
+    if (submitResult.cleanupCompleted) {
+      anvilProcess = undefined;
+    }
+
+    await scanStepRepository.completeStep(submitStep.id, {
+      proofsSubmitted: submitResult.proofsSubmitted,
+      submissionTimestamp: submitResult.submissionTimestamp,
+    });
+
     await emitScanProgress(scanId, protocolId, 'SUBMIT', ScanState.RUNNING, 100, 'Submission complete');
   } catch (error) {
+    await cleanupResources(anvilProcess);
     await handleStepFailure(scanId, protocolId, submitStep.id, ScanErrorCodes.SUBMISSION_FAILED, error);
     throw error;
   }

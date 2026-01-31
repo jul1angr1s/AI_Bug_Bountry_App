@@ -1,0 +1,15 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+script = "test"
+solc = "0.8.20"
+
+# See more config options https://github.com/foundry-rs/foundry/tree/master/crates/config
+
+[rpc_endpoints]
+anvil = "http://localhost:8545"
+base_sepolia = "https://sepolia.base.org"
+
+[etherscan]
+base_sepolia = { key = "${BASESCAN_API_KEY}" }

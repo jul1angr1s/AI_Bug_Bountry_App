@@ -13,6 +13,24 @@ This PR contains **planning artifacts only** (documentation). Implementation wil
 
 ---
 
+## Full Stack Dev (Single Command)
+
+From the repo root:
+
+```bash
+bash scripts/dev.sh
+```
+
+Notes:
+- Starts Postgres + Redis via `backend/docker-compose.yml`
+- Runs backend dev server and frontend dev server
+- Starts the Researcher worker by default (set `START_RESEARCHER_WORKER=0` to skip)
+- If ports are already in use, the script will skip starting that service
+- Optional: `START_BACKEND=0` or `START_FRONTEND=0` to skip
+- Optional: `KILL_EXISTING=1` to stop processes already using ports 3000/5173 before starting
+- Press Ctrl+C to stop frontend/backend processes (Docker services keep running)
+- The script loads `backend/.env.local` or `backend/.env` if present
+
 ## Required Commands
 
 ### Step 1: Fix npm permissions (if needed)
