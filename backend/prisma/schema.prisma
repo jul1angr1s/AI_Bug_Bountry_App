@@ -48,6 +48,38 @@ enum PaymentStatus {
   FAILED
 }
 
+// Researcher Agent - Scan Lifecycle Enums
+enum ScanState {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELED
+}
+
+enum ScanStep {
+  CLONE
+  COMPILE
+  DEPLOY
+  ANALYZE
+  PROOF_GENERATION
+  SUBMIT
+}
+
+enum FindingStatus {
+  PENDING
+  VALIDATED
+  REJECTED
+  DUPLICATE
+}
+
+enum ProofStatus {
+  ENCRYPTED
+  SUBMITTED
+  VALIDATED
+  REJECTED
+}
+
 model Protocol {
   id                String         @id @default(uuid())
   authUserId        String
