@@ -3,6 +3,7 @@ import healthRouter from './health.js';
 import dashboardRouter from './dashboard.routes.js';
 import protocolRouter from './protocol.routes.js';
 import agentRouter from './agent.routes.js';
+import scansRouter from './scans.js';
 
 const router = Router();
 
@@ -20,14 +21,8 @@ router.use(dashboardRouter);
 router.use('/protocols', protocolRouter);
 router.use('/agents', agentRouter);
 
-router.use('/scans', (_req, res) => {
-  res.status(501).json({
-    error: {
-      code: 'NotImplemented',
-      message: 'Scans API not implemented yet',
-    },
-  });
-});
+// Researcher Agent - Scan endpoints
+router.use('/scans', scansRouter);
 
 router.use('/vulnerabilities', (_req, res) => {
   res.status(501).json({

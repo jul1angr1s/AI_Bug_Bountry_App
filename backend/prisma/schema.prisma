@@ -139,22 +139,162 @@ model Agent {
   uptime         Int?
   scansCompleted Int         @default(0)
 
-  scans Scan[]
+  scans    Scan[]
+  agentRuns AgentRun[]
 
   @@index([lastHeartbeat])
 }
 
 model Scan {
-  id                   String   @id @default(uuid())
+  id                   String    @id @default(uuid())
   protocolId           String
-  agentId              String
-  status               String
-  startedAt            DateTime @default(now())
+  agentId              String?
+  state                ScanState @default(QUEUED)
+  currentStep          ScanStep?
+  
+  // Target specification
+  targetBranch         String?
+  targetCommitHash     String?
+  
+  // Timing
+  startedAt            DateTime  @default(now())
   completedAt          DateTime?
-  vulnerabilitiesFound Int      @default(0)
-
+  
+  // Progress & Results
+  vulnerabilitiesFound Int       @default(0)
+  findingsCount        Int       @default(0)
+  
+  // Error handling
+  errorCode            String?
+  errorMessage         String?
+  retryCount           Int       @default(0)
+  
+  // Relations
   protocol Protocol @relation(fields: [protocolId], references: [id], onDelete: Cascade)
-  agent    Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  agent    Agent?   @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  findings Finding[]
+  proofs   Proof[]
+  steps    ScanStepRecord[]
+  
+  @@index([protocolId, state])
+  @@index([state, startedAt])
+  @@index([agentId])
+}
+
+model Finding {
+  id                String        @id @default(uuid())
+  scanId            String
+  
+  // Vulnerability details
+  vulnerabilityType String
+  severity          Severity
+  status            FindingStatus @default(PENDING)
+  
+  // Location
+  filePath          String
+  lineNumber        Int?
+  functionSelector  String?
+  
+  // Analysis
+  description       String
+  confidenceScore   Float         @default(0)
+  
+  // Metadata
+  createdAt         DateTime      @default(now())
+  validatedAt       DateTime?
+  
+  // Relations
+  scan     Scan   @relation(fields: [scanId], references: [id], onDelete: Cascade)
+  proofs   Proof[]
+  
+  @@index([scanId])
+  @@index([status])
+  @@index([severity])
+}
+
+model Proof {
+  id              String      @id @default(uuid())
+  scanId          String
+  findingId       String?
+  
+  // Proof content
+  status          ProofStatus @default(ENCRYPTED)
+  encryptedPayload String
+  
+  // Storage
+  ipfsCid         String?
+  storageUrl      String?
+  
+  // Cryptography
+  researcherSignature String
+  validatorPublicKey  String?
+  encryptionKeyId     String
+  
+  // Submission
+  submittedAt     DateTime    @default(now())
+  validatedAt     DateTime?
+  
+  // Relations
+  scan    Scan     @relation(fields: [scanId], references: [id], onDelete: Cascade)
+  finding Finding? @relation(fields: [findingId], references: [id], onDelete: SetNull)
+  
+  @@index([scanId, status])
+  @@index([findingId])
+}
+
+model ScanStepRecord {
+  id          String    @id @default(uuid())
+  scanId      String
+  
+  step        ScanStep
+  status      String    // PENDING, RUNNING, COMPLETED, FAILED
+  
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  
+  // Error details
+  errorCode   String?
+  errorMessage String?
+  
+  // Metadata
+  metadata    Json?
+  
+  // Relations
+  scan Scan @relation(fields: [scanId], references: [id], onDelete: Cascade)
+  
+  @@index([scanId, step])
+  @@index([status])
+}
+
+model AgentRun {
+  id              String   @id @default(uuid())
+  agentId         String
+  
+  // Execution context
+  scanId          String?
+  runtimeVersion  String
+  workerId        String
+  
+  // Execution metrics
+  startedAt       DateTime @default(now())
+  completedAt     DateTime?
+  duration        Int?     // milliseconds
+  
+  // Error tracking
+  errorCode       String?
+  errorMessage    String?
+  stackTrace      String?
+  
+  // Resources
+  memoryUsage     Int?     // MB
+  cpuUsage        Float?   // percentage
+  
+  // Relations
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  
+  @@index([agentId, startedAt])
+  @@index([scanId])
+  @@index([errorCode])
 }
 
 model Payment {
