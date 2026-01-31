@@ -1,12 +1,9 @@
 import { Queue, Worker, Job } from 'bullmq';
 import { getRedisClient } from '../lib/redis.js';
-import { getPrismaClient } from '../lib/prisma.js';
-import { updateProtocolRegistrationState } from '../services/protocol.service.js';
-import { emitAgentTaskUpdate } from '../websocket/events.js';
-import { ProtocolRegistryClient } from '../blockchain/index.js';
+import { processProtocolRegistration } from '../agents/protocol/index.js';
+import type { ProtocolRegistrationJobData } from '../agents/protocol/worker.js';
 
 const redisClient = getRedisClient();
-const prisma = getPrismaClient();
 
 // Protocol Registration Queue
 export const protocolQueue = new Queue('protocol-registration', {
@@ -23,128 +20,21 @@ export const protocolQueue = new Queue('protocol-registration', {
 });
 
 // Protocol Registration Worker
-export const protocolWorker = new Worker(
+export const protocolWorker = new Worker<ProtocolRegistrationJobData>(
   'protocol-registration',
-  async (job: Job<{ protocolId: string }>) => {
-    const { protocolId } = job.data;
-    
-    console.log(`Processing protocol registration job ${job.id} for protocol ${protocolId}`);
-    
-    try {
-      // Get protocol details
-      const protocol = await prisma.protocol.findUnique({
-        where: { id: protocolId },
-      });
+  async (job: Job<ProtocolRegistrationJobData>) => {
+    console.log(`Processing protocol registration job ${job.id} for protocol ${job.data.protocolId}`);
 
-      if (!protocol) {
-        throw new Error(`Protocol ${protocolId} not found`);
+    try {
+      const result = await processProtocolRegistration(job);
+
+      if (!result.success) {
+        throw new Error(result.error || 'Protocol registration failed');
       }
 
-      // Update registration state to PROCESSING
-      await updateProtocolRegistrationState(protocolId, 'PROCESSING');
-      
-      // Emit task update
-      await emitAgentTaskUpdate(
-        'protocol-agent',
-        'Cloning repository',
-        10
-      );
-
-      // Step 1: Clone repository (simulated)
-      await job.updateProgress(20);
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Emit task update
-      await emitAgentTaskUpdate(
-        'protocol-agent',
-        'Verifying contract path',
-        40
-      );
-
-      // Step 2: Verify contract path (simulated)
-      await job.updateProgress(40);
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Emit task update
-      await emitAgentTaskUpdate(
-        'protocol-agent',
-        'Compiling contracts',
-        60
-      );
-
-      // Step 3: Compile contracts (simulated)
-      await job.updateProgress(60);
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Emit task update
-      await emitAgentTaskUpdate(
-        'protocol-agent',
-        'Registering on-chain',
-        80
-      );
-
-      // Step 4: On-chain registration (Base Sepolia)
-      await job.updateProgress(80);
-
-      // Register protocol on-chain using ProtocolRegistry contract
-      const registryClient = new ProtocolRegistryClient();
-
-      const onChainResult = await registryClient.registerProtocol(
-        protocol.githubUrl,
-        protocol.contractPath,
-        protocol.contractName,
-        protocol.bountyTerms
-      );
-
-      console.log(`[Protocol Agent] On-chain registration successful`);
-      console.log(`  Protocol ID: ${onChainResult.protocolId}`);
-      console.log(`  TX Hash: ${onChainResult.txHash}`);
-      console.log(`  Block: ${onChainResult.blockNumber}`);
-
-      // Update database with on-chain protocol ID and transaction hash
-      await prisma.protocol.update({
-        where: { id: protocolId },
-        data: {
-          onChainProtocolId: onChainResult.protocolId,
-          registrationTxHash: onChainResult.txHash,
-        },
-      });
-
-      // Update protocol to ACTIVE
-      await updateProtocolRegistrationState(protocolId, 'ACTIVE', onChainResult.txHash);
-
-      // Emit task update
-      await emitAgentTaskUpdate(
-        'protocol-agent',
-        'Registration complete',
-        100
-      );
-
-      await job.updateProgress(100);
-
-      return {
-        success: true,
-        protocolId,
-        txHash: onChainResult.txHash,
-      };
+      return result;
     } catch (error) {
       console.error(`Protocol registration job ${job.id} failed:`, error);
-      
-      // Update protocol to FAILED
-      await updateProtocolRegistrationState(
-        protocolId,
-        'FAILED',
-        undefined,
-        error instanceof Error ? error.message : 'Unknown error'
-      );
-
-      // Emit task update with failure
-      await emitAgentTaskUpdate(
-        'protocol-agent',
-        'Registration failed',
-        0
-      );
-
       throw error;
     }
   },
