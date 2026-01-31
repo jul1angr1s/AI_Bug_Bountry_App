@@ -12,6 +12,8 @@ import { executeExploit } from './steps/execute.js';
 import { cloneRepository, cleanupRepository } from '../protocol/steps/clone.js';
 import { compileContract } from '../protocol/steps/compile.js';
 import type { ChildProcess } from 'child_process';
+import { ValidationRegistryClient, ValidationOutcome, Severity as OnChainSeverity } from '../../blockchain/index.js';
+import { ethers } from 'ethers';
 
 const redis = getRedisClient();
 const prisma = getPrismaClient();
@@ -240,8 +242,97 @@ async function processValidation(submission: ProofSubmissionMessage): Promise<vo
       100
     );
 
-    // TODO: In production, update ERC-8004 registry on Base Sepolia
-    // await updateValidationRegistry(proof, executionResult.validated);
+    // =================
+    // STEP 9: Record validation on-chain (Base Sepolia)
+    // =================
+    try {
+      // Get protocol to access onChainProtocolId
+      const protocol = await prisma.protocol.findUnique({
+        where: { id: proof.protocolId },
+      });
+
+      if (!protocol || !protocol.onChainProtocolId) {
+        console.warn('[Validator] Protocol not registered on-chain, skipping on-chain validation');
+      } else {
+        // Get finding details
+        const finding = await prisma.finding.findUnique({
+          where: { id: proof.findingId },
+        });
+
+        if (!finding) {
+          console.warn('[Validator] Finding not found, skipping on-chain validation');
+        } else {
+          // Map severity from database enum to smart contract enum
+          const severityMap: Record<string, OnChainSeverity> = {
+            'CRITICAL': OnChainSeverity.CRITICAL,
+            'HIGH': OnChainSeverity.HIGH,
+            'MEDIUM': OnChainSeverity.MEDIUM,
+            'LOW': OnChainSeverity.LOW,
+            'INFO': OnChainSeverity.INFORMATIONAL,
+          };
+
+          const onChainSeverity = severityMap[finding.severity] ?? OnChainSeverity.INFORMATIONAL;
+
+          // Map validation outcome (validated → CONFIRMED, rejected → REJECTED)
+          const outcome = executionResult.validated
+            ? ValidationOutcome.CONFIRMED
+            : ValidationOutcome.REJECTED;
+
+          // Hash the proof data for on-chain storage
+          const proofHash = ethers.keccak256(
+            ethers.toUtf8Bytes(
+              JSON.stringify({
+                findingId: finding.id,
+                vulnerabilityType: finding.vulnerabilityType,
+                severity: finding.severity,
+                validated: executionResult.validated,
+              })
+            )
+          );
+
+          // Prepare execution log (truncate if too long for on-chain storage)
+          const executionLogStr = (executionResult.executionLog?.join('\n') || '').slice(0, 500);
+
+          console.log('[Validator] Recording validation on-chain...');
+          console.log(`  Protocol ID: ${protocol.onChainProtocolId}`);
+          console.log(`  Finding ID: ${finding.id}`);
+          console.log(`  Severity: ${OnChainSeverity[onChainSeverity]}`);
+          console.log(`  Outcome: ${ValidationOutcome[outcome]}`);
+
+          // Record validation on-chain
+          const validationClient = new ValidationRegistryClient();
+
+          const onChainResult = await validationClient.recordValidation(
+            protocol.onChainProtocolId,
+            finding.id, // Using database ID as findingId
+            finding.vulnerabilityType,
+            onChainSeverity,
+            outcome,
+            executionLogStr,
+            proofHash
+          );
+
+          console.log('[Validator] On-chain validation recorded successfully!');
+          console.log(`  Validation ID: ${onChainResult.validationId}`);
+          console.log(`  TX Hash: ${onChainResult.txHash}`);
+
+          // Update proof with on-chain validation ID and transaction hash
+          await prisma.proof.update({
+            where: { id: submission.proofId },
+            data: {
+              onChainValidationId: onChainResult.validationId,
+              onChainTxHash: onChainResult.txHash,
+            },
+          });
+
+          console.log('[Validator] Database updated with on-chain validation IDs');
+        }
+      }
+    } catch (onChainError) {
+      // Log error but don't fail the validation - off-chain validation is still valid
+      console.error('[Validator] Failed to record validation on-chain:', onChainError);
+      console.error('  Continuing with off-chain validation only');
+    }
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';

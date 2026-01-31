@@ -3,6 +3,7 @@ import { getRedisClient } from '../lib/redis.js';
 import { getPrismaClient } from '../lib/prisma.js';
 import { updateProtocolRegistrationState } from '../services/protocol.service.js';
 import { emitAgentTaskUpdate } from '../websocket/events.js';
+import { ProtocolRegistryClient } from '../blockchain/index.js';
 
 const redisClient = getRedisClient();
 const prisma = getPrismaClient();
@@ -82,16 +83,35 @@ export const protocolWorker = new Worker(
         80
       );
 
-      // Step 4: On-chain registration (simulated for now)
-      // In production, this would interact with ProtocolRegistry on Base Sepolia
+      // Step 4: On-chain registration (Base Sepolia)
       await job.updateProgress(80);
-      await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // Simulate successful registration
-      const mockTxHash = `0x${Array(64).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join('')}`;
+      // Register protocol on-chain using ProtocolRegistry contract
+      const registryClient = new ProtocolRegistryClient();
+
+      const onChainResult = await registryClient.registerProtocol(
+        protocol.githubUrl,
+        protocol.contractPath,
+        protocol.contractName,
+        protocol.bountyTerms
+      );
+
+      console.log(`[Protocol Agent] On-chain registration successful`);
+      console.log(`  Protocol ID: ${onChainResult.protocolId}`);
+      console.log(`  TX Hash: ${onChainResult.txHash}`);
+      console.log(`  Block: ${onChainResult.blockNumber}`);
+
+      // Update database with on-chain protocol ID and transaction hash
+      await prisma.protocol.update({
+        where: { id: protocolId },
+        data: {
+          onChainProtocolId: onChainResult.protocolId,
+          registrationTxHash: onChainResult.txHash,
+        },
+      });
 
       // Update protocol to ACTIVE
-      await updateProtocolRegistrationState(protocolId, 'ACTIVE', mockTxHash);
+      await updateProtocolRegistrationState(protocolId, 'ACTIVE', onChainResult.txHash);
 
       // Emit task update
       await emitAgentTaskUpdate(

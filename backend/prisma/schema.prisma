@@ -103,6 +103,9 @@ model Protocol {
   availableBounty     Float          @default(0)
   paidBounty          Float          @default(0)
 
+  // On-chain fields (Phase 3B)
+  onChainProtocolId   String?        // bytes32 from ProtocolRegistry contract
+
   vulnerabilities Vulnerability[]
   scans           Scan[]
   auditLogs       AuditLog[]
@@ -233,7 +236,11 @@ model Proof {
   // Submission
   submittedAt     DateTime    @default(now())
   validatedAt     DateTime?
-  
+
+  // On-chain fields (Phase 3B)
+  onChainValidationId  String?     // bytes32 from ValidationRegistry contract
+  onChainTxHash        String?     // Transaction hash for on-chain validation
+
   // Relations
   scan    Scan     @relation(fields: [scanId], references: [id], onDelete: Cascade)
   finding Finding? @relation(fields: [findingId], references: [id], onDelete: SetNull)
@@ -305,6 +312,9 @@ model Payment {
   txHash          String?
   status          PaymentStatus @default(PENDING)
   paidAt          DateTime?
+
+  // On-chain fields (Phase 3B)
+  onChainBountyId String?       // bytes32 from BountyPool contract
 
   vulnerability Vulnerability @relation(fields: [vulnerabilityId], references: [id], onDelete: Cascade)
 }
