@@ -11,38 +11,38 @@ export {
   validateContractAddresses,
   chainConfig,
   usdcConfig,
-} from './config';
+} from './config.js';
 
 // Contract clients
-export { ProtocolRegistryClient } from './contracts/ProtocolRegistryClient';
-export { ValidationRegistryClient } from './contracts/ValidationRegistryClient';
-export { BountyPoolClient } from './contracts/BountyPoolClient';
+export { ProtocolRegistryClient } from './contracts/ProtocolRegistryClient.js';
+export { ValidationRegistryClient } from './contracts/ValidationRegistryClient.js';
+export { BountyPoolClient } from './contracts/BountyPoolClient.js';
 
 // Types and interfaces
 export type {
   ProtocolRegistrationResult,
   OnChainProtocol,
-} from './contracts/ProtocolRegistryClient';
+} from './contracts/ProtocolRegistryClient.js';
 
 export type {
   ValidationRecordResult,
   OnChainValidation,
-} from './contracts/ValidationRegistryClient';
+} from './contracts/ValidationRegistryClient.js';
 
 export type {
   BountyReleaseResult,
   OnChainBounty,
-} from './contracts/BountyPoolClient';
+} from './contracts/BountyPoolClient.js';
 
 // Enums
-export { ProtocolStatus } from './contracts/ProtocolRegistryClient';
-export { ValidationOutcome, Severity } from './contracts/ValidationRegistryClient';
-export { BountySeverity } from './contracts/BountyPoolClient';
+export { ProtocolStatus } from './contracts/ProtocolRegistryClient.js';
+export { ValidationOutcome, Severity } from './contracts/ValidationRegistryClient.js';
+export { BountySeverity } from './contracts/BountyPoolClient.js';
 
 // Default exports for convenience
-import { ProtocolRegistryClient } from './contracts/ProtocolRegistryClient';
-import { ValidationRegistryClient } from './contracts/ValidationRegistryClient';
-import { BountyPoolClient } from './contracts/BountyPoolClient';
+import { ProtocolRegistryClient } from './contracts/ProtocolRegistryClient.js';
+import { ValidationRegistryClient } from './contracts/ValidationRegistryClient.js';
+import { BountyPoolClient } from './contracts/BountyPoolClient.js';
 
 export default {
   ProtocolRegistryClient,

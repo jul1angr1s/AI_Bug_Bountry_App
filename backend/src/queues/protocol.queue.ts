@@ -125,7 +125,7 @@ export const protocolWorker = new Worker(
       return {
         success: true,
         protocolId,
-        txHash: mockTxHash,
+        txHash: onChainResult.txHash,
       };
     } catch (error) {
       console.error(`Protocol registration job ${job.id} failed:`, error);

@@ -1,6 +1,6 @@
 import { ethers, Contract, ContractTransactionResponse } from 'ethers';
-import { getSigner, contractAddresses } from '../config';
-import ProtocolRegistryABI from '../abis/ProtocolRegistry.json';
+import { getSigner, contractAddresses } from '../config.js';
+import ProtocolRegistryABI from '../abis/ProtocolRegistry.json' with { type: 'json' };
 
 export interface ProtocolRegistrationResult {
   protocolId: string;

@@ -1,6 +1,6 @@
 import { ethers, Contract, ContractTransactionResponse } from 'ethers';
-import { getSigner, contractAddresses } from '../config';
-import ValidationRegistryABI from '../abis/ValidationRegistry.json';
+import { getSigner, contractAddresses } from '../config.js';
+import ValidationRegistryABI from '../abis/ValidationRegistry.json' with { type: 'json' };
 
 export interface ValidationRecordResult {
   validationId: string;

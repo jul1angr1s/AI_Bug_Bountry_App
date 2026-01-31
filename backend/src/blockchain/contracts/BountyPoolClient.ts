@@ -1,6 +1,6 @@
 import { ethers, Contract, ContractTransactionResponse } from 'ethers';
-import { getSigner, contractAddresses, usdcConfig } from '../config';
-import BountyPoolABI from '../abis/BountyPool.json';
+import { getSigner, contractAddresses, usdcConfig } from '../config.js';
+import BountyPoolABI from '../abis/BountyPool.json' with { type: 'json' };
 
 export interface BountyReleaseResult {
   bountyId: string;
