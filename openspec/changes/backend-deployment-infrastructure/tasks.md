@@ -28,7 +28,7 @@
 
 **IMPORTANT:** Use docker-expert skill for troubleshooting any Docker issues in this phase.
 
-- [ ] 4.1 Copy .env.docker.example to .env.local and configure Supabase credentials
+- [x] 4.1 Copy .env.docker.example to .env.local and configure Supabase credentials
 - [ ] 4.2 Build development Docker image using docker-expert guidance: `npm run docker:build:dev`
 - [ ] 4.3 Start full stack with docker-compose: `npm run docker:up`
 - [ ] 4.4 Verify PostgreSQL health check passes (use docker-expert for troubleshooting)
