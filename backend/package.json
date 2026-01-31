@@ -26,6 +26,7 @@
   "dependencies": {
     "@prisma/client": "^5.0.0",
     "@supabase/supabase-js": "^2.38.0",
+    "bullmq": "^5.67.2",
     "cors": "^2.8.5",
     "dotenv": "^16.3.0",
     "express": "^4.18.0",
