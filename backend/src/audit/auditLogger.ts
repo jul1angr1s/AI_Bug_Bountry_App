@@ -1,4 +1,4 @@
-import { getPrismaClient } from '../../../lib/prisma.js';
+import { getPrismaClient } from '../lib/prisma.js';
 
 /**
  * Audit Logging Module (Task 4.2)

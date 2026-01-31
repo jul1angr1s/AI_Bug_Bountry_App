@@ -1,5 +1,50 @@
-import { PrismaClient, Scan, ScanState, ScanStep, Finding, Proof, ScanStepRecord, AgentRun } from '@prisma/client';
+import { PrismaClient, Prisma, Scan, ScanState, ScanStep, Finding, Proof, ScanStepRecord, AgentRun } from '@prisma/client';
 import { getPrismaClient } from '../lib/prisma.js';
+
+type ScanWithRelations = Prisma.ScanGetPayload<{
+  include: {
+    _count: {
+      select: {
+        findings: true;
+      };
+    };
+    findings: true;
+    proofs: true;
+    steps: true;
+    protocol: true;
+    agent: true;
+  };
+}>;
+
+type ScanSummary = Prisma.ScanGetPayload<{
+  include: {
+    findings: {
+      select: {
+        id: true;
+        severity: true;
+        status: true;
+      };
+    };
+    protocol: {
+      select: {
+        id: true;
+        githubUrl: true;
+        contractName: true;
+      };
+    };
+    _count: {
+      select: {
+        findings: true;
+      };
+    };
+  };
+}>;
+
+type FindingWithProofs = Prisma.FindingGetPayload<{
+  include: {
+    proofs: true;
+  };
+}>;
 
 export class ScanRepository {
   private prisma: PrismaClient;
@@ -29,10 +74,15 @@ export class ScanRepository {
   /**
    * Get scan by ID with all related data
    */
-  async getScanById(scanId: string): Promise<Scan | null> {
+  async getScanById(scanId: string): Promise<ScanWithRelations | null> {
     return this.prisma.scan.findUnique({
       where: { id: scanId },
       include: {
+        _count: {
+          select: {
+            findings: true,
+          },
+        },
         findings: true,
         proofs: true,
         steps: true,
@@ -45,9 +95,16 @@ export class ScanRepository {
   /**
    * Get scans by protocol ID
    */
-  async getScansByProtocol(protocolId: string, limit: number = 10): Promise<Scan[]> {
+  async getScansByProtocol(
+    protocolId?: string,
+    limit: number = 10,
+    state?: ScanState
+  ): Promise<ScanSummary[]> {
     return this.prisma.scan.findMany({
-      where: { protocolId },
+      where: {
+        ...(protocolId ? { protocolId } : {}),
+        ...(state ? { state } : {}),
+      },
       orderBy: { startedAt: 'desc' },
       take: limit,
       include: {
@@ -56,6 +113,13 @@ export class ScanRepository {
             id: true,
             severity: true,
             status: true,
+          },
+        },
+        protocol: {
+          select: {
+            id: true,
+            githubUrl: true,
+            contractName: true,
           },
         },
         _count: {
@@ -206,7 +270,7 @@ export class FindingRepository {
   /**
    * Get findings by scan ID
    */
-  async getFindingsByScan(scanId: string): Promise<Finding[]> {
+  async getFindingsByScan(scanId: string): Promise<FindingWithProofs[]> {
     return this.prisma.finding.findMany({
       where: { scanId },
       orderBy: { createdAt: 'desc' },

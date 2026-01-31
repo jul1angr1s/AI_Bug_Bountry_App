@@ -8,7 +8,16 @@ import crypto from 'crypto';
  */
 
 // TODO: In production, load from secure key management (AWS KMS, HashiCorp Vault, etc.)
-const ENCRYPTION_KEY = process.env.PROOF_ENCRYPTION_KEY || crypto.randomBytes(32).toString('hex');
+const ENCRYPTION_KEY = process.env.PROOF_ENCRYPTION_KEY;
+
+if (!ENCRYPTION_KEY) {
+  throw new Error('PROOF_ENCRYPTION_KEY is required for proof encryption/decryption.');
+}
+
+const keyBuffer = Buffer.from(ENCRYPTION_KEY, 'hex');
+if (keyBuffer.length !== 32) {
+  throw new Error('PROOF_ENCRYPTION_KEY must be a 32-byte hex string (64 hex chars).');
+}
 
 export interface ProofPayload {
   vulnerabilityId: string;
@@ -30,8 +39,7 @@ export interface EncryptedProof {
  * Encrypt proof payload for Validator Agent
  */
 export function encryptProof(
-  payload: ProofPayload,
-  validatorPublicKey: string
+  payload: ProofPayload
 ): EncryptedProof {
   // Generate researcher key pair for signing
   const researcherKeyPair = crypto.generateKeyPairSync('ec', {
@@ -52,7 +60,7 @@ export function encryptProof(
   const iv = crypto.randomBytes(16);
   const cipher = crypto.createCipheriv(
     'aes-256-gcm',
-    Buffer.from(ENCRYPTION_KEY, 'hex'),
+    keyBuffer,
     iv
   );
   
@@ -80,7 +88,7 @@ export function decryptProof(encryptedProof: EncryptedProof): {
   // Decrypt payload
   const decipher = crypto.createDecipheriv(
     'aes-256-gcm',
-    Buffer.from(ENCRYPTION_KEY, 'hex'),
+    keyBuffer,
     Buffer.from(encryptedProof.iv, 'hex')
   );
   

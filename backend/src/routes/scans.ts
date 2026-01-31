@@ -49,7 +49,7 @@ router.post('/', requireAuth, async (req, res, next) => {
 });
 
 // Task 2.2: GET /api/v1/scans/:id - Get scan status
-router.get('/:id', async (req, res, next) => {
+router.get('/:id', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
     
@@ -60,11 +60,11 @@ router.get('/:id', async (req, res, next) => {
 
     // Calculate findings summary
     const findingsSummary = {
-      total: scan._count?.findings ?? 0,
-      bySeverity: scan.findings?.reduce((acc, f) => {
+      total: scan._count.findings,
+      bySeverity: scan.findings.reduce<Record<string, number>>((acc, f) => {
         acc[f.severity] = (acc[f.severity] || 0) + 1;
         return acc;
-      }, {} as Record<string, number>) ?? {},
+      }, {}),
     };
 
     res.json({
@@ -83,8 +83,45 @@ router.get('/:id', async (req, res, next) => {
   }
 });
 
+// Additional: GET /api/v1/scans/:id/findings - Get findings for a scan
+router.get('/:id/findings', requireAuth, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    
+    const scan = await scanRepository.getScanById(id);
+    if (!scan) {
+      throw new NotFoundError('Scan', id);
+    }
+
+    const findings = await findingRepository.getFindingsByScan(id);
+
+    res.json({
+      scanId: id,
+      findings: findings.map(f => ({
+        id: f.id,
+        vulnerabilityType: f.vulnerabilityType,
+        severity: f.severity,
+        status: f.status,
+        filePath: f.filePath,
+        lineNumber: f.lineNumber,
+        description: f.description,
+        confidenceScore: f.confidenceScore,
+        createdAt: f.createdAt,
+        proofs: f.proofs.map(p => ({
+          id: p.id,
+          status: p.status,
+          submittedAt: p.submittedAt,
+        })),
+      })),
+      total: findings.length,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Task 2.3: GET /api/v1/scans/:id/progress - SSE stream for progress
-router.get('/:id/progress', async (req, res, next) => {
+router.get('/:id/progress', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
     
@@ -112,7 +149,7 @@ router.get('/:id/progress', async (req, res, next) => {
     
     await subscriber.subscribe(`scan:${id}:progress`);
     
-    subscriber.on('message', (channel, message) => {
+    subscriber.on('message', (_channel, message) => {
       res.write(`data: ${message}\n\n`);
       
       // Check if scan completed
@@ -173,32 +210,15 @@ router.delete('/:id', requireAuth, async (req, res, next) => {
 });
 
 // Additional: GET /api/v1/scans - List scans (with filtering)
-router.get('/', async (req, res, next) => {
+router.get('/', requireAuth, async (req, res, next) => {
   try {
     const { protocolId, state, limit = '10' } = req.query;
     
-    const scans = await scanRepository.prisma.scan.findMany({
-      where: {
-        ...(protocolId && { protocolId: String(protocolId) }),
-        ...(state && { state: String(state) as ScanState }),
-      },
-      orderBy: { startedAt: 'desc' },
-      take: parseInt(String(limit), 10),
-      include: {
-        protocol: {
-          select: {
-            id: true,
-            githubUrl: true,
-            contractName: true,
-          },
-        },
-        _count: {
-          select: {
-            findings: true,
-          },
-        },
-      },
-    });
+    const scans = await scanRepository.getScansByProtocol(
+      protocolId ? String(protocolId) : undefined,
+      parseInt(String(limit), 10),
+      state ? (String(state) as ScanState) : undefined
+    );
 
     res.json({
       scans: scans.map(scan => ({
@@ -212,43 +232,6 @@ router.get('/', async (req, res, next) => {
         protocol: scan.protocol,
       })),
       total: scans.length,
-    });
-  } catch (error) {
-    next(error);
-  }
-});
-
-// Additional: GET /api/v1/scans/:id/findings - Get findings for a scan
-router.get('/:id/findings', async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    
-    const scan = await scanRepository.getScanById(id);
-    if (!scan) {
-      throw new NotFoundError('Scan', id);
-    }
-
-    const findings = await findingRepository.getFindingsByScan(id);
-
-    res.json({
-      scanId: id,
-      findings: findings.map(f => ({
-        id: f.id,
-        vulnerabilityType: f.vulnerabilityType,
-        severity: f.severity,
-        status: f.status,
-        filePath: f.filePath,
-        lineNumber: f.lineNumber,
-        description: f.description,
-        confidenceScore: f.confidenceScore,
-        createdAt: f.createdAt,
-        proofs: f.proofs?.map(p => ({
-          id: p.id,
-          status: p.status,
-          submittedAt: p.submittedAt,
-        })),
-      })),
-      total: findings.length,
     });
   } catch (error) {
     next(error);
