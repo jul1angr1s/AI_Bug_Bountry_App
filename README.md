@@ -435,6 +435,54 @@ forge create <contract-path>:<contract-name> --rpc-url $BASE_SEPOLIA_RPC --priva
 
 ---
 
+## 🚀 Deployment
+
+### Local Docker Development
+
+Run the full stack locally with Docker Compose:
+
+```bash
+cd backend
+
+# Build and start all services (backend + PostgreSQL + Redis)
+npm run docker:up
+
+# View logs
+npm run docker:logs
+
+# Stop services
+npm run docker:down
+```
+
+**Services:**
+- **Backend API**: http://localhost:3000
+- **PostgreSQL**: localhost:5432
+- **Redis**: localhost:6379
+
+[📖 Full Local Docker Guide](./docs/deployment/local-docker.md)
+
+### Production Deployment (Railway)
+
+Deploy to Railway for production hosting:
+
+```bash
+# Push to main branch triggers deployment
+git checkout main
+git merge feature/backend-deployment-infrastructure
+git push origin main
+```
+
+**Railway Configuration:**
+- **Build**: Nixpacks with Node 20
+- **Database**: Railway PostgreSQL or Supabase
+- **Cache**: Railway Redis
+- **Health Checks**: `/api/v1/health`
+- **Auto-deploy**: On push to main
+
+[📖 Full Railway Deployment Guide](./docs/deployment/railway.md)
+
+---
+
 ## 📖 Documentation
 
 ### 📚 Project Structure

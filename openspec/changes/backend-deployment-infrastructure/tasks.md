@@ -80,12 +80,12 @@
 
 ## 9. Documentation
 
-- [ ] 9.1 Create docs/deployment/local-docker.md with Phase 1 instructions
-- [ ] 9.2 Create docs/deployment/railway.md with Phase 2 instructions
-- [ ] 9.3 Document environment variable setup for both local and Railway
-- [ ] 9.4 Document troubleshooting common Docker issues (port conflicts, volume permissions)
-- [ ] 9.5 Document Railway rollback procedure
-- [ ] 9.6 Update main README.md with deployment section linking to guides
+- [x] 9.1 Create docs/deployment/local-docker.md with Phase 1 instructions
+- [x] 9.2 Create docs/deployment/railway.md with Phase 2 instructions
+- [x] 9.3 Document environment variable setup for both local and Railway
+- [x] 9.4 Document troubleshooting common Docker issues (port conflicts, volume permissions)
+- [x] 9.5 Document Railway rollback procedure
+- [x] 9.6 Update main README.md with deployment section linking to guides
 
 ## 10. Validation and Cleanup - Use `/skill:docker-expert`
 
