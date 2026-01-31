@@ -117,9 +117,9 @@ cleanup() {
     fi
   done
 
-  # Kill any remaining tsx/vite processes aggressively (they sometimes hang)
-  pkill -9 -f "tsx watch" 2>/dev/null || true
-  pkill -9 -f "vite" 2>/dev/null || true
+  # Kill any remaining tsx/vite processes scoped to this repo (they sometimes hang)
+  kill_pattern "tsx watch src/server.ts"
+  kill_pattern "$ROOT_DIR/frontend.*vite"
 
   # Final cleanup: kill by port if still occupied
   if port_in_use 3000; then
@@ -185,7 +185,11 @@ done
 
 if [ "${SKIP_DB_INIT:-0}" = "0" ]; then
   echo "Checking database schema..."
-  if (cd "$ROOT_DIR/backend" && npx prisma db push --accept-data-loss --skip-generate >/dev/null 2>&1); then
+  prisma_cmd=(npx prisma db push --skip-generate)
+  if [ "${ALLOW_DATA_LOSS:-0}" = "1" ]; then
+    prisma_cmd+=(--accept-data-loss)
+  fi
+  if (cd "$ROOT_DIR/backend" && "${prisma_cmd[@]}" >/dev/null 2>&1); then
     echo "- Database schema up to date"
   else
     echo "- Warning: Could not update database schema (may need manual migration)"
@@ -248,17 +252,23 @@ else
   echo "Skipping frontend (START_FRONTEND=0)"
 fi
 
-if command -v curl >/dev/null 2>&1; then
-  echo "Waiting for backend health endpoint..."
-  for _ in {1..30}; do
-    if curl -sf "http://localhost:3000/api/v1/health" >/dev/null; then
-      echo "Backend is healthy at http://localhost:3000/api/v1/health"
-      break
+if [ "${START_BACKEND:-1}" = "1" ]; then
+  if command -v curl >/dev/null 2>&1; then
+    if port_in_use 3000; then
+      echo "Waiting for backend health endpoint..."
+      for _ in {1..30}; do
+        if curl -sf "http://localhost:3000/api/v1/health" >/dev/null; then
+          echo "Backend is healthy at http://localhost:3000/api/v1/health"
+          break
+        fi
+        sleep 2
+      done
+    else
+      echo "Skipping backend health check (port 3000 not in use)"
     fi
-    sleep 2
-  done
-else
-  echo "curl not found; skipping backend health check"
+  else
+    echo "curl not found; skipping backend health check"
+  fi
 fi
 
 echo ""

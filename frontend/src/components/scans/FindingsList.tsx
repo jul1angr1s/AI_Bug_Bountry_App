@@ -1,6 +1,6 @@
 import React from 'react';
 import { Finding } from '../../lib/api';
-import { SeverityBadge } from '../shared/SeverityBadge';
+import SeverityBadge from '../shared/SeverityBadge';
 
 interface FindingsListProps {
   findings: Finding[];
@@ -14,7 +14,7 @@ const STATUS_COLORS: Record<string, string> = {
   DUPLICATE: 'bg-gray-100 text-gray-800',
 };
 
-export const FindingsList: React.FC<FindingsListProps> = ({ findings, scanId }) => {
+export const FindingsList: React.FC<FindingsListProps> = ({ findings, scanId: _scanId }) => {
   if (findings.length === 0) {
     return (
       <div className="bg-white rounded-lg shadow-sm border p-8 text-center">

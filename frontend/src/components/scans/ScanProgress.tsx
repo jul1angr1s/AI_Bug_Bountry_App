@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Scan, subscribeToScanProgress } from '../../lib/api';
 import { useWebSocket } from '../../hooks/useWebSocket';
 
@@ -28,8 +28,7 @@ const STATE_COLORS: Record<string, string> = {
 
 export const ScanProgress: React.FC<ScanProgressProps> = ({ scan, onComplete }) => {
   const [currentScan, setCurrentScan] = useState<Scan>(scan);
-  const [progress, setProgress] = useState<number>(0);
-  const { socket } = useWebSocket();
+  const { subscribe } = useWebSocket();
 
   // Subscribe to SSE for real-time progress
   useEffect(() => {
@@ -38,10 +37,6 @@ export const ScanProgress: React.FC<ScanProgressProps> = ({ scan, onComplete }) 
     const unsubscribe = subscribeToScanProgress(
       scan.id,
       (data) => {
-        if (data.step) {
-          const stepIndex = STEP_ORDER.indexOf(data.step);
-          setProgress(((stepIndex + 1) / STEP_ORDER.length) * 100);
-        }
         
         if (data.state === 'SUCCEEDED' || data.state === 'FAILED' || data.state === 'CANCELED') {
           setCurrentScan((prev) => ({ ...prev, state: data.state as Scan['state'] }));
@@ -58,46 +53,49 @@ export const ScanProgress: React.FC<ScanProgressProps> = ({ scan, onComplete }) 
 
   // WebSocket event handlers
   useEffect(() => {
-    if (!socket) return;
-
-    const handleScanProgress = (event: any) => {
-      if (event.scanId === scan.id) {
+    const handleScanProgress = (event: unknown) => {
+      if (!event || typeof event !== 'object') return;
+      const payload = event as { scanId?: string; data?: { currentStep?: string; state?: Scan['state'] } };
+      if (payload.scanId === scan.id) {
         setCurrentScan((prev) => ({
           ...prev,
-          currentStep: event.data?.currentStep || prev.currentStep,
-          state: event.data?.state as Scan['state'] || prev.state,
+          currentStep: payload.data?.currentStep || prev.currentStep,
+          state: payload.data?.state || prev.state,
         }));
       }
     };
 
-    const handleScanCompleted = (event: any) => {
-      if (event.scanId === scan.id) {
+    const handleScanCompleted = (event: unknown) => {
+      if (!event || typeof event !== 'object') return;
+      const payload = event as { scanId?: string; data?: { state?: Scan['state']; findingsCount?: number } };
+      if (payload.scanId === scan.id) {
         setCurrentScan((prev) => ({
           ...prev,
-          state: event.data?.state as Scan['state'] || prev.state,
-          findingsCount: event.data?.findingsCount || prev.findingsCount,
+          state: payload.data?.state || prev.state,
+          findingsCount: payload.data?.findingsCount || prev.findingsCount,
         }));
         onComplete?.();
       }
     };
 
-    socket.on('scan:progress', handleScanProgress);
-    socket.on('scan:completed', handleScanCompleted);
+    const unsubProgress = subscribe('scan:progress', handleScanProgress);
+    const unsubCompleted = subscribe('scan:completed', handleScanCompleted);
 
     return () => {
-      socket.off('scan:progress', handleScanProgress);
-      socket.off('scan:completed', handleScanCompleted);
+      unsubProgress();
+      unsubCompleted();
     };
-  }, [socket, scan.id, onComplete]);
+  }, [subscribe, scan.id, onComplete]);
 
-  // Calculate progress based on current step
-  useEffect(() => {
-    if (currentScan.currentStep) {
-      const stepIndex = STEP_ORDER.indexOf(currentScan.currentStep);
-      if (stepIndex >= 0) {
-        setProgress(((stepIndex + 1) / STEP_ORDER.length) * 100);
-      }
+  const progress = useMemo(() => {
+    if (!currentScan.currentStep) {
+      return 0;
     }
+    const stepIndex = STEP_ORDER.indexOf(currentScan.currentStep);
+    if (stepIndex < 0) {
+      return 0;
+    }
+    return ((stepIndex + 1) / STEP_ORDER.length) * 100;
   }, [currentScan.currentStep]);
 
   const isComplete = ['SUCCEEDED', 'FAILED', 'CANCELED'].includes(currentScan.state);

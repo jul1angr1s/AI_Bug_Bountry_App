@@ -48,7 +48,11 @@ docker compose -f "$COMPOSE_FILE" down -v
 
 echo ""
 echo "Step 2/4: Removing dangling images and build cache..."
-docker image prune -f
+if [ "${PRUNE_DOCKER_IMAGES:-0}" = "1" ]; then
+  docker image prune -f
+else
+  echo "Skipping docker image prune (set PRUNE_DOCKER_IMAGES=1 to enable)"
+fi
 
 echo ""
 echo "Step 3/4: Rebuilding images (no cache)..."
