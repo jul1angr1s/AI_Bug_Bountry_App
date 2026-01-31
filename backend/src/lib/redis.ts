@@ -1,4 +1,4 @@
-import Redis from 'ioredis';
+import { Redis } from 'ioredis';
 
 let redisClient: Redis | null = null;
 
@@ -13,7 +13,7 @@ export function getRedisClient(): Redis {
     redisClient = new Redis(redisUrl, {
       maxRetriesPerRequest: 3,
       enableReadyCheck: true,
-      retryStrategy: (times) => {
+      retryStrategy: (times: number) => {
         if (times > 3) {
           return null;
         }
@@ -21,7 +21,7 @@ export function getRedisClient(): Redis {
       },
     });
 
-    redisClient.on('error', (err) => {
+    redisClient.on('error', (err: Error) => {
       console.error('Redis client error:', err);
     });
 

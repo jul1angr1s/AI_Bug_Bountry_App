@@ -79,10 +79,22 @@ COPY package*.json ./
 COPY prisma ./prisma/
 
 # Install production dependencies only (excludes devDependencies)
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev && \
+    npm cache clean --force && \
+    # Remove unnecessary files to reduce image size
+    find /app/node_modules -type f -name "*.d.ts" -delete && \
+    find /app/node_modules -type f -name "*.map" -delete && \
+    find /app/node_modules -type f -name "*.test.js" -delete && \
+    find /app/node_modules -type f -name "*.spec.js" -delete && \
+    find /app/node_modules -type d -name "docs" -exec rm -rf {} + 2>/dev/null || true && \
+    find /app/node_modules -type d -name "examples" -exec rm -rf {} + 2>/dev/null || true && \
+    find /app/node_modules -type d -name "test" -exec rm -rf {} + 2>/dev/null || true && \
+    find /app/node_modules -type d -name "tests" -exec rm -rf {} + 2>/dev/null || true
 
 # Generate Prisma Client for production
-RUN npx prisma generate
+RUN npx prisma generate && \
+    # Remove Prisma unnecessary binaries for other platforms
+    rm -rf /app/node_modules/.prisma/client/libquery_engine-*linux-musl*.so.node 2>/dev/null || true
 
 # ---------------------------------------------
 # Production Stage: Minimal production image
