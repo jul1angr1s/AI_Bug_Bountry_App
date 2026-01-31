@@ -138,3 +138,144 @@ export async function emitVulnerabilityStatusChanged(
   await invalidateCachePattern(`dashboard:stats:*`);
   await invalidateCachePattern(`protocol:vulnerabilities:${protocolId}:*`);
 }
+
+// Task 2.5: Scan WebSocket Event Types
+export interface ScanStartedEvent {
+  eventType: 'scan:started';
+  timestamp: string;
+  scanId: string;
+  protocolId: string;
+  data: {
+    agentId: string;
+    targetBranch?: string;
+    targetCommitHash?: string;
+  };
+}
+
+export interface ScanProgressEvent {
+  eventType: 'scan:progress';
+  timestamp: string;
+  scanId: string;
+  protocolId: string;
+  data: {
+    currentStep: string;
+    state: string;
+    progress?: number;
+    message?: string;
+  };
+}
+
+export interface ScanCompletedEvent {
+  eventType: 'scan:completed';
+  timestamp: string;
+  scanId: string;
+  protocolId: string;
+  data: {
+    state: string;
+    findingsCount: number;
+    duration: number; // milliseconds
+    errorCode?: string;
+    errorMessage?: string;
+  };
+}
+
+// Scan event emitters
+export async function emitScanStarted(
+  scanId: string,
+  protocolId: string,
+  agentId: string,
+  targetBranch?: string,
+  targetCommitHash?: string
+): Promise<void> {
+  if (!ioInstance) return;
+
+  const event: ScanStartedEvent = {
+    eventType: 'scan:started',
+    timestamp: new Date().toISOString(),
+    scanId,
+    protocolId,
+    data: {
+      agentId,
+      targetBranch,
+      targetCommitHash,
+    },
+  };
+
+  // Emit to protocol room and scans room
+  ioInstance.to(`protocol:${protocolId}`).emit('scan:started', event);
+  ioInstance.to('scans').emit('scan:started', event);
+  
+  // Invalidate caches
+  await invalidateCachePattern(`dashboard:stats:*`);
+  await invalidateCache(`protocol:scans:${protocolId}`);
+}
+
+export async function emitScanProgress(
+  scanId: string,
+  protocolId: string,
+  currentStep: string,
+  state: string,
+  progress?: number,
+  message?: string
+): Promise<void> {
+  if (!ioInstance) return;
+
+  const event: ScanProgressEvent = {
+    eventType: 'scan:progress',
+    timestamp: new Date().toISOString(),
+    scanId,
+    protocolId,
+    data: {
+      currentStep,
+      state,
+      progress,
+      message,
+    },
+  };
+
+  // Emit to protocol room and scans room
+  ioInstance.to(`protocol:${protocolId}`).emit('scan:progress', event);
+  ioInstance.to('scans').emit('scan:progress', event);
+  
+  // Also publish to Redis for SSE subscribers
+  const { getRedisClient } = await import('../lib/redis.js');
+  const redis = getRedisClient();
+  await redis.publish(`scan:${scanId}:progress`, JSON.stringify(event));
+}
+
+export async function emitScanCompleted(
+  scanId: string,
+  protocolId: string,
+  state: string,
+  findingsCount: number,
+  startedAt: Date,
+  errorCode?: string,
+  errorMessage?: string
+): Promise<void> {
+  if (!ioInstance) return;
+
+  const duration = Date.now() - startedAt.getTime();
+  
+  const event: ScanCompletedEvent = {
+    eventType: 'scan:completed',
+    timestamp: new Date().toISOString(),
+    scanId,
+    protocolId,
+    data: {
+      state,
+      findingsCount,
+      duration,
+      errorCode,
+      errorMessage,
+    },
+  };
+
+  // Emit to protocol room and scans room
+  ioInstance.to(`protocol:${protocolId}`).emit('scan:completed', event);
+  ioInstance.to('scans').emit('scan:completed', event);
+  
+  // Invalidate caches
+  await invalidateCachePattern(`dashboard:stats:*`);
+  await invalidateCache(`protocol:scans:${protocolId}`);
+  await invalidateCache(`scan:${scanId}`);
+}
