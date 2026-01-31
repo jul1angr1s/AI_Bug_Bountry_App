@@ -32,50 +32,100 @@ The AI Bug Bounty Platform automates the complete vulnerability discovery and re
 
 ## 🏗️ Architecture
 
-### System Components
+### System Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Frontend (React)                          │
-│                  Dashboard, Protocol Registration                │
-└────────────────────────┬────────────────────────────────────────┘
-                         │ HTTP/WebSocket
-┌────────────────────────┴────────────────────────────────────────┐
-│                    Backend (Node.js/Express)                     │
-│  ┌─────────────┐  ┌─────────────┐  ┌──────────────┐            │
-│  │  Protocol   │  │ Researcher  │  │  Validator   │            │
-│  │   Agent     │  │   Agent     │  │    Agent     │            │
-│  └──────┬──────┘  └──────┬──────┘  └──────┬───────┘            │
-│         │                 │                 │                    │
-│    ┌────┴─────────────────┴─────────────────┴────┐              │
-│    │         BullMQ Queues (Redis)               │              │
-│    └────┬─────────────────┬─────────────────┬────┘              │
-│         │                 │                 │                    │
-│    ┌────┴────┐      ┌─────┴──────┐    ┌────┴─────┐             │
-│    │ GitHub  │      │   Slither  │    │  Anvil   │             │
-│    │ Cloning │      │  Analysis  │    │ Sandbox  │             │
-│    └─────────┘      └────────────┘    └──────────┘             │
-└────────────────────────┬───────────────────────────────────────┘
-                         │ ethers.js
-┌────────────────────────┴────────────────────────────────────────┐
-│              Smart Contracts (Base Sepolia)                      │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
-│  │  Protocol    │  │ Validation   │  │   Bounty     │          │
-│  │  Registry    │  │  Registry    │  │    Pool      │          │
-│  └──────────────┘  └──────────────┘  └──────────────┘          │
-│                                                                  │
-│                      USDC (Base Sepolia)                         │
-└──────────────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph Frontend["🎨 Frontend Layer"]
+        UI[React Dashboard<br/>Protocol Registration]
+        WS[WebSocket Client]
+    end
+
+    subgraph Backend["⚙️ Backend Layer (Node.js/Express)"]
+        API[REST API]
+        WSServer[WebSocket Server]
+
+        subgraph Agents["🤖 AI Agents"]
+            PA[🛡️ Protocol Agent<br/>Validation & Registration]
+            RA[🔬 Researcher Agent<br/>Vulnerability Discovery]
+            VA[✅ Validator Agent<br/>Exploit Verification]
+        end
+
+        Queue[📋 BullMQ Queues<br/>Redis]
+
+        subgraph Tools["🛠️ Analysis Tools"]
+            GH[GitHub Cloning]
+            SL[Slither Analysis]
+            AV[Anvil Sandbox]
+        end
+    end
+
+    subgraph Blockchain["⛓️ Smart Contracts (Base Sepolia)"]
+        PR[Protocol Registry<br/>0xc7DF...3235]
+        VR[Validation Registry<br/>0x8fBE...44d]
+        BP[Bounty Pool<br/>0x6D0b...7b0]
+        USDC[💵 USDC Token<br/>0x036C...CF7e]
+    end
+
+    UI -->|HTTP/REST| API
+    UI <-->|Real-time Events| WS
+    WS <--> WSServer
+
+    API --> Queue
+    Queue --> PA
+    Queue --> RA
+    Queue --> VA
+
+    PA --> GH
+    RA --> GH
+    RA --> SL
+    VA --> GH
+    VA --> AV
+
+    PA -->|ethers.js| PR
+    VA -->|ethers.js| VR
+    VA -->|ethers.js| BP
+    BP <--> USDC
+
+    PR -.->|Events| WSServer
+    VR -.->|Events| WSServer
+    BP -.->|Events| WSServer
+
+    style Frontend fill:#3B82F6,stroke:#1E40AF,stroke-width:3px,color:#fff
+    style Backend fill:#8B5CF6,stroke:#7C3AED,stroke-width:3px,color:#fff
+    style Blockchain fill:#10B981,stroke:#059669,stroke-width:3px,color:#fff
+    style Agents fill:#EC4899,stroke:#BE185D,stroke-width:2px,color:#fff
+    style Tools fill:#F59E0B,stroke:#D97706,stroke-width:2px,color:#fff
+    style USDC fill:#FFD700,stroke:#FFA500,stroke-width:2px,color:#000
 ```
 
 ### Database Schema
 
-```
-Protocol ──┬──> Scan ──┬──> Finding ──┬──> Proof ──> Validation
-           │           │              │
-           │           └──> ScanStep  └──> Payment
-           │
-           └──> Funding
+```mermaid
+graph LR
+    Protocol[(🏢 Protocol)]
+    Scan[(🔍 Scan)]
+    Finding[(🐛 Finding)]
+    Proof[(📝 Proof)]
+    Validation[(✅ Validation)]
+    Payment[(💰 Payment)]
+    ScanStep[(📊 ScanStep)]
+    Funding[(💵 Funding)]
+
+    Protocol -->|1:N| Scan
+    Protocol -->|1:N| Funding
+    Scan -->|1:N| Finding
+    Scan -->|1:N| ScanStep
+    Finding -->|1:1| Proof
+    Proof -->|1:1| Validation
+    Proof -->|1:1| Payment
+
+    style Protocol fill:#3B82F6,stroke:#1E40AF,stroke-width:2px,color:#fff
+    style Scan fill:#8B5CF6,stroke:#7C3AED,stroke-width:2px,color:#fff
+    style Finding fill:#EF4444,stroke:#DC2626,stroke-width:2px,color:#fff
+    style Proof fill:#10B981,stroke:#059669,stroke-width:2px,color:#fff
+    style Validation fill:#F59E0B,stroke:#D97706,stroke-width:2px,color:#fff
+    style Payment fill:#FFD700,stroke:#FFA500,stroke-width:2px,color:#000
 ```
 
 ---
@@ -85,32 +135,70 @@ Protocol ──┬──> Scan ──┬──> Finding ──┬──> Proof �
 ### Complete Vulnerability Discovery & Reward Cycle
 
 ```mermaid
-graph TD
-    A[Protocol Owner] -->|1. Register Protocol| B[Protocol Agent]
-    B -->|2. Clone & Verify| C[GitHub Repository]
-    B -->|3. Compile Contracts| D[Foundry]
-    B -->|4. Register On-Chain| E[ProtocolRegistry]
+graph TB
+    subgraph Registration["📋 Phase 1: Protocol Registration"]
+        A[👤 Protocol Owner]
+        B[🛡️ Protocol Agent]
+        C[📂 GitHub Repository]
+        D[🔨 Foundry Compile]
+        E[📝 ProtocolRegistry]
+    end
 
-    F[Trigger Scan] -->|5. Queue Job| G[Researcher Agent]
-    G -->|6. Clone Repo| C
+    subgraph Discovery["🔍 Phase 2: Vulnerability Discovery"]
+        F[🎯 Trigger Scan]
+        G[🔬 Researcher Agent]
+        H[🧪 Local Anvil]
+        I[🔎 Slither Analysis]
+        J[📄 Generate Proof]
+    end
+
+    subgraph Validation["✅ Phase 3: Validation"]
+        K[🔐 Validator Agent]
+        L[🏗️ Isolated Sandbox]
+        M[⚡ Execute Exploit]
+        N[📋 ValidationRegistry]
+    end
+
+    subgraph Reward["💰 Phase 4: Bounty Payment"]
+        O[🏦 BountyPool]
+        P[📊 Severity Multiplier]
+        Q[💵 Researcher Wallet]
+    end
+
+    R[📊 Dashboard]
+
+    A -->|1. Register| B
+    B -->|2. Clone & Verify| C
+    B -->|3. Compile| D
+    B -->|4. Register On-Chain| E
+
+    F -->|5. Queue Job| G
+    G -->|6. Clone| C
     G -->|7. Compile| D
-    G -->|8. Deploy to Anvil| H[Local Testnet]
-    G -->|9. Run Slither| I[Static Analysis]
-    I -->|10. Findings Detected| J[Generate Proof]
-    J -->|11. Submit Proof| K[Validator Agent]
+    G -->|8. Deploy| H
+    G -->|9. Analyze| I
+    I -->|10. Vulnerabilities Found| J
+    J -->|11. Submit| K
 
     K -->|12. Clone Same Commit| C
-    K -->|13. Deploy to Sandbox| L[Isolated Anvil]
-    K -->|14. Execute Exploit| M[Validate Vulnerability]
-    M -->|15. Record Validation| N[ValidationRegistry]
+    K -->|13. Deploy| L
+    K -->|14. Verify Exploit| M
+    M -->|15. Record| N
 
-    N -->|16. CONFIRMED| O[BountyPool]
-    O -->|17. Calculate Amount| P[Severity Multiplier]
-    P -->|18. Release USDC| Q[Researcher Wallet]
+    N -->|16. CONFIRMED ✅| O
+    O -->|17. Calculate| P
+    P -->|18. Transfer USDC| Q
 
-    E -.->|Events| R[Dashboard]
+    E -.->|Events| R
     N -.->|Events| R
     O -.->|Events| R
+
+    style Registration fill:#3B82F6,stroke:#1E40AF,stroke-width:3px,color:#fff
+    style Discovery fill:#8B5CF6,stroke:#7C3AED,stroke-width:3px,color:#fff
+    style Validation fill:#10B981,stroke:#059669,stroke-width:3px,color:#fff
+    style Reward fill:#F59E0B,stroke:#D97706,stroke-width:3px,color:#fff
+    style Q fill:#FFD700,stroke:#FFA500,stroke-width:3px,color:#000
+    style R fill:#EC4899,stroke:#BE185D,stroke-width:2px,color:#fff
 ```
 
 ### E2E Test Executed on Base Sepolia
@@ -119,45 +207,74 @@ graph TD
 
 ```mermaid
 sequenceDiagram
-    participant User as Test Script
-    participant PR as ProtocolRegistry
-    participant VR as ValidationRegistry
-    participant BP as BountyPool
-    participant USDC as USDC Token
+    autonumber
+    participant User as 🧪 Test Script
+    participant PR as 📝 ProtocolRegistry
+    participant VR as ✅ ValidationRegistry
+    participant BP as 🏦 BountyPool
+    participant USDC as 💵 USDC Token
 
-    Note over User: Deployer: 0x4379...0c3<br/>Balance: 61 USDC
+    rect rgb(59, 130, 246, 0.1)
+        Note over User: 👤 Deployer: 0x4379...0c3<br/>💰 Balance: 61 USDC
+        Note over User,USDC: Phase 1: Protocol Registration
+        User->>PR: registerProtocol("Thunder Loan")
+        activate PR
+        PR-->>User: ✅ Protocol ID: 0x8420...ead6
+        deactivate PR
+        Note over PR: Status: PENDING<br/>Owner: 0x4379...0c3
+    end
 
-    User->>PR: registerProtocol(Thunder Loan)
-    PR-->>User: Protocol ID: 0x8420...ead6
-    Note over PR: Status: PENDING<br/>Owner: 0x4379...0c3
+    rect rgb(139, 92, 246, 0.1)
+        Note over User,USDC: Phase 2: Fund Bounty Pool
+        User->>USDC: approve(BountyPool, 50 USDC)
+        activate USDC
+        USDC-->>User: ✅ Approved
+        deactivate USDC
 
-    User->>USDC: approve(BountyPool, 50 USDC)
-    USDC-->>User: Approved
+        User->>BP: depositBounty(protocol, 50 USDC)
+        activate BP
+        BP->>USDC: transferFrom(user, pool, 50 USDC)
+        activate USDC
+        USDC-->>BP: ✅ Success
+        deactivate USDC
+        BP-->>User: ✅ Deposited
+        deactivate BP
+        Note over BP: 💰 Pool Balance: 50 USDC
+    end
 
-    User->>BP: depositBounty(protocol, 50 USDC)
-    BP->>USDC: transferFrom(user, pool, 50 USDC)
-    USDC-->>BP: Success
-    BP-->>User: Deposited
-    Note over BP: Pool Balance: 50 USDC
+    rect rgb(16, 185, 129, 0.1)
+        Note over User,USDC: Phase 3: Record Validation
+        User->>VR: recordValidation(CRITICAL, CONFIRMED)
+        activate VR
+        VR-->>User: ✅ Validation ID: 0x4815...bcb3
+        deactivate VR
+        Note over VR: 🔴 Severity: CRITICAL<br/>✅ Outcome: CONFIRMED
+    end
 
-    User->>VR: recordValidation(CRITICAL, CONFIRMED)
-    VR-->>User: Validation ID: 0x4815...bcb3
-    Note over VR: Validator: 0x4379...0c3<br/>Outcome: CONFIRMED<br/>Severity: CRITICAL
+    rect rgb(245, 158, 11, 0.1)
+        Note over User,USDC: Phase 4: Release Bounty
+        User->>BP: releaseBounty(INFORMATIONAL, 25 USDC)
+        activate BP
+        BP->>USDC: transfer(researcher, 25 USDC)
+        activate USDC
+        USDC-->>BP: ✅ Success
+        deactivate USDC
+        BP-->>User: ✅ Bounty ID: 0x6dad...b78
+        deactivate BP
+        Note over User: 💰 Received: 25 USDC<br/>⛽ Net Cost: Gas only
+    end
 
-    User->>BP: releaseBounty(INFORMATIONAL, 25 USDC)
-    BP->>USDC: transfer(researcher, 25 USDC)
-    USDC-->>User: Success
-    BP-->>User: Bounty ID: 0x6dad...b78
-    Note over User: Received: 25 USDC<br/>Net Cost: Gas only
+    rect rgb(236, 72, 153, 0.1)
+        Note over User,USDC: Phase 5: Verification Queries
+        User->>VR: getProtocolValidations()
+        VR-->>User: 1 validation
+        User->>VR: getConfirmedValidations()
+        VR-->>User: 1 confirmed
+        User->>BP: getResearcherBounties()
+        BP-->>User: 1 bounty (25 USDC)
+    end
 
-    User->>VR: getProtocolValidations()
-    VR-->>User: 1 validation
-    User->>VR: getConfirmedValidations()
-    VR-->>User: 1 confirmed
-    User->>BP: getResearcherBounties()
-    BP-->>User: 1 bounty (25 USDC)
-
-    Note over User,USDC: ✅ All Tests Passed<br/>Total Time: ~2 minutes<br/>Cost: Gas fees only
+    Note over User,USDC: ✅ All Tests Passed • ⏱️ ~2 minutes • ⛽ Gas fees only
 ```
 
 ---
