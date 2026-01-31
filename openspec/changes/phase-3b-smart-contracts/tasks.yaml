@@ -1,0 +1,152 @@
+tasks:
+  - id: 1
+    title: Implement ProtocolRegistry.sol smart contract
+    status: completed
+    layer: Contracts
+    files:
+      - backend/contracts/src/ProtocolRegistry.sol
+    completed_at: 2026-01-31
+    notes: |
+      267 lines, OpenZeppelin Ownable, duplicate GitHub URL detection,
+      status management, event emission
+
+  - id: 2
+    title: Implement ValidationRegistry.sol smart contract
+    status: completed
+    layer: Contracts
+    files:
+      - backend/contracts/src/ValidationRegistry.sol
+    completed_at: 2026-01-31
+    notes: |
+      335 lines, ERC-8004 compliant, AccessControl with VALIDATOR_ROLE,
+      immutable validation records, severity tracking
+
+  - id: 3
+    title: Implement BountyPool.sol smart contract
+    status: completed
+    layer: Contracts
+    files:
+      - backend/contracts/src/BountyPool.sol
+    completed_at: 2026-01-31
+    notes: |
+      427 lines, USDC integration, severity-based multipliers,
+      ReentrancyGuard, SafeERC20, AccessControl with PAYOUT_ROLE
+
+  - id: 4
+    title: Install OpenZeppelin dependencies and update foundry.toml
+    status: completed
+    layer: Infrastructure
+    files:
+      - backend/contracts/foundry.toml
+      - backend/contracts/.gitmodules
+    completed_at: 2026-01-31
+    notes: |
+      Installed openzeppelin-contracts v5.0.0 and forge-std v1.14.0,
+      added remappings for imports
+
+  - id: 5
+    title: Create comprehensive test files for all contracts
+    status: deferred
+    layer: Contracts
+    files:
+      - backend/contracts/test/ProtocolRegistry.t.sol
+      - backend/contracts/test/ValidationRegistry.t.sol
+      - backend/contracts/test/BountyPool.t.sol
+      - backend/contracts/test/Integration.t.sol
+    notes: |
+      Deferred to post-MVP. Testing directly on Base Sepolia testnet
+      with integration test script instead.
+
+  - id: 6
+    title: Create Base Sepolia deployment script
+    status: completed
+    layer: Contracts
+    files:
+      - backend/contracts/script/DeployBaseSepolia.s.sol
+    completed_at: 2026-01-31
+    notes: |
+      150 lines, deploys all 3 contracts, grants roles,
+      logs addresses for .env configuration
+
+  - id: 7
+    title: Deploy contracts to Base Sepolia testnet
+    status: completed
+    layer: Infrastructure
+    completed_at: 2026-01-31
+    notes: |
+      All contracts deployed and verified:
+      - ProtocolRegistry: 0xc7DF730cf661a306a9aEC93D7180da6f6Da23235
+      - ValidationRegistry: 0x8fBE5E9B0C17Cb606091e5050529CE99baB7744d
+      - BountyPool: 0x6D0bA6dA342c4ce75281Ea90c71017BC94A397b0
+      Gas cost: ~0.014 ETH
+
+  - id: 8
+    title: Create blockchain integration layer
+    status: completed
+    layer: Backend
+    files:
+      - backend/src/blockchain/config.ts
+      - backend/src/blockchain/contracts/ProtocolRegistryClient.ts
+      - backend/src/blockchain/contracts/ValidationRegistryClient.ts
+      - backend/src/blockchain/contracts/BountyPoolClient.ts
+      - backend/src/blockchain/index.ts
+      - backend/src/blockchain/abis/*.json
+    completed_at: 2026-01-31
+    notes: |
+      Type-safe ethers.js wrappers, event parsing, error handling,
+      ABIs copied from Foundry output, full TypeScript support
+
+  - id: 9
+    title: Integrate Protocol Agent with on-chain registry
+    status: completed
+    layer: Backend
+    files:
+      - backend/src/queues/protocol.queue.ts
+    completed_at: 2026-01-31
+    notes: |
+      Replaced mock transaction with real ProtocolRegistryClient call,
+      saves onChainProtocolId and registrationTxHash to database,
+      full error handling and logging
+
+  - id: 10
+    title: Integrate Validator Agent with on-chain registry
+    status: completed
+    layer: Backend
+    files:
+      - backend/src/agents/validator/worker.ts
+    completed_at: 2026-01-31
+    notes: |
+      Implemented on-chain validation recording via ValidationRegistryClient,
+      severity/outcome mapping to contract enums, saves onChainValidationId,
+      graceful error handling (continues if on-chain fails)
+
+  - id: 11
+    title: Update database schema with on-chain fields
+    status: completed
+    layer: Backend
+    files:
+      - backend/prisma/schema.prisma
+      - backend/prisma/migrations/20260131195154_add_onchain_fields/
+    completed_at: 2026-01-31
+    notes: |
+      Added onChainProtocolId to Protocol model,
+      added onChainValidationId and onChainTxHash to Proof model,
+      added onChainBountyId to Payment model,
+      migration applied
+
+  - id: 12
+    title: Run end-to-end verification testing
+    status: pending
+    layer: Backend
+    notes: |
+      Integration test script created and passing.
+      Manual E2E test pending: register protocol, trigger scan,
+      verify on-chain registration and validation recording.
+      Requires running application and database.
+
+summary:
+  total: 12
+  completed: 9
+  deferred: 1
+  pending: 2
+  completion_rate: 75%
