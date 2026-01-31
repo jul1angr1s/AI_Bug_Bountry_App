@@ -275,7 +275,7 @@ npx prisma studio
   cast call 0xc7DF730cf661a306a9aEC93D7180da6f6Da23235 \
     "getProtocol(bytes32)" \
     "<protocol_id>" \
-    --rpc-url https://base-sepolia.g.alchemy.com/v2/rLEOOYqXlnYNFXRc9ONflmD5RibFPBmi
+    --rpc-url $BASE_SEPOLIA_RPC_URL
   ```
 
 ### Validation Recording
@@ -288,7 +288,7 @@ npx prisma studio
   cast call 0x8fBE5E9B0C17Cb606091e5050529CE99baB7744d \
     "getValidation(bytes32)" \
     "<validation_id>" \
-    --rpc-url https://base-sepolia.g.alchemy.com/v2/rLEOOYqXlnYNFXRc9ONflmD5RibFPBmi
+    --rpc-url $BASE_SEPOLIA_RPC_URL
   ```
 
 ### System Integration
@@ -341,7 +341,7 @@ Phase 3B is **100% COMPLETE** when:
 ### "PRIVATE_KEY environment variable not found"
 **Solution**: Ensure `backend/.env` and `backend/contracts/.env` both have:
 ```bash
-PRIVATE_KEY=0x111881de13d244bcba9e3d9fa1a0aaea030434cc0e25fa2d7e364a3a6c9d8b9a
+PRIVATE_KEY=0x_YOUR_PRIVATE_KEY_HERE
 ```
 
 ### "Protocol not registered on-chain"
@@ -358,8 +358,8 @@ PRIVATE_KEY=0x111881de13d244bcba9e3d9fa1a0aaea030434cc0e25fa2d7e364a3a6c9d8b9a
 ```bash
 cast call 0x8fBE5E9B0C17Cb606091e5050529CE99baB7744d \
   "isValidator(address)" \
-  0x43793B3d9F23FAC1df54d715Cb215b8A50e710c3 \
-  --rpc-url https://base-sepolia.g.alchemy.com/v2/rLEOOYqXlnYNFXRc9ONflmD5RibFPBmi
+  YOUR_WALLET_ADDRESS \
+  --rpc-url $BASE_SEPOLIA_RPC_URL
 ```
 
 ### Database Migration Fails
@@ -444,8 +444,8 @@ If you encounter issues during testing:
 **Key Environment Variables**:
 ```bash
 # backend/.env
-BASE_SEPOLIA_RPC_URL=https://base-sepolia.g.alchemy.com/v2/rLEOOYqXlnYNFXRc9ONflmD5RibFPBmi
-PRIVATE_KEY=0x111881de13d244bcba9e3d9fa1a0aaea030434cc0e25fa2d7e364a3a6c9d8b9a
+BASE_SEPOLIA_RPC_URL=https://sepolia.base.org  # Or use your Alchemy/Infura URL
+PRIVATE_KEY=0x_YOUR_PRIVATE_KEY_HERE
 PROTOCOL_REGISTRY_ADDRESS=0xc7DF730cf661a306a9aEC93D7180da6f6Da23235
 VALIDATION_REGISTRY_ADDRESS=0x8fBE5E9B0C17Cb606091e5050529CE99baB7744d
 BOUNTY_POOL_ADDRESS=0x6D0bA6dA342c4ce75281Ea90c71017BC94A397b0
