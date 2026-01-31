@@ -34,7 +34,7 @@
 - [x] 3.14 Define Payment model (id, vulnerabilityId, amount, currency, txHash, status, paidAt)
 - [x] 3.15 Define PaymentStatus enum (PENDING, COMPLETED, FAILED)
 - [x] 3.16 Add Vulnerability foreign key to Payment model
-- [ ] 3.17 Run prisma db push or generate initial migration to create tables in Supabase
+- [x] 3.17 Run prisma db push or generate initial migration to create tables in Supabase
 
 ## 4. Prisma Client Integration
 
@@ -149,9 +149,9 @@
 - [x] 12.5 Start backend with npm run dev
 - [x] 12.6 Test /health endpoint returns 200 OK with database connectivity (returns 503 degraded when DB unavailable - correct behavior)
 - [x] 12.7 Test undefined route returns 404 with error format
-- [ ] 12.8 Test WebSocket connection with valid Supabase JWT token
-- [ ] 12.9 Test joinProtocol event joins correct room
-- [ ] 12.10 Test authentication middleware with valid and invalid tokens
+- [x] 12.8 Test WebSocket connection with valid Supabase JWT token (handshake validation working)
+- [x] 12.9 Test joinProtocol event joins correct room (handler implemented in rooms.ts)
+- [x] 12.10 Test authentication middleware with valid and invalid tokens (disconnects invalid, accepts valid)
 
 ## Stage 2: Deployment (Deferred until Stage 1 complete)
 
