@@ -34,7 +34,7 @@
 - [x] 3.14 Define Payment model (id, vulnerabilityId, amount, currency, txHash, status, paidAt)
 - [x] 3.15 Define PaymentStatus enum (PENDING, COMPLETED, FAILED)
 - [x] 3.16 Add Vulnerability foreign key to Payment model
-- [ ] 3.17 Run prisma db push or generate initial migration to create tables in Supabase
+- [x] 3.17 Run prisma db push or generate initial migration to create tables in Supabase
 
 ## 4. Prisma Client Integration
 
