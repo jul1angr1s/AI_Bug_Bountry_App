@@ -1,0 +1,125 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ProtocolStatus {
+  PENDING
+  ACTIVE
+  PAUSED
+  DEPRECATED
+}
+
+enum Severity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+  INFO
+}
+
+enum VulnerabilityStatus {
+  OPEN
+  ACKNOWLEDGED
+  RESOLVED
+  DISMISSED
+}
+
+enum AgentType {
+  PROTOCOL
+  RESEARCHER
+  VALIDATOR
+}
+
+enum AgentStatus {
+  ONLINE
+  OFFLINE
+  SCANNING
+  ERROR
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+model Protocol {
+  id           String         @id @default(uuid())
+  authUserId   String
+  ownerAddress String
+  githubUrl    String         @unique
+  branch       String
+  contractPath String
+  contractName String
+  bountyTerms  String
+  status       ProtocolStatus @default(PENDING)
+  riskScore    Int?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  vulnerabilities Vulnerability[]
+  scans           Scan[]
+
+  @@index([ownerAddress])
+}
+
+model Vulnerability {
+  id                String              @id @default(uuid())
+  protocolId        String
+  vulnerabilityHash String
+  severity          Severity
+  status            VulnerabilityStatus
+  discoveredAt      DateTime            @default(now())
+  bounty            Float?
+  proof             String?
+
+  protocol Protocol @relation(fields: [protocolId], references: [id], onDelete: Cascade)
+  payments Payment[]
+
+  @@index([protocolId, discoveredAt])
+}
+
+model Agent {
+  id             String      @id @default(uuid())
+  type           AgentType
+  status         AgentStatus
+  currentTask    String?
+  taskProgress   Float?
+  lastHeartbeat  DateTime?
+  uptime         Int?
+  scansCompleted Int         @default(0)
+
+  scans Scan[]
+
+  @@index([lastHeartbeat])
+}
+
+model Scan {
+  id                   String   @id @default(uuid())
+  protocolId           String
+  agentId              String
+  status               String
+  startedAt            DateTime @default(now())
+  completedAt          DateTime?
+  vulnerabilitiesFound Int      @default(0)
+
+  protocol Protocol @relation(fields: [protocolId], references: [id], onDelete: Cascade)
+  agent    Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+}
+
+model Payment {
+  id              String        @id @default(uuid())
+  vulnerabilityId String
+  amount          Float
+  currency        String
+  txHash          String?
+  status          PaymentStatus @default(PENDING)
+  paidAt          DateTime?
+
+  vulnerability Vulnerability @relation(fields: [vulnerabilityId], references: [id], onDelete: Cascade)
+}
