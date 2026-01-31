@@ -50,6 +50,19 @@ export interface VulnerabilityStatusChangedEvent {
   };
 }
 
+export interface ProtocolStatusChangedEvent {
+  eventType: 'protocol:status_changed';
+  timestamp: string;
+  protocolId: string;
+  data: {
+    status: string;
+    registrationState: string;
+    registrationTxHash?: string;
+    riskScore?: number;
+    failureReason?: string;
+  };
+}
+
 // Event emitter functions
 export async function emitAgentTaskUpdate(
   agentId: string,
@@ -133,10 +146,38 @@ export async function emitVulnerabilityStatusChanged(
   };
 
   ioInstance.to(`protocol:${protocolId}`).emit('vuln:status_changed', event);
-  
+
   // Invalidate caches
   await invalidateCachePattern(`dashboard:stats:*`);
   await invalidateCachePattern(`protocol:vulnerabilities:${protocolId}:*`);
+}
+
+export async function emitProtocolStatusChange(
+  protocolId: string,
+  data: {
+    status: string;
+    registrationState: string;
+    registrationTxHash?: string;
+    riskScore?: number;
+    failureReason?: string;
+  }
+): Promise<void> {
+  if (!ioInstance) return;
+
+  const event: ProtocolStatusChangedEvent = {
+    eventType: 'protocol:status_changed',
+    timestamp: new Date().toISOString(),
+    protocolId,
+    data,
+  };
+
+  // Emit to both protocols room and specific protocol room
+  ioInstance.to('protocols').emit('protocol:status_changed', event);
+  ioInstance.to(`protocol:${protocolId}`).emit('protocol:status_changed', event);
+
+  // Invalidate caches
+  await invalidateCachePattern(`dashboard:stats:*`);
+  await invalidateCache(`protocol:${protocolId}`);
 }
 
 // Task 2.5: Scan WebSocket Event Types
