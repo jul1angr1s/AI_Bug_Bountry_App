@@ -49,23 +49,36 @@ enum PaymentStatus {
 }
 
 model Protocol {
-  id           String         @id @default(uuid())
-  authUserId   String
-  ownerAddress String
-  githubUrl    String         @unique
-  branch       String
-  contractPath String
-  contractName String
-  bountyTerms  String
-  status       ProtocolStatus @default(PENDING)
-  riskScore    Int?
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  id                String         @id @default(uuid())
+  authUserId        String
+  ownerAddress      String
+  githubUrl         String         @unique
+  branch            String
+  contractPath      String
+  contractName      String
+  bountyTerms       String
+  status            ProtocolStatus @default(PENDING)
+  riskScore         Int?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  
+  // Protocol Agent fields
+  registrationState   String?        // PENDING, ACTIVE, FAILED
+  registrationTxHash  String?
+  failureReason       String?
+  fundedAt            DateTime?
+  totalBountyPool     Float          @default(0)
+  availableBounty     Float          @default(0)
+  paidBounty          Float          @default(0)
 
   vulnerabilities Vulnerability[]
   scans           Scan[]
+  auditLogs       AuditLog[]
+  fundingEvents   FundingEvent[]
 
   @@index([ownerAddress])
+  @@index([registrationState])
+  @@index([githubUrl])
 }
 
 model Vulnerability {
@@ -122,4 +135,36 @@ model Payment {
   paidAt          DateTime?
 
   vulnerability Vulnerability @relation(fields: [vulnerabilityId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  protocolId  String
+  action      String   // REGISTRATION_ATTEMPT, FUNDING_SUBMISSION, etc.
+  txHash      String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  
+  protocol Protocol @relation(fields: [protocolId], references: [id], onDelete: Cascade)
+  
+  @@index([protocolId])
+  @@index([createdAt])
+  @@index([action])
+}
+
+model FundingEvent {
+  id          String   @id @default(uuid())
+  protocolId  String
+  amount      Float
+  txHash      String
+  status      String   // PENDING, CONFIRMED, FAILED
+  changeType  String   // DEPOSIT, PAYMENT_RELEASED, RESERVATION
+  createdAt   DateTime @default(now())
+  confirmedAt DateTime?
+  
+  protocol Protocol @relation(fields: [protocolId], references: [id], onDelete: Cascade)
+  
+  @@index([protocolId])
+  @@index([createdAt])
+  @@index([status])
 }
