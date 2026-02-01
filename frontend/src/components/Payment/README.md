@@ -179,3 +179,170 @@ See `USDCApprovalFlow.test.tsx` for test cases covering:
 - **API Client**: `frontend/src/lib/api.ts` (USDC functions)
 - **Backend Client**: `backend/src/blockchain/contracts/USDCClient.ts`
 - **Tests**: `frontend/src/components/Payment/USDCApprovalFlow.test.tsx`
+
+---
+
+### BountyPoolStatus
+
+A comprehensive component that displays bounty pool balance, recent transactions, and deposit functionality for protocol owners.
+
+#### Features
+
+- **Pool Balance Visualization**: Horizontal progress bar showing pool usage (totalPaid / totalDeposited)
+- **Color-Coded Progress Bar**:
+  - Red if < 20% remaining
+  - Yellow if 20-50% remaining
+  - Green if > 50% remaining
+- **Recent Transactions List**: Last 10 transactions (deposits and payments)
+- **Deposit Button**: Only visible to protocol owner (wallet address comparison)
+- **Real-Time Updates**: WebSocket integration for live balance updates
+- **Responsive Design**: Built with TailwindCSS for mobile-first responsive design
+
+#### Usage
+
+```tsx
+import { BountyPoolStatus } from '@/components/Payment';
+
+function PaymentDashboard() {
+  const protocolId = '1'; // From URL params or context
+  const protocolOwner = '0x...'; // Protocol owner wallet address
+
+  return (
+    <BountyPoolStatus
+      protocolId={protocolId}
+      protocolOwner={protocolOwner}
+    />
+  );
+}
+```
+
+#### Props
+
+```typescript
+interface BountyPoolStatusProps {
+  protocolId: string; // Protocol ID to fetch pool status for
+  protocolOwner?: string; // Protocol owner address for deposit permission check
+}
+```
+
+#### UI Components
+
+1. **Pool Balance Card**
+   - Current available balance (large display)
+   - Total deposited amount
+   - Progress bar showing pool usage
+   - Total paid and pending payments stats
+   - Deposit button (protocol owner only)
+
+2. **Recent Transactions Table**
+   - Type column with icons (Deposit: ↓ green, Payment: ↑ blue)
+   - Amount in USDC
+   - Formatted date/time
+   - Basescan transaction link
+
+3. **USDC Approval Flow Modal**
+   - Shows when deposit button is clicked
+   - Integrates USDCApprovalFlow component
+   - Cancel button to dismiss
+
+#### API Integration
+
+Fetches data from backend endpoint:
+
+**GET /api/v1/payments/pool/{protocolId}**
+
+Response:
+```typescript
+{
+  protocolId: string;
+  availableBalance: string; // "10000.50"
+  totalDeposited: string; // "50000.00"
+  totalPaid: string; // "40000.00"
+  remainingBalance: string; // "9500.50"
+  pendingPaymentsCount: number; // 3
+  pendingPaymentsTotal: string; // "500.00"
+  recentTransactions: [
+    {
+      id: string;
+      type: 'DEPOSIT' | 'PAYMENT';
+      amount: string; // "1000.00"
+      timestamp: string; // ISO date
+      txHash: string;
+    }
+  ];
+}
+```
+
+#### WebSocket Events
+
+Subscribes to `bounty_pool:updated` event:
+
+```typescript
+{
+  protocolId: string;
+  availableBalance: string;
+  transaction?: PoolTransaction; // New transaction to prepend
+}
+```
+
+When event is received:
+1. Updates pool balance display
+2. Prepends new transaction to list (max 10)
+3. Refetches full data for consistency
+
+#### Error Handling
+
+- **Loading State**: Shows spinner with "Loading bounty pool status..."
+- **Error State**: Displays error message with "Retry" button
+- **Empty Transactions**: Shows "No transactions yet" message
+
+#### Security
+
+- **Owner Validation**: Compares connected wallet (lowercase) with protocol owner
+- **Deposit Button**: Only visible/enabled for protocol owner
+- **Transaction Links**: Opens in new tab with `rel="noopener noreferrer"`
+
+#### Styling
+
+Uses project's design system:
+
+- **Background**: `bg-navy-800` for cards
+- **Borders**: `border-navy-900`
+- **Text Colors**: `text-white`, `text-gray-400`, `text-gray-300`
+- **Progress Bar Colors**:
+  - `bg-green-500` (> 50% remaining)
+  - `bg-yellow-500` (20-50% remaining)
+  - `bg-red-500` (< 20% remaining)
+
+#### Testing
+
+Component can be tested with:
+
+```bash
+npm run test -- BountyPoolStatus.test.tsx
+```
+
+#### Dependencies
+
+- **TanStack Query**: Data fetching with automatic refetch (30s interval)
+- **wagmi**: `useAccount` for wallet connection
+- **lucide-react**: Icons (ExternalLink, TrendingDown, TrendingUp, Loader2)
+- **WebSocket Hook**: `useWebSocket` for real-time updates
+- **API Functions**: `fetchBountyPoolStatus`
+- **Child Component**: `USDCApprovalFlow` for deposit flow
+
+#### Future Enhancements
+
+- [ ] Add deposit amount input field
+- [ ] Support multiple protocols (dropdown selector)
+- [ ] Export transaction history as CSV
+- [ ] Add filtering/sorting for transactions
+- [ ] Show pending deposits separately
+- [ ] Add withdrawal functionality for owner
+
+#### Related Files
+
+- **Spec**: `openspec/changes/phase-4-payment-automation/specs/payment-dashboard/spec.md`
+- **API Client**: `frontend/src/lib/api.ts` (Pool status functions)
+- **Page**: `frontend/src/pages/PaymentDashboard.tsx`
+- **WebSocket Hook**: `frontend/src/hooks/useWebSocket.ts`
