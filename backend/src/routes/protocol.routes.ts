@@ -11,11 +11,81 @@ import {
 import {
   registerProtocol,
   fundProtocol,
+  listProtocols,
+  getProtocolById,
 } from '../services/protocol.service.js';
 import { addProtocolRegistrationJob } from '../queues/protocol.queue.js';
 import type { Request, Response } from 'express';
 
 const router = Router();
+
+// GET /api/v1/protocols - List all protocols
+router.get(
+  '/',
+  requireAuth,
+  dashboardRateLimits.protocols,
+  async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      const { status, page, limit } = req.query;
+
+      const result = await listProtocols({
+        status: status as string | undefined,
+        page: page ? parseInt(page as string) : undefined,
+        limit: limit ? parseInt(limit as string) : undefined,
+        userId, // List user's own protocols
+      });
+
+      res.status(200).json(result);
+    } catch (error) {
+      console.error('Error listing protocols:', error);
+      res.status(500).json({
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Internal server error',
+          requestId: req.id,
+        },
+      });
+    }
+  }
+);
+
+// GET /api/v1/protocols/:id - Get protocol details
+router.get(
+  '/:id',
+  requireAuth,
+  dashboardRateLimits.protocols,
+  validateRequest({ params: protocolIdSchema }),
+  async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      const { id } = req.params;
+
+      const protocol = await getProtocolById(id, userId);
+
+      if (!protocol) {
+        return res.status(404).json({
+          error: {
+            code: 'PROTOCOL_NOT_FOUND',
+            message: 'Protocol not found or access denied',
+            requestId: req.id,
+          },
+        });
+      }
+
+      res.status(200).json({ data: protocol });
+    } catch (error) {
+      console.error('Error fetching protocol:', error);
+      res.status(500).json({
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Internal server error',
+          requestId: req.id,
+        },
+      });
+    }
+  }
+);
 
 // POST /api/v1/protocols - Register new protocol
 router.post(
