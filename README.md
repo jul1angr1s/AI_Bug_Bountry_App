@@ -32,6 +32,32 @@ The AI Bug Bounty Platform automates the complete vulnerability discovery and re
 
 ---
 
+## 🎬 Demonstration
+
+Try the complete workflow using the Thunder Loan protocol:
+
+```bash
+# 1. Start backend
+cd backend
+npm install
+npm run dev
+
+# 2. Start frontend
+cd frontend
+npm install
+npm run dev
+
+# 3. Navigate to http://localhost:5173/protocols/register
+# 4. Register Thunder Loan protocol
+# 5. Watch automated scanning, validation, and payment!
+```
+
+**Full demonstration guide**: [docs/DEMONSTRATION.md](./docs/DEMONSTRATION.md)
+
+**Expected End-to-End Time**: < 4 minutes from registration to payment complete ✅
+
+---
+
 ## 🏗️ Architecture
 
 ### System Architecture

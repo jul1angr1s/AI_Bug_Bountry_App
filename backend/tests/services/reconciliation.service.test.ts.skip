@@ -1,28 +1,28 @@
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ethers } from 'ethers';
 
 // Mock dependencies
 const mockPrismaClient = {
   payment: {
-    findMany: jest.fn(),
-    findUnique: jest.fn(),
-    findFirst: jest.fn(),
-    count: jest.fn(),
-    update: jest.fn(),
-    groupBy: jest.fn(),
+    findMany: vi.fn(),
+    findUnique: vi.fn(),
+    findFirst: vi.fn(),
+    count: vi.fn(),
+    update: vi.fn(),
+    groupBy: vi.fn(),
   },
   paymentReconciliation: {
-    findFirst: jest.fn(),
-    findUnique: jest.fn(),
-    findMany: jest.fn(),
-    create: jest.fn(),
-    update: jest.fn(),
-    count: jest.fn(),
-    groupBy: jest.fn(),
+    findFirst: vi.fn(),
+    findUnique: vi.fn(),
+    findMany: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    count: vi.fn(),
+    groupBy: vi.fn(),
   },
   eventListenerState: {
-    findUnique: jest.fn(),
-    upsert: jest.fn(),
+    findUnique: vi.fn(),
+    upsert: vi.fn(),
   },
 };
 
@@ -31,40 +31,40 @@ const mockRedisClient = {
 };
 
 const mockQueue = {
-  add: jest.fn(),
-  getRepeatableJobs: jest.fn(),
-  removeRepeatableByKey: jest.fn(),
-  close: jest.fn(),
+  add: vi.fn(),
+  getRepeatableJobs: vi.fn(),
+  removeRepeatableByKey: vi.fn(),
+  close: vi.fn(),
 };
 
 const mockProvider = {
-  getBlockNumber: jest.fn(),
+  getBlockNumber: vi.fn(),
 };
 
 const mockContract = {
-  queryFilter: jest.fn(),
+  queryFilter: vi.fn(),
   filters: {
-    BountyReleased: jest.fn(),
+    BountyReleased: vi.fn(),
   },
   interface: {
-    parseLog: jest.fn(),
+    parseLog: vi.fn(),
   },
 };
 
 // Mock modules
-jest.unstable_mockModule('../../src/lib/prisma.js', () => ({
+vi.mock('../../src/lib/prisma.js', () => ({
   getPrismaClient: () => mockPrismaClient,
 }));
 
-jest.unstable_mockModule('../../src/lib/redis.js', () => ({
+vi.mock('../../src/lib/redis.js', () => ({
   getRedisClient: () => mockRedisClient,
 }));
 
-jest.unstable_mockModule('bullmq', () => ({
-  Queue: jest.fn(() => mockQueue),
+vi.mock('bullmq', () => ({
+  Queue: vi.fn(() => mockQueue),
 }));
 
-jest.unstable_mockModule('../../src/blockchain/config.js', () => ({
+vi.mock('../../src/blockchain/config.js', () => ({
   provider: mockProvider,
   contractAddresses: {
     bountyPool: '0x' + '1'.repeat(40),
@@ -74,9 +74,9 @@ jest.unstable_mockModule('../../src/blockchain/config.js', () => ({
   },
 }));
 
-jest.unstable_mockModule('ethers', () => ({
+vi.mock('ethers', () => ({
   ethers: {
-    Contract: jest.fn(() => mockContract),
+    Contract: vi.fn(() => mockContract),
     EventLog: class EventLog {},
     formatUnits: ethers.formatUnits,
   },
@@ -93,7 +93,7 @@ describe('ReconciliationService', () => {
   let service: InstanceType<typeof ReconciliationService>;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     service = new ReconciliationService();
   });
 
@@ -328,7 +328,7 @@ describe('ReconciliationService', () => {
     });
 
     it('should alert when discrepancy count exceeds threshold', async () => {
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       mockProvider.getBlockNumber.mockResolvedValue(43200);
       mockContract.filters.BountyReleased.mockReturnValue({});
