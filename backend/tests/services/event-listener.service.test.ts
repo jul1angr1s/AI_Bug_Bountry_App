@@ -34,8 +34,8 @@ vi.mock('../../src/lib/prisma.js', () => ({
 
 vi.mock('ethers', () => ({
   ethers: {
-    WebSocketProvider: jest.fn(() => mockProvider),
-    Contract: jest.fn(() => mockContract),
+    WebSocketProvider: vi.fn(() => mockProvider),
+    Contract: vi.fn(() => mockContract),
     EventLog: class EventLog {
       blockNumber: number;
       constructor(blockNumber: number) {
@@ -191,7 +191,7 @@ describe('EventListenerService', () => {
 
       const mockHandler = vi.fn().mockResolvedValue(undefined);
 
-      mockContract.filters[eventName] = jest.fn(() => ({}));
+      mockContract.filters[eventName] = vi.fn(() => ({}));
       mockContract.queryFilter.mockResolvedValue(mockEvents);
       mockPrismaClient.eventListenerState.upsert.mockResolvedValue({});
 
@@ -228,7 +228,7 @@ describe('EventListenerService', () => {
         .mockRejectedValueOnce(new Error('Handler error'))
         .mockResolvedValueOnce(undefined);
 
-      mockContract.filters[eventName] = jest.fn(() => ({}));
+      mockContract.filters[eventName] = vi.fn(() => ({}));
       mockContract.queryFilter.mockResolvedValue(mockEvents);
       mockPrismaClient.eventListenerState.upsert.mockResolvedValue({});
 
@@ -269,7 +269,7 @@ describe('EventListenerService', () => {
 
       mockProvider.getBlockNumber.mockResolvedValue(currentBlock);
       mockPrismaClient.eventListenerState.findUnique.mockResolvedValue(null);
-      mockContract.filters[eventName] = jest.fn(() => ({}));
+      mockContract.filters[eventName] = vi.fn(() => ({}));
       mockContract.queryFilter.mockResolvedValue([]);
       mockContract.on.mockImplementation(() => {});
 
@@ -299,7 +299,7 @@ describe('EventListenerService', () => {
         eventName,
         lastProcessedBlock,
       });
-      mockContract.filters[eventName] = jest.fn(() => ({}));
+      mockContract.filters[eventName] = vi.fn(() => ({}));
       mockContract.queryFilter.mockResolvedValue([]);
       mockContract.on.mockImplementation(() => {});
 
@@ -323,7 +323,7 @@ describe('EventListenerService', () => {
 
       mockProvider.getBlockNumber.mockResolvedValue(currentBlock);
       mockPrismaClient.eventListenerState.findUnique.mockResolvedValue(null);
-      mockContract.filters[eventName] = jest.fn(() => ({}));
+      mockContract.filters[eventName] = vi.fn(() => ({}));
       mockContract.on.mockImplementation(() => {});
 
       const config = {

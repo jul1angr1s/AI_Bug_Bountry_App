@@ -32,7 +32,7 @@ const mockChainConfig = {
 // Mock modules
 vi.mock('ethers', () => ({
   ethers: {
-    Contract: jest.fn(() => mockContract),
+    Contract: vi.fn(() => mockContract),
     isAddress: ethers.isAddress,
     formatUnits: ethers.formatUnits,
     parseUnits: ethers.parseUnits,

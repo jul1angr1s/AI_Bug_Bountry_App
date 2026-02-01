@@ -61,7 +61,7 @@ vi.mock('../../src/lib/redis.js', () => ({
 }));
 
 vi.mock('bullmq', () => ({
-  Queue: jest.fn(() => mockQueue),
+  Queue: vi.fn(() => mockQueue),
 }));
 
 vi.mock('../../src/blockchain/config.js', () => ({
@@ -76,7 +76,7 @@ vi.mock('../../src/blockchain/config.js', () => ({
 
 vi.mock('ethers', () => ({
   ethers: {
-    Contract: jest.fn(() => mockContract),
+    Contract: vi.fn(() => mockContract),
     EventLog: class EventLog {},
     formatUnits: ethers.formatUnits,
   },

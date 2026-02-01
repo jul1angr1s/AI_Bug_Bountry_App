@@ -20,7 +20,7 @@ vi.mock('../../src/lib/redis.js', () => ({
 }));
 
 vi.mock('bullmq', () => ({
-  Queue: jest.fn(() => mockQueue),
+  Queue: vi.fn(() => mockQueue),
 }));
 
 // Import after mocks

@@ -58,11 +58,11 @@ vi.mock('../../src/lib/prisma.js', () => ({
 }));
 
 vi.mock('../../src/blockchain/contracts/ValidationRegistryClient.js', () => ({
-  ValidationRegistryClient: jest.fn(() => mockValidationClient),
+  ValidationRegistryClient: vi.fn(() => mockValidationClient),
 }));
 
 vi.mock('../../src/blockchain/contracts/BountyPoolClient.js', () => ({
-  BountyPoolClient: jest.fn(() => mockBountyClient),
+  BountyPoolClient: vi.fn(() => mockBountyClient),
   BountySeverity: {
     CRITICAL: 0,
     HIGH: 1,
@@ -73,7 +73,7 @@ vi.mock('../../src/blockchain/contracts/BountyPoolClient.js', () => ({
 }));
 
 vi.mock('../../src/blockchain/contracts/USDCClient.js', () => ({
-  default: jest.fn(() => mockUsdcClient),
+  default: vi.fn(() => mockUsdcClient),
 }));
 
 // Import service after mocks are set up

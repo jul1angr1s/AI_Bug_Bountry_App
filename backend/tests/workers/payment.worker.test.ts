@@ -39,7 +39,7 @@ vi.mock('../../src/lib/prisma.js', () => ({
 }));
 
 vi.mock('../../src/blockchain/contracts/BountyPoolClient.js', () => ({
-  BountyPoolClient: jest.fn(() => mockBountyClient),
+  BountyPoolClient: vi.fn(() => mockBountyClient),
   BountySeverity: {
     CRITICAL: 0,
     HIGH: 1,
@@ -50,7 +50,7 @@ vi.mock('../../src/blockchain/contracts/BountyPoolClient.js', () => ({
 }));
 
 vi.mock('../../src/blockchain/contracts/ValidationRegistryClient.js', () => ({
-  ValidationRegistryClient: jest.fn(() => mockValidationClient),
+  ValidationRegistryClient: vi.fn(() => mockValidationClient),
   ValidationOutcome: {
     CONFIRMED: 0,
     REJECTED: 1,
@@ -71,7 +71,7 @@ vi.mock('../../src/websocket/events.js', () => ({
 }));
 
 vi.mock('bullmq', () => ({
-  Worker: jest.fn((queueName, processor, options) => {
+  Worker: vi.fn((queueName, processor, options) => {
     // Store processor for testing
     mockWorker.processor = processor;
     return mockWorker;
