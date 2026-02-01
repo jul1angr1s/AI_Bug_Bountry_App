@@ -1,0 +1,202 @@
+name: PR Size Check
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  check-pr-size:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      issues: write
+
+    steps:
+      - name: Check PR Size
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+              per_page: 100
+            });
+
+            // Exclude auto-generated files from count
+            const excludedPatterns = [
+              /package-lock\.json$/,
+              /pnpm-lock\.yaml$/,
+              /yarn\.lock$/,
+              /Cargo\.lock$/,
+              /\.prisma\/client\//,
+              /node_modules\//,
+              /dist\//,
+              /build\//,
+              /\.min\.js$/,
+              /\.map$/
+            ];
+
+            const filteredFiles = files.filter(file => {
+              return !excludedPatterns.some(pattern => pattern.test(file.filename));
+            });
+
+            const totalChanges = filteredFiles.reduce((sum, file) =>
+              sum + file.additions + file.deletions, 0
+            );
+
+            const additions = filteredFiles.reduce((sum, file) => sum + file.additions, 0);
+            const deletions = filteredFiles.reduce((sum, file) => sum + file.deletions, 0);
+            const fileCount = filteredFiles.length;
+
+            console.log(`Total changes: ${totalChanges} lines (${additions} additions, ${deletions} deletions, ${fileCount} files)`);
+
+            // Determine size category
+            let sizeLabel = '';
+            let needsSplit = false;
+            let warningLevel = '';
+
+            if (totalChanges < 100) {
+              sizeLabel = 'size/XS';
+              warningLevel = '🟢';
+            } else if (totalChanges < 500) {
+              sizeLabel = 'size/S';
+              warningLevel = '🟢';
+            } else if (totalChanges < 1000) {
+              sizeLabel = 'size/M';
+              warningLevel = '🟡';
+            } else if (totalChanges < 1500) {
+              sizeLabel = 'size/L';
+              warningLevel = '🟡';
+            } else if (totalChanges < 2000) {
+              sizeLabel = 'size/XL';
+              warningLevel = '🟠';
+            } else {
+              sizeLabel = 'size/XXL';
+              needsSplit = true;
+              warningLevel = '🔴';
+            }
+
+            // Remove old size labels
+            const { data: existingLabels } = await github.rest.issues.listLabelsOnIssue({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number
+            });
+
+            const sizeLabels = existingLabels
+              .filter(label => label.name.startsWith('size/'))
+              .map(label => label.name);
+
+            for (const label of sizeLabels) {
+              await github.rest.issues.removeLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                name: label
+              }).catch(() => {});
+            }
+
+            // Add new size label
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              labels: [sizeLabel]
+            });
+
+            // Add warning comment if PR is too large
+            if (needsSplit) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                labels: ['needs-split-review']
+              });
+
+              const commentBody = `## ${warningLevel} PR Size Warning
+
+This PR has **${totalChanges} lines** of changes (${additions} additions, ${deletions} deletions across ${fileCount} files), which exceeds the recommended limit of **1,500 lines**.
+
+### Why This Matters
+
+Large PRs:
+- 📚 Take significantly longer to review (reduces review quality)
+- 🐛 Increase risk of bugs slipping through
+- ⏱️ Slow down development velocity
+- 🔄 Make rollback more difficult
+
+### Recommended Actions
+
+1. **Split into focused PRs** - Break this PR into smaller, logical chunks:
+   - Database/schema changes (separate PR)
+   - Service layer (business logic)
+   - API layer (routes, controllers)
+   - UI layer (components, pages)
+   - Tests (can bundle with corresponding feature)
+
+2. **Document split strategy** - If this PR is part of a planned split:
+   - Add "Part X/Y" to PR title
+   - Link related PRs in description
+   - Document dependencies between PRs
+
+3. **Use feature flags** - For features that must merge atomically:
+   - Merge code behind disabled feature flag
+   - Enable flag in final PR
+
+### Resources
+
+- [PR Size Guidelines](https://github.com/${context.repo.owner}/${context.repo.repo}/blob/main/openspec/specs/pr-guidelines.md)
+- [Example PR Split](https://github.com/${context.repo.owner}/${context.repo.repo}/pull/33) (26,972 lines → 6 PRs)
+
+### Next Steps
+
+- [ ] Create split strategy (document in PR description)
+- [ ] Get team lead approval (required for PRs >2,000 lines)
+- [ ] Consider creating smaller PRs instead
+
+---
+
+**Note**: Auto-generated files (package-lock.json, Prisma client, etc.) are excluded from this count.
+
+*This is an automated message. If you believe this is in error, please comment below.*`;
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                body: commentBody
+              });
+            } else {
+              // Post a simple info comment for large-ish PRs
+              if (totalChanges >= 1000) {
+                const commentBody = `## ${warningLevel} PR Size Info
+
+This PR has **${totalChanges} lines** of changes (${additions} additions, ${deletions} deletions across ${fileCount} files).
+
+This is approaching the recommended limit of 1,500 lines. Consider whether this PR could benefit from being split into smaller, focused PRs.
+
+See [PR Size Guidelines](https://github.com/${context.repo.owner}/${context.repo.repo}/blob/main/openspec/specs/pr-guidelines.md) for best practices.`;
+
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.payload.pull_request.number,
+                  body: commentBody
+                });
+              }
+            }
+
+            // Set output for summary
+            core.summary
+              .addHeading(`PR Size Check: ${sizeLabel}`)
+              .addTable([
+                [{data: 'Metric', header: true}, {data: 'Value', header: true}],
+                ['Total Changes', `${totalChanges} lines`],
+                ['Additions', `${additions} lines`],
+                ['Deletions', `${deletions} lines`],
+                ['Files Changed', `${fileCount} files`],
+                ['Size Category', `${warningLevel} ${sizeLabel}`],
+                ['Needs Split?', needsSplit ? '⚠️ Yes' : '✅ No']
+              ])
+              .write();
