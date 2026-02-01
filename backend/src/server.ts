@@ -11,7 +11,7 @@ import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { createSocketServer } from './websocket/server.js';
 import { registerSocketHandlers } from './websocket/handlers.js';
 import { getPrismaClient } from './lib/prisma.js';
-import { startValidatorAgent, stopValidatorAgent } from './agents/validator/index.js';
+import { startValidatorAgentLLM, stopValidatorAgentLLM } from './agents/validator/index.js';
 
 const app = express();
 
@@ -39,12 +39,12 @@ registerSocketHandlers(io);
 server.listen(config.PORT, async () => {
   console.log(`Backend listening on port ${config.PORT} (${config.NODE_ENV})`);
 
-  // Start Validator Agent
+  // Start Validator Agent (LLM-based for Phase 2)
   try {
-    await startValidatorAgent();
-    console.log('Validator Agent started successfully');
+    await startValidatorAgentLLM();
+    console.log('Validator Agent (LLM) started successfully');
   } catch (error) {
-    console.error('Failed to start Validator Agent:', error);
+    console.error('Failed to start Validator Agent (LLM):', error);
   }
 });
 
@@ -60,10 +60,10 @@ async function shutdown(signal: string): Promise<void> {
 
   // Stop Validator Agent first
   try {
-    await stopValidatorAgent();
-    console.log('Validator Agent stopped');
+    await stopValidatorAgentLLM();
+    console.log('Validator Agent (LLM) stopped');
   } catch (error) {
-    console.error('Error stopping Validator Agent:', error);
+    console.error('Error stopping Validator Agent (LLM):', error);
   }
 
   server.close(() => {

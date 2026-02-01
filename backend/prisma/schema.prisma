@@ -210,10 +210,10 @@ model Finding {
   confidenceScore Float  @default(0)
 
   // AI Analysis fields (Phase 4)
-  aiConfidenceScore    Float?
+  aiConfidenceScore     Float?
   remediationSuggestion String?         @db.Text
-  codeSnippet          String?         @db.Text
-  analysisMethod       AnalysisMethod?
+  codeSnippet           String?         @db.Text
+  analysisMethod        AnalysisMethod?
 
   // Metadata
   createdAt   DateTime  @default(now())
