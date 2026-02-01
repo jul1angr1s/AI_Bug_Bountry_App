@@ -11,16 +11,12 @@ import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { createSocketServer } from './websocket/server.js';
 import { registerSocketHandlers } from './websocket/handlers.js';
 import { getPrismaClient } from './lib/prisma.js';
-<<<<<<< HEAD
 import { startValidatorAgentLLM, stopValidatorAgentLLM } from './agents/validator/index.js';
-=======
-import { startValidatorAgent, stopValidatorAgent } from './agents/validator/index.js';
 import { startValidationListener, stopValidationListener } from './blockchain/listeners/validation-listener.js';
 import { startBountyListener, stopBountyListener } from './blockchain/listeners/bounty-listener.js';
 import { getReconciliationService } from './services/reconciliation.service.js';
 import { startPaymentWorker, stopPaymentWorker } from './workers/payment.worker.js';
 import type { Worker } from 'bullmq';
->>>>>>> main
 
 const app = express();
 
@@ -105,14 +101,8 @@ async function shutdown(signal: string): Promise<void> {
 
   // Stop services in order
   try {
-<<<<<<< HEAD
     await stopValidatorAgentLLM();
     console.log('Validator Agent (LLM) stopped');
-=======
-    // Stop Validator Agent
-    await stopValidatorAgent();
-    console.log('Validator Agent stopped');
->>>>>>> main
   } catch (error) {
     console.error('Error stopping Validator Agent (LLM):', error);
   }

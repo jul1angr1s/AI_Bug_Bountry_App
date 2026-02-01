@@ -252,7 +252,6 @@ export function subscribeToScanProgress(
   };
 }
 
-<<<<<<< HEAD
 // ========== Protocol Registration API (Task 1.1.5) ==========
 
 export interface CreateProtocolRequest {
@@ -332,7 +331,11 @@ export async function fetchProtocols(params?: {
 
   if (!response.ok) {
     throw new Error(`Failed to fetch protocols: ${response.statusText}`);
-=======
+  }
+
+  return response.json();
+}
+
 // ========== USDC API Functions (Task 14.1-14.10) ==========
 
 export interface USDCAllowanceResponse {
@@ -414,7 +417,6 @@ export async function generateUSDCApprovalTx(
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: response.statusText }));
     throw new Error(error.message || `Failed to generate approval transaction: ${response.statusText}`);
->>>>>>> main
   }
 
   return response.json();

@@ -1,15 +1,12 @@
 import { Routes, Route } from 'react-router-dom';
 import DashboardLayout from './layouts/DashboardLayout';
 import Dashboard from './pages/Dashboard';
-<<<<<<< HEAD
 import ProtocolRegistration from './pages/ProtocolRegistration';
 import Protocols from './pages/Protocols';
 import ProtocolDetail from './pages/ProtocolDetail';
 import Scans from './pages/Scans';
-=======
 import PaymentDashboard from './pages/PaymentDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
->>>>>>> main
 import { Toaster } from './components/Toaster';
 
 function App() {
