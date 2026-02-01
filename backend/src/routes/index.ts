@@ -4,6 +4,7 @@ import dashboardRouter from './dashboard.routes.js';
 import protocolRouter from './protocol.routes.js';
 import agentRouter from './agent.routes.js';
 import scansRouter from './scans.js';
+import paymentRouter from './payment.routes.js';
 
 const router = Router();
 
@@ -23,6 +24,9 @@ router.use('/agents', agentRouter);
 
 // Researcher Agent - Scan endpoints
 router.use('/scans', scansRouter);
+
+// Payment and USDC endpoints
+router.use('/payments', paymentRouter);
 
 router.use('/vulnerabilities', (_req, res) => {
   res.status(501).json({
