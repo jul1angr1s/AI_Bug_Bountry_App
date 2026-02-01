@@ -251,3 +251,173 @@ export function subscribeToScanProgress(
     eventSource.close();
   };
 }
+
+// ========== Protocol Registration API (Task 1.1.5) ==========
+
+export interface CreateProtocolRequest {
+  name: string;
+  githubUrl: string;
+  branch?: string;
+  contractPath: string;
+  contractName: string;
+  bountyPoolAddress: string;
+  network?: string;
+}
+
+export interface CreateProtocolResponse {
+  id: string;
+  name: string;
+  status: string;
+  message: string;
+}
+
+export interface ProtocolListItem {
+  id: string;
+  name: string;
+  githubUrl: string;
+  status: 'PENDING' | 'ACTIVE' | 'PAUSED' | 'DEPRECATED';
+  riskScore?: number;
+  scansCount: number;
+  vulnerabilitiesCount: number;
+  createdAt: string;
+}
+
+export interface ProtocolListResponse {
+  protocols: ProtocolListItem[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+/**
+ * Create a new protocol registration
+ */
+export async function createProtocol(request: CreateProtocolRequest): Promise<CreateProtocolResponse> {
+  const headers = await getAuthHeaders();
+  const response = await fetch(`${API_BASE_URL}/api/v1/protocols`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(request),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to create protocol: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Fetch all protocols with optional filtering
+ */
+export async function fetchProtocols(params?: {
+  status?: string;
+  page?: number;
+  limit?: number;
+}): Promise<ProtocolListResponse> {
+  const headers = await getAuthHeaders();
+  const queryParams = new URLSearchParams();
+
+  if (params?.status) queryParams.append('status', params.status);
+  if (params?.page) queryParams.append('page', params.page.toString());
+  if (params?.limit) queryParams.append('limit', params.limit.toString());
+
+  const url = `${API_BASE_URL}/api/v1/protocols${queryParams.toString() ? `?${queryParams}` : ''}`;
+  const response = await fetch(url, { headers });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch protocols: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+// ========== USDC API Functions (Task 14.1-14.10) ==========
+
+export interface USDCAllowanceResponse {
+  owner: string;
+  spender: string;
+  allowance: string; // USDC amount in base units (6 decimals)
+  allowanceFormatted: string; // Human-readable format (e.g., "1000.50")
+}
+
+export interface USDCBalanceResponse {
+  address: string;
+  balance: string; // USDC amount in base units (6 decimals)
+  balanceFormatted: string; // Human-readable format (e.g., "1000.50")
+}
+
+export interface USDCApprovalTransactionData {
+  to: string;
+  data: string;
+  value: string;
+  chainId: number;
+  gasLimit: string;
+}
+
+/**
+ * Check USDC allowance for a specific owner and spender
+ */
+export async function fetchUSDCAllowance(
+  owner: string,
+  spender: string
+): Promise<USDCAllowanceResponse> {
+  const headers = await getAuthHeaders();
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/payments/usdc/allowance?owner=${owner}&spender=${spender}`,
+    { headers }
+  );
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: response.statusText }));
+    throw new Error(error.message || `Failed to fetch USDC allowance: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Check USDC balance for a wallet address
+ */
+export async function fetchUSDCBalance(
+  address: string
+): Promise<USDCBalanceResponse> {
+  const headers = await getAuthHeaders();
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/payments/usdc/balance?address=${address}`,
+    { headers }
+  );
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: response.statusText }));
+    throw new Error(error.message || `Failed to fetch USDC balance: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Generate USDC approval transaction data for wallet signing
+ */
+export async function generateUSDCApprovalTx(
+  amount: string,
+  spender: string
+): Promise<USDCApprovalTransactionData> {
+  const headers = await getAuthHeaders();
+  const response = await fetch(`${API_BASE_URL}/api/v1/payments/approve`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ amount, spender }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: response.statusText }));
+    throw new Error(error.message || `Failed to generate approval transaction: ${response.statusText}`);
+  }
+
+  return response.json();
+}
