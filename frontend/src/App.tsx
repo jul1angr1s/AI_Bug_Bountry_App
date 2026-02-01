@@ -1,6 +1,7 @@
 import { Routes, Route } from 'react-router-dom';
 import DashboardLayout from './layouts/DashboardLayout';
 import Dashboard from './pages/Dashboard';
+import Validations from './pages/Validations';
 import ProtocolRegistration from './pages/ProtocolRegistration';
 import Protocols from './pages/Protocols';
 import ProtocolDetail from './pages/ProtocolDetail';
@@ -19,7 +20,7 @@ function App() {
           <Route path="/protocols/register" element={<ProtocolRegistration />} />
           <Route path="/protocols/:id" element={<ProtocolDetail />} />
           <Route path="/scans" element={<Scans />} />
-          <Route path="/validations" element={<div className="p-8 text-white">Validations</div>} />
+          <Route path="/validations" element={<Validations />} />
           <Route
             path="/payments"
             element={
