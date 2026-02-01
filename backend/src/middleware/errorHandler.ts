@@ -8,6 +8,23 @@ import {
   ValidationError,
 } from '../errors/CustomError.js';
 
+// Sentry integration (optional - only if SENTRY_DSN is set)
+let Sentry: any = null;
+if (process.env.SENTRY_DSN) {
+  try {
+    // Dynamic import to avoid requiring @sentry/node if not configured
+    Sentry = await import('@sentry/node');
+    Sentry.init({
+      dsn: process.env.SENTRY_DSN,
+      environment: process.env.NODE_ENV || 'development',
+      tracesSampleRate: parseFloat(process.env.SENTRY_TRACES_SAMPLE_RATE || '0.1'),
+    });
+    console.log('[ErrorHandler] Sentry error tracking enabled');
+  } catch (error) {
+    console.warn('[ErrorHandler] Sentry not available:', error);
+  }
+}
+
 type SanitizedError = {
   message: string;
   details?: unknown;
@@ -67,7 +84,9 @@ export function sanitizeError(error: unknown, isProduction: boolean): SanitizedE
 export function errorHandler(err: unknown, req: Request, res: Response, _next: NextFunction): void {
   const status = mapErrorToStatus(err);
   const sanitized = sanitizeError(err, req.app.get('env') === 'production');
+  const isProduction = req.app.get('env') === 'production';
 
+  // Log error details
   if (err instanceof Error) {
     console.error('Request error', {
       requestId: req.id,
@@ -76,19 +95,73 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
       method: req.method,
       message: err.message,
       stack: err.stack,
+      status,
     });
+
+    // Report to Sentry if configured (only for 5xx errors in production)
+    if (Sentry && isProduction && status >= 500) {
+      Sentry.captureException(err, {
+        tags: {
+          requestId: req.id,
+          path: req.path,
+          method: req.method,
+          status,
+        },
+        user: req.user ? { id: req.user.id } : undefined,
+        extra: {
+          body: req.body,
+          query: req.query,
+          params: req.params,
+        },
+      });
+    }
   } else {
     console.error('Unknown error', { requestId: req.id, value: err });
+
+    if (Sentry && isProduction) {
+      Sentry.captureMessage('Unknown error type encountered', {
+        level: 'error',
+        tags: { requestId: req.id },
+        extra: { error: err },
+      });
+    }
   }
+
+  // User-friendly error messages
+  const userMessage = getUserFriendlyMessage(status, sanitized.message);
 
   res.status(status).json({
     error: {
       code: err instanceof Error ? err.name : 'Error',
-      message: sanitized.message,
+      message: isProduction ? userMessage : sanitized.message,
       requestId: req.id,
-      ...(sanitized.details ? { details: sanitized.details } : {}),
+      ...(sanitized.details && !isProduction ? { details: sanitized.details } : {}),
     },
   });
+}
+
+/**
+ * Get user-friendly error messages based on status code
+ */
+function getUserFriendlyMessage(status: number, originalMessage: string): string {
+  switch (status) {
+    case 400:
+      return 'The request contains invalid data. Please check your input and try again.';
+    case 401:
+      return 'Authentication required. Please log in and try again.';
+    case 403:
+      return 'You do not have permission to access this resource.';
+    case 404:
+      return 'The requested resource was not found.';
+    case 429:
+      return 'Too many requests. Please wait a moment and try again.';
+    case 500:
+      return 'An unexpected error occurred. Our team has been notified.';
+    case 503:
+      return 'Service temporarily unavailable. Please try again in a few moments.';
+    default:
+      return originalMessage;
+  }
 }
 
 export function notFoundHandler(_req: Request, _res: Response, next: NextFunction): void {

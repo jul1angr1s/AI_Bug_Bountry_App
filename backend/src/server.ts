@@ -16,7 +16,11 @@ import { startValidationListener, stopValidationListener } from './blockchain/li
 import { startBountyListener, stopBountyListener } from './blockchain/listeners/bounty-listener.js';
 import { getReconciliationService } from './services/reconciliation.service.js';
 import { startPaymentWorker, stopPaymentWorker } from './workers/payment.worker.js';
+import { setupProcessErrorHandlers } from './lib/process-error-handler.js';
 import type { Worker } from 'bullmq';
+
+// Setup process-level error handlers
+setupProcessErrorHandlers();
 
 const app = express();
 
