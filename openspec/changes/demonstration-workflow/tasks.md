@@ -3,7 +3,7 @@
 **Status**: In Progress
 **Created**: 2026-02-01
 **Total Tasks**: 95
-**Completed**: 60/95 (63%)
+**Completed**: 70/95 (74%)
 
 ## Overview
 
@@ -89,16 +89,16 @@ This task list orchestrates the complete implementation of the demonstration wor
 - [x] 1.4.13 Backend GET /api/v1/protocols/:id already complete with full details
 
 ### 1.5 Dashboard Enhancement
-- [ ] 1.5.1 MODIFY `frontend/src/pages/Dashboard.tsx` - Remove all mock data fallbacks
-- [ ] 1.5.2 MODIFY `frontend/src/hooks/useDashboardData.ts` - Connect to real API GET `/api/v1/stats`
-- [ ] 1.5.3 Implement bounty pool balance fetching from smart contract
-- [ ] 1.5.4 Display actual vulnerability counts from database
-- [ ] 1.5.5 Display actual payment totals from database
-- [ ] 1.5.6 Display live agent status from backend health checks
-- [ ] 1.5.7 Add graceful error handling if backend unavailable
-- [ ] 1.5.8 Add loading states for all data fetches
-- [ ] 1.5.9 Verify NO mock data used anywhere
-- [ ] 1.5.10 Test all dashboard stats reflect actual database state
+- [x] 1.5.1 MODIFY `frontend/src/pages/Dashboard.tsx` - Remove all mock data fallbacks
+- [x] 1.5.2 MODIFY `frontend/src/hooks/useDashboardData.ts` - Connect to real API GET `/api/v1/stats`
+- [x] 1.5.3 Implement bounty pool balance fetching from smart contract (via stats API)
+- [x] 1.5.4 Display actual vulnerability counts from database
+- [x] 1.5.5 Display actual payment totals from database
+- [x] 1.5.6 Display live agent status from backend health checks
+- [x] 1.5.7 Add graceful error handling if backend unavailable
+- [x] 1.5.8 Add loading states for all data fetches
+- [x] 1.5.9 Verify NO mock data used anywhere ✅ CRITICAL
+- [x] 1.5.10 Test all dashboard stats reflect actual database state
 
 ## Phase 2: Validation & Payment Integration (Week 2)
 
@@ -226,12 +226,12 @@ Each component maps to 1-3 focused PRs (<1,500 lines each):
 - [x] PR 0.1: OpenSpec cleanup and aligned specs creation
 
 ### Phase 1 PRs (5-7 PRs)
-- [x] PR 1.1: Protocol Registration Form (~400 lines) - PR #42
-- [x] PR 1.2: Backend GET /protocols endpoint (~200 lines) - PR #43
-- [x] PR 1.3: Protocols List Page (~485 lines) - PR #44
-- [x] PR 1.4: Scans List Page (~469 lines) - PR #45
-- [x] PR 1.5: Protocol Detail Page (~470 lines) - PR #46
-- [ ] PR 1.6: Dashboard Real Data Integration (~350 lines)
+- [x] PR 1.1: Protocol Registration Form (~400 lines) - PR #42 ✅
+- [x] PR 1.2: Backend GET /protocols endpoint (~200 lines) - PR #43 ✅
+- [x] PR 1.3: Protocols List Page (~485 lines) - PR #44 ✅
+- [x] PR 1.4: Scans List Page (~469 lines) - PR #45 ✅
+- [x] PR 1.5: Protocol Detail Page (~470 lines) - PR #46 ✅
+- [x] PR 1.6: Dashboard Real Data Integration (~350 lines) - PR #47 ✅
 
 ### Phase 2 PRs (5 PRs)
 - [ ] PR 2.1: Validator Agent Completion (~800 lines)
