@@ -2,6 +2,9 @@ node_modules
 dist
 .env
 .env.local
+.env.test
 .env.*.local
 *.log
+coverage/
+test-results/
 backend/contracts/lib/
