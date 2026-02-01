@@ -15,11 +15,11 @@ const mockQueue = {
 };
 
 // Mock modules
-jest.unstable_mockModule('../../src/lib/redis.js', () => ({
+vi.mock('../../src/lib/redis.js', () => ({
   getRedisClient: () => mockRedisClient,
 }));
 
-jest.unstable_mockModule('bullmq', () => ({
+vi.mock('bullmq', () => ({
   Queue: jest.fn(() => mockQueue),
 }));
 
@@ -231,7 +231,7 @@ describe('PaymentQueue', () => {
     it('should have correct retry configuration', async () => {
       // The Queue constructor should be called with retry config
       const { Queue } = await import('bullmq');
-      const QueueMock = Queue as jest.MockedFunction<typeof Queue>;
+      const QueueMock = Queue as vi.MockedFunction<typeof Queue>;
 
       // Check if Queue was instantiated with correct options
       expect(QueueMock).toHaveBeenCalledWith(

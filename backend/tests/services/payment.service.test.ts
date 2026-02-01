@@ -53,15 +53,15 @@ const mockUsdcClient = {
 };
 
 // Mock modules
-jest.unstable_mockModule('../../src/lib/prisma.js', () => ({
+vi.mock('../../src/lib/prisma.js', () => ({
   getPrismaClient: () => mockPrismaClient,
 }));
 
-jest.unstable_mockModule('../../src/blockchain/contracts/ValidationRegistryClient.js', () => ({
+vi.mock('../../src/blockchain/contracts/ValidationRegistryClient.js', () => ({
   ValidationRegistryClient: jest.fn(() => mockValidationClient),
 }));
 
-jest.unstable_mockModule('../../src/blockchain/contracts/BountyPoolClient.js', () => ({
+vi.mock('../../src/blockchain/contracts/BountyPoolClient.js', () => ({
   BountyPoolClient: jest.fn(() => mockBountyClient),
   BountySeverity: {
     CRITICAL: 0,
@@ -72,7 +72,7 @@ jest.unstable_mockModule('../../src/blockchain/contracts/BountyPoolClient.js', (
   },
 }));
 
-jest.unstable_mockModule('../../src/blockchain/contracts/USDCClient.js', () => ({
+vi.mock('../../src/blockchain/contracts/USDCClient.js', () => ({
   default: jest.fn(() => mockUsdcClient),
 }));
 

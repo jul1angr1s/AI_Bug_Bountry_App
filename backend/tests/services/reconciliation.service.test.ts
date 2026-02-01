@@ -52,19 +52,19 @@ const mockContract = {
 };
 
 // Mock modules
-jest.unstable_mockModule('../../src/lib/prisma.js', () => ({
+vi.mock('../../src/lib/prisma.js', () => ({
   getPrismaClient: () => mockPrismaClient,
 }));
 
-jest.unstable_mockModule('../../src/lib/redis.js', () => ({
+vi.mock('../../src/lib/redis.js', () => ({
   getRedisClient: () => mockRedisClient,
 }));
 
-jest.unstable_mockModule('bullmq', () => ({
+vi.mock('bullmq', () => ({
   Queue: jest.fn(() => mockQueue),
 }));
 
-jest.unstable_mockModule('../../src/blockchain/config.js', () => ({
+vi.mock('../../src/blockchain/config.js', () => ({
   provider: mockProvider,
   contractAddresses: {
     bountyPool: '0x' + '1'.repeat(40),
@@ -74,7 +74,7 @@ jest.unstable_mockModule('../../src/blockchain/config.js', () => ({
   },
 }));
 
-jest.unstable_mockModule('ethers', () => ({
+vi.mock('ethers', () => ({
   ethers: {
     Contract: jest.fn(() => mockContract),
     EventLog: class EventLog {},

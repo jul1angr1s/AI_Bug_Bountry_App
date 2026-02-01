@@ -28,11 +28,11 @@ const mockChainConfig = {
 };
 
 // Mock modules
-jest.unstable_mockModule('../../src/lib/prisma.js', () => ({
+vi.mock('../../src/lib/prisma.js', () => ({
   getPrismaClient: () => mockPrismaClient,
 }));
 
-jest.unstable_mockModule('ethers', () => ({
+vi.mock('ethers', () => ({
   ethers: {
     WebSocketProvider: jest.fn(() => mockProvider),
     Contract: jest.fn(() => mockContract),
@@ -45,7 +45,7 @@ jest.unstable_mockModule('ethers', () => ({
   },
 }));
 
-jest.unstable_mockModule('../../src/blockchain/config.js', () => ({
+vi.mock('../../src/blockchain/config.js', () => ({
   chainConfig: mockChainConfig,
 }));
 

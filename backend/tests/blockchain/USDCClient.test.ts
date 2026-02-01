@@ -30,7 +30,7 @@ const mockChainConfig = {
 };
 
 // Mock modules
-jest.unstable_mockModule('ethers', () => ({
+vi.mock('ethers', () => ({
   ethers: {
     Contract: jest.fn(() => mockContract),
     isAddress: ethers.isAddress,
@@ -39,7 +39,7 @@ jest.unstable_mockModule('ethers', () => ({
   },
 }));
 
-jest.unstable_mockModule('../../src/blockchain/config.js', () => ({
+vi.mock('../../src/blockchain/config.js', () => ({
   provider: mockProvider,
   contractAddresses: mockContractAddresses,
   usdcConfig: mockUsdcConfig,

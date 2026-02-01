@@ -30,15 +30,15 @@ const mockWorker = {
 };
 
 // Mock modules
-jest.unstable_mockModule('../../src/lib/redis.js', () => ({
+vi.mock('../../src/lib/redis.js', () => ({
   getRedisClient: () => mockRedisClient,
 }));
 
-jest.unstable_mockModule('../../src/lib/prisma.js', () => ({
+vi.mock('../../src/lib/prisma.js', () => ({
   getPrismaClient: () => mockPrismaClient,
 }));
 
-jest.unstable_mockModule('../../src/blockchain/contracts/BountyPoolClient.js', () => ({
+vi.mock('../../src/blockchain/contracts/BountyPoolClient.js', () => ({
   BountyPoolClient: jest.fn(() => mockBountyClient),
   BountySeverity: {
     CRITICAL: 0,
@@ -49,7 +49,7 @@ jest.unstable_mockModule('../../src/blockchain/contracts/BountyPoolClient.js', (
   },
 }));
 
-jest.unstable_mockModule('../../src/blockchain/contracts/ValidationRegistryClient.js', () => ({
+vi.mock('../../src/blockchain/contracts/ValidationRegistryClient.js', () => ({
   ValidationRegistryClient: jest.fn(() => mockValidationClient),
   ValidationOutcome: {
     CONFIRMED: 0,
@@ -58,19 +58,19 @@ jest.unstable_mockModule('../../src/blockchain/contracts/ValidationRegistryClien
   },
 }));
 
-jest.unstable_mockModule('../../src/blockchain/config.js', () => ({
+vi.mock('../../src/blockchain/config.js', () => ({
   RESEARCHER_ADDRESS: '0x' + '1'.repeat(40),
   usdcConfig: {
     decimals: 6,
   },
 }));
 
-jest.unstable_mockModule('../../src/websocket/events.js', () => ({
+vi.mock('../../src/websocket/events.js', () => ({
   emitPaymentReleased: mockEmitPaymentReleased,
   emitPaymentFailed: mockEmitPaymentFailed,
 }));
 
-jest.unstable_mockModule('bullmq', () => ({
+vi.mock('bullmq', () => ({
   Worker: jest.fn((queueName, processor, options) => {
     // Store processor for testing
     mockWorker.processor = processor;
