@@ -54,10 +54,10 @@ This task list orchestrates the complete implementation of the demonstration wor
 - [ ] 1.2.8 Add empty state: "No protocols registered" with CTA button
 - [ ] 1.2.9 Add loading skeleton while fetching data
 - [ ] 1.2.10 Add error state handling
-- [ ] 1.2.11 MODIFY `backend/src/routes/protocol.routes.ts` - Add GET `/api/v1/protocols` endpoint
-- [ ] 1.2.12 Implement pagination support (page, limit query params)
-- [ ] 1.2.13 Add status filter dropdown
-- [ ] 1.2.14 Add responsive design (mobile + desktop layouts)
+- [x] 1.2.11 MODIFY `backend/src/routes/protocol.routes.ts` - Add GET `/api/v1/protocols` endpoint
+- [x] 1.2.12 Implement pagination support (page, limit query params) - Added listProtocols service function
+- [ ] 1.2.13 Add status filter dropdown - (Backend ready, frontend pending)
+- [ ] 1.2.14 Add responsive design (mobile + desktop layouts) - (Frontend pending)
 
 ### 1.3 Scans Page
 - [ ] 1.3.1 CREATE `frontend/src/pages/Scans.tsx` - Main page component
