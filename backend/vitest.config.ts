@@ -61,13 +61,12 @@ export default defineConfig({
     },
 
     // Reporter configuration
-    reporters: ['default', 'json', 'html'],
+    reporters: ['default'],
 
-    // Output configuration
-    outputFile: {
-      json: './test-results/results.json',
-      html: './test-results/index.html',
-    },
+    // Output configuration (optional, can be added if needed)
+    // outputFile: {
+    //   json: './test-results/results.json',
+    // },
   },
 
   resolve: {
