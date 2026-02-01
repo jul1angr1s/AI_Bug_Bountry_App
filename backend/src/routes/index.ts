@@ -5,6 +5,7 @@ import protocolRouter from './protocol.routes.js';
 import agentRouter from './agent.routes.js';
 import scansRouter from './scans.js';
 import paymentRouter from './payment.routes.js';
+import validationRouter from './validation.routes.js';
 import adminRouter from './admin.js';
 
 const router = Router();
@@ -28,6 +29,9 @@ router.use('/scans', scansRouter);
 
 // Payment and USDC endpoints
 router.use('/payments', paymentRouter);
+
+// Validation endpoints
+router.use('/validations', validationRouter);
 
 // Admin endpoints (requires admin authentication)
 router.use('/admin', adminRouter);
