@@ -5,6 +5,7 @@ import protocolRouter from './protocol.routes.js';
 import agentRouter from './agent.routes.js';
 import scansRouter from './scans.js';
 import paymentRouter from './payment.routes.js';
+import reconciliationRouter from './reconciliation.routes.js';
 
 const router = Router();
 
@@ -27,6 +28,9 @@ router.use('/scans', scansRouter);
 
 // Payment and USDC endpoints
 router.use('/payments', paymentRouter);
+
+// Reconciliation Dashboard endpoints (Admin only)
+router.use('/reconciliation', reconciliationRouter);
 
 router.use('/vulnerabilities', (_req, res) => {
   res.status(501).json({
