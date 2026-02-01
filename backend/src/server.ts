@@ -12,6 +12,10 @@ import { createSocketServer } from './websocket/server.js';
 import { registerSocketHandlers } from './websocket/handlers.js';
 import { getPrismaClient } from './lib/prisma.js';
 import { startValidatorAgent, stopValidatorAgent } from './agents/validator/index.js';
+import { setupProcessErrorHandlers } from './lib/process-error-handler.js';
+
+// Setup process-level error handlers
+setupProcessErrorHandlers();
 
 const app = express();
 
