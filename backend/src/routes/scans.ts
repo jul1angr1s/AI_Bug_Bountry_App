@@ -1,10 +1,11 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { ScanState } from '@prisma/client';
+import { ScanState, AnalysisMethod } from '@prisma/client';
 import { scanRepository, findingRepository } from '../db/repositories.js';
 import { requireAuth } from '../middleware/auth.js';
 import { ValidationError, NotFoundError } from '../errors/CustomError.js';
 import { getRedisClient } from '../lib/redis.js';
+import type { FindingsListResponse } from '../types/api.js';
 
 const router = Router();
 
@@ -84,18 +85,32 @@ router.get('/:id', requireAuth, async (req, res, next) => {
 });
 
 // Additional: GET /api/v1/scans/:id/findings - Get findings for a scan
+// Supports optional query parameter: ?analysisMethod=AI|STATIC|HYBRID
 router.get('/:id/findings', requireAuth, async (req, res, next) => {
   try {
     const { id } = req.params;
-    
+    const { analysisMethod } = req.query;
+
     const scan = await scanRepository.getScanById(id);
     if (!scan) {
       throw new NotFoundError('Scan', id);
     }
 
-    const findings = await findingRepository.getFindingsByScan(id);
+    // Validate analysisMethod if provided
+    if (analysisMethod && !['AI', 'STATIC', 'HYBRID'].includes(String(analysisMethod))) {
+      throw new ValidationError('Invalid analysisMethod parameter', [
+        { message: 'analysisMethod must be one of: AI, STATIC, HYBRID', path: ['analysisMethod'] },
+      ]);
+    }
 
-    res.json({
+    let findings = await findingRepository.getFindingsByScan(id);
+
+    // Filter by analysis method if parameter is provided
+    if (analysisMethod) {
+      findings = findings.filter(f => f.analysisMethod === analysisMethod);
+    }
+
+    const response: FindingsListResponse = {
       scanId: id,
       findings: findings.map(f => ({
         id: f.id,
@@ -107,6 +122,11 @@ router.get('/:id/findings', requireAuth, async (req, res, next) => {
         description: f.description,
         confidenceScore: f.confidenceScore,
         createdAt: f.createdAt,
+        // AI-enhanced fields
+        analysisMethod: f.analysisMethod,
+        aiConfidenceScore: f.aiConfidenceScore,
+        remediationSuggestion: f.remediationSuggestion,
+        codeSnippet: f.codeSnippet,
         proofs: f.proofs.map(p => ({
           id: p.id,
           status: p.status,
@@ -114,7 +134,14 @@ router.get('/:id/findings', requireAuth, async (req, res, next) => {
         })),
       })),
       total: findings.length,
-    });
+      ...(analysisMethod && {
+        filteredBy: {
+          analysisMethod: analysisMethod as AnalysisMethod,
+        },
+      }),
+    };
+
+    res.json(response);
   } catch (error) {
     next(error);
   }

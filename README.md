@@ -14,19 +14,47 @@ An intelligent, automated bug bounty platform that uses AI agents to discover, v
 The AI Bug Bounty Platform automates the complete vulnerability discovery and reward lifecycle using AI agents:
 
 1. **Protocol Agent** - Validates and registers smart contracts on-chain
-2. **Researcher Agent** - Discovers vulnerabilities using static analysis (Slither) and dynamic testing
+2. **Researcher Agent** - Discovers vulnerabilities using Slither + AI-powered deep analysis
 3. **Validator Agent** - Verifies vulnerabilities in isolated sandboxes
-4. **Automated Payments** - Releases USDC bounties based on severity
+4. **Payment Automation** - Automatic USDC bounty releases with reconciliation
 
 ### Key Features
 
 ✅ **On-Chain Registry** - Immutable protocol and validation records on Base Sepolia
-✅ **Automated Discovery** - AI-powered vulnerability scanning with Slither
+✅ **AI-Enhanced Discovery** - Hybrid analysis combining Slither + Claude Sonnet 4.5 for deep inspection
 ✅ **Sandboxed Validation** - Isolated Anvil environments for exploit verification
+✅ **Automated Payments** - Event-driven USDC bounty releases with reconciliation and dashboard
 ✅ **Severity-Based Rewards** - 5x multiplier for CRITICAL, down to 0.25x for INFORMATIONAL
 ✅ **ERC-8004 Compliant** - Standardized validation attestation
 ✅ **Real-Time Updates** - WebSocket events for all agent activities
-✅ **Comprehensive Testing** - 1,681 lines of test coverage (100% function coverage)
+✅ **Comprehensive Testing** - 1,681+ lines of contract tests + extensive integration tests
+✅ **Professional PR Workflow** - Automated PR size checks (1,500 line limit)
+
+---
+
+## 🎬 Demonstration
+
+Try the complete workflow using the Thunder Loan protocol:
+
+```bash
+# 1. Start backend
+cd backend
+npm install
+npm run dev
+
+# 2. Start frontend
+cd frontend
+npm install
+npm run dev
+
+# 3. Navigate to http://localhost:5173/protocols/register
+# 4. Register Thunder Loan protocol
+# 5. Watch automated scanning, validation, and payment!
+```
+
+**Full demonstration guide**: [docs/DEMONSTRATION.md](./docs/DEMONSTRATION.md)
+
+**Expected End-to-End Time**: < 4 minutes from registration to payment complete ✅
 
 ---
 
@@ -437,8 +465,91 @@ See [`backend/contracts/INTEGRATION_TEST_GUIDE.md`](backend/contracts/INTEGRATIO
 
 ```bash
 cd backend
+
+# Run all tests
 npm test
+
+# Run AI tests only (requires ANTHROPIC_API_KEY)
+npm run test:ai
+
+# Run payment integration tests (requires Anvil)
+npm run test:integration
 ```
+
+---
+
+## 🤖 AI-Enhanced Analysis
+
+### Overview
+
+Phase 4.5 introduces AI-powered vulnerability analysis using **Claude Sonnet 4.5** to enhance traditional Slither static analysis.
+
+### 7-Step Research Pipeline
+
+```
+1. CLONE              → Clone repository from GitHub
+2. COMPILE            → Compile Solidity with Foundry
+3. DEPLOY             → Deploy to local Anvil testnet
+4. ANALYZE            → Run Slither static analysis
+5. AI_DEEP_ANALYSIS   → AI-powered enhancement ⭐ NEW
+6. PROOF_GENERATION   → Generate exploit proofs
+7. SUBMIT             → Submit to Validator Agent
+```
+
+### AI Features
+
+- **Hybrid Analysis**: Combines Slither pattern matching with LLM semantic understanding
+- **Enhanced Findings**: AI adds remediation suggestions, code snippets, confidence scores
+- **Knowledge Base**: RAG with FAISS vector store (ConsenSys, SWC Registry, Solidity docs)
+- **Graceful Degradation**: Falls back to Slither-only on API failures
+- **Feature Flag Control**: `AI_ANALYSIS_ENABLED=true/false`
+
+### Configuration
+
+```bash
+# Enable AI analysis
+AI_ANALYSIS_ENABLED=true
+ANTHROPIC_API_KEY=sk-ant-...
+
+# AI Configuration
+AI_CONCURRENCY_LIMIT=3
+AI_RATE_LIMIT_RPM=100
+KNOWLEDGE_BASE_TOP_K=5
+```
+
+See [`backend/docs/AI_ANALYSIS.md`](backend/docs/AI_ANALYSIS.md) for complete documentation.
+
+---
+
+## 💳 Payment Automation
+
+### Features
+
+- **Event-Driven Triggers**: Automatic payment on ValidationRecorded events
+- **USDC Integration**: Direct USDC bounty releases via BountyPool contract
+- **Reconciliation**: BountyReleased event listener syncs on-chain state with database
+- **Payment Dashboard**: Real-time earnings leaderboard and payment history
+- **Two-Wallet Testing**: Support for separate deployer/researcher wallets
+
+### Payment Flow
+
+```
+ValidationRecorded (CONFIRMED)
+    ↓
+Payment Record Created
+    ↓
+BullMQ Job Queued
+    ↓
+BountyPool.releaseBounty()
+    ↓
+BountyReleased Event
+    ↓
+Payment Reconciliation
+    ↓
+Database Updated
+```
+
+See payment dashboard at `http://localhost:5173/payments` during development.
 
 ---
 
@@ -450,19 +561,33 @@ npm test
 - [**Integration Test Guide**](backend/contracts/INTEGRATION_TEST_GUIDE.md) - Running E2E tests on testnet
 - [**Contract Specifications**](openspec/changes/phase-3b-smart-contracts/specs/contracts/spec.md) - Detailed contract documentation
 
+### Backend Services
+
+- [**Backend README**](backend/README.md) - Complete backend documentation with migration strategy
+- [**AI Analysis**](backend/docs/AI_ANALYSIS.md) - AI-enhanced vulnerability analysis architecture
+- [**Knowledge Base**](backend/docs/KNOWLEDGE_BASE.md) - RAG knowledge base management
+- [**AI Testing**](backend/docs/AI_TESTING.md) - AI testing patterns and strategies
+- [**Testing Guide**](backend/TESTING.md) - General testing guide
+
 ### Implementation Summaries
 
 - [**Phase 3B Completion**](docs/PHASE_3B_COMPLETION_SUMMARY.md) - Smart contract deployment summary
 - [**Phase 3B Implementation**](docs/PHASE_3B_IMPLEMENTATION_SUMMARY.md) - Technical implementation details
 - [**Security Verification**](docs/SECURITY_AND_OPENSPEC_VERIFICATION.md) - Security audit and OpenSpec status
 
+### Development Guidelines
+
+- [**PR Size Guidelines**](openspec/specs/pr-guidelines.md) - PR size limits and split strategies
+- [**Database Migration Strategy**](backend/README.md#migration-strategy) - Split migrations by feature domain
+
 ### OpenSpec Framework
 
 All project changes are tracked using the [OpenSpec framework](https://openspec.dev):
 
-- [**Phase 3B Change**](openspec/changes/phase-3b-smart-contracts/) - Current implementation (100% complete)
-- [**Tasks Tracker**](openspec/changes/phase-3b-smart-contracts/tasks.yaml) - All 12 tasks completed
+- [**Phase 3B**](openspec/changes/phase-3b-smart-contracts/) - Smart contracts (100% complete)
+- [**Phase 4**](openspec/changes/phase-4-payment-automation/) - Payment automation (100% complete)
 - [**Main Specs**](openspec/specs/) - Project specifications (agents, API, database, workflows)
+- [**PR Guidelines**](openspec/specs/pr-guidelines.md) - Automated PR size enforcement
 
 ---
 
@@ -633,11 +758,22 @@ All sensitive values are in `.env` files (gitignored).
 - [x] Comprehensive test suite (1,681 lines)
 - [x] E2E verification on testnet
 
-### 🚧 Phase 4: Payment Automation (In Progress)
-- [ ] Automatic bounty release on validation
-- [ ] USDC approval flow
-- [ ] Payment reconciliation
-- [ ] Payment dashboard
+### ✅ Phase 4: Payment Automation (Completed)
+- [x] Automatic bounty release on validation (event-driven)
+- [x] USDC approval flow (frontend component)
+- [x] Payment reconciliation (BountyReleased event listener)
+- [x] Payment dashboard (real-time with earnings leaderboard)
+- [x] Two-wallet testing infrastructure
+- [x] Event listener state management
+
+### ✅ Phase 4.5: AI-Enhanced Analysis (Completed)
+- [x] AI deep analysis step (7-step pipeline)
+- [x] Hybrid analysis (Slither + Claude Sonnet 4.5)
+- [x] Knowledge base with RAG (FAISS vector store)
+- [x] Enhanced findings with remediation suggestions
+- [x] Feature flag control (AI_ANALYSIS_ENABLED)
+- [x] Comprehensive AI testing infrastructure
+- [x] CI/CD integration for AI tests
 
 ### 📋 Phase 5: Production (Planned)
 - [ ] Security audit
@@ -660,9 +796,9 @@ All sensitive values are in `.env` files (gitignored).
 
 **Code:**
 - Smart Contracts: 3 files, ~1,000 lines
-- TypeScript Backend: ~5,000 lines
-- React Frontend: ~3,000 lines
-- Test Coverage: 1,681 lines (87 test functions)
+- TypeScript Backend: ~12,000 lines (expanded with payment automation + AI analysis)
+- React Frontend: ~5,500 lines (added payment dashboard)
+- Test Coverage: 8,000+ lines (contracts + backend + integration)
 
 **Blockchain:**
 - Network: Base Sepolia (Chain ID: 84532)
@@ -671,10 +807,17 @@ All sensitive values are in `.env` files (gitignored).
 - USDC Base Amount: 100 USDC
 
 **Testing:**
-- Unit Tests: 87 functions
-- Integration Tests: Full workflow verified
+- Contract Tests: 87 functions (1,681 lines)
+- Backend Unit Tests: 45+ test suites
+- Integration Tests: Payment flow + AI pipeline
 - E2E Tests: Successful on Base Sepolia
-- Function Coverage: 100%
+- Coverage: 85%+ across codebase
+
+**Development Quality:**
+- PR Size Limit: 1,500 lines (enforced via GitHub Actions)
+- Automated Size Checks: ✅ Active
+- OpenSpec Tracked: All major features documented
+- Split Migrations: Database changes by feature domain
 
 ---
 
@@ -695,6 +838,21 @@ We welcome contributions! Please see our contributing guidelines:
 3. **Test** - Unit tests + integration tests
 4. **Document** - Update README and OpenSpec specs
 5. **PR** - Create pull request with detailed description
+
+### PR Size Guidelines
+
+**IMPORTANT**: This project enforces PR size limits to maintain code quality:
+
+- **Maximum PR size**: 1,500 lines of code
+- **Maximum with tests**: 2,000 lines total
+- **Automated checks**: PRs >1,500 lines trigger warnings with split suggestions
+
+See [`openspec/specs/pr-guidelines.md`](openspec/specs/pr-guidelines.md) for:
+- Split strategies (by layer, by feature, feature flags)
+- Database migration best practices
+- Examples of successful PR splits
+
+**Automated enforcement**: GitHub Actions automatically labels PRs by size and posts warnings for oversized PRs.
 
 ---
 

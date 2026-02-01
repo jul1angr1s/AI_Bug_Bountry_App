@@ -1,0 +1,263 @@
+name: Test Suite
+
+on:
+  push:
+    branches: [main, develop, feature/**]
+  pull_request:
+    branches: [main, develop]
+
+# Cancel in-progress runs when a new workflow with the same group name is triggered
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ============================================================================
+  # E2E Tests (Fast Fail) - Run first with AI disabled
+  # ============================================================================
+  e2e-tests:
+    name: E2E Tests (AI Disabled)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: thunder_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Verify Anvil installation
+        run: anvil --version
+
+      - name: Install backend dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Generate Prisma Client
+        working-directory: ./backend
+        run: npm run prisma:generate
+
+      - name: Run database migrations
+        working-directory: ./backend
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/thunder_test
+        run: npx prisma migrate deploy
+
+      - name: Run E2E tests (AI disabled)
+        working-directory: ./backend
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://test:test@localhost:5432/thunder_test
+          REDIS_URL: redis://localhost:6379/1
+          BASE_SEPOLIA_RPC_URL: ${{ secrets.BASE_SEPOLIA_RPC_URL }}
+          PROTOCOL_REGISTRY_ADDRESS: ${{ secrets.PROTOCOL_REGISTRY_ADDRESS }}
+          VALIDATION_REGISTRY_ADDRESS: ${{ secrets.VALIDATION_REGISTRY_ADDRESS }}
+          BOUNTY_POOL_ADDRESS: ${{ secrets.BOUNTY_POOL_ADDRESS }}
+          PRIVATE_KEY: "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+          PRIVATE_KEY2: "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d"
+          AI_ANALYSIS_ENABLED: "false"
+        run: npm test -- --exclude="**/*.ai.test.ts"
+
+      - name: Upload E2E test coverage
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          files: ./backend/coverage/lcov.info
+          flags: e2e
+          name: e2e-tests
+          fail_ci_if_error: false
+
+      - name: Upload E2E test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-test-results
+          path: |
+            backend/coverage
+            backend/test-results
+          retention-days: 7
+
+  # ============================================================================
+  # AI Tests - Run after E2E tests pass
+  # ============================================================================
+  ai-tests:
+    name: AI Integration Tests
+    needs: e2e-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    # Only run AI tests if E2E tests passed
+    if: success()
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: thunder_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Verify Anvil installation
+        run: anvil --version
+
+      - name: Install backend dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Generate Prisma Client
+        working-directory: ./backend
+        run: npm run prisma:generate
+
+      - name: Run database migrations
+        working-directory: ./backend
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/thunder_test
+        run: npx prisma migrate deploy
+
+      - name: Run AI tests
+        working-directory: ./backend
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://test:test@localhost:5432/thunder_test
+          REDIS_URL: redis://localhost:6379/1
+          BASE_SEPOLIA_RPC_URL: ${{ secrets.BASE_SEPOLIA_RPC_URL }}
+          PROTOCOL_REGISTRY_ADDRESS: ${{ secrets.PROTOCOL_REGISTRY_ADDRESS }}
+          VALIDATION_REGISTRY_ADDRESS: ${{ secrets.VALIDATION_REGISTRY_ADDRESS }}
+          BOUNTY_POOL_ADDRESS: ${{ secrets.BOUNTY_POOL_ADDRESS }}
+          PRIVATE_KEY: "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+          PRIVATE_KEY2: "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d"
+          AI_ANALYSIS_ENABLED: "true"
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_MODEL: "claude-opus-4-5-20251101"
+          AI_ANALYSIS_TIMEOUT: "120000"
+          AI_MAX_RETRIES: "3"
+          AI_MAX_CONCURRENT_REQUESTS: "5"
+        run: npm run test:ai
+
+      - name: Upload AI test coverage
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          files: ./backend/coverage/lcov.info
+          flags: ai
+          name: ai-tests
+          fail_ci_if_error: false
+
+      - name: Upload AI test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ai-test-results
+          path: |
+            backend/coverage
+            backend/test-results
+          retention-days: 7
+
+  # ============================================================================
+  # Test Summary - Report overall status
+  # ============================================================================
+  test-summary:
+    name: Test Suite Summary
+    needs: [e2e-tests, ai-tests]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Check test status
+        run: |
+          echo "## Test Suite Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # E2E Tests
+          if [ "${{ needs.e2e-tests.result }}" == "success" ]; then
+            echo "✅ **E2E Tests**: PASSED" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **E2E Tests**: FAILED" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # AI Tests
+          if [ "${{ needs.ai-tests.result }}" == "success" ]; then
+            echo "✅ **AI Tests**: PASSED" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.ai-tests.result }}" == "skipped" ]; then
+            echo "⏭️  **AI Tests**: SKIPPED (E2E tests failed)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **AI Tests**: FAILED" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Overall status
+          if [ "${{ needs.e2e-tests.result }}" == "success" ] && [ "${{ needs.ai-tests.result }}" == "success" ]; then
+            echo "🎉 **Overall Status**: ALL TESTS PASSED" >> $GITHUB_STEP_SUMMARY
+            exit 0
+          else
+            echo "🚨 **Overall Status**: TESTS FAILED" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
