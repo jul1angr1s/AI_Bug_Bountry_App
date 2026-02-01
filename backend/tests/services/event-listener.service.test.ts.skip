@@ -1,23 +1,23 @@
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock dependencies
 const mockPrismaClient = {
   eventListenerState: {
-    findUnique: jest.fn(),
-    upsert: jest.fn(),
+    findUnique: vi.fn(),
+    upsert: vi.fn(),
   },
 };
 
 const mockProvider = {
-  getBlockNumber: jest.fn(),
-  destroy: jest.fn(),
-  on: jest.fn(),
+  getBlockNumber: vi.fn(),
+  destroy: vi.fn(),
+  on: vi.fn(),
 };
 
 const mockContract = {
-  on: jest.fn(),
-  removeAllListeners: jest.fn(),
-  queryFilter: jest.fn(),
+  on: vi.fn(),
+  removeAllListeners: vi.fn(),
+  queryFilter: vi.fn(),
   filters: {},
 };
 
@@ -28,14 +28,14 @@ const mockChainConfig = {
 };
 
 // Mock modules
-jest.unstable_mockModule('../../src/lib/prisma.js', () => ({
+vi.mock('../../src/lib/prisma.js', () => ({
   getPrismaClient: () => mockPrismaClient,
 }));
 
-jest.unstable_mockModule('ethers', () => ({
+vi.mock('ethers', () => ({
   ethers: {
-    WebSocketProvider: jest.fn(() => mockProvider),
-    Contract: jest.fn(() => mockContract),
+    WebSocketProvider: vi.fn(() => mockProvider),
+    Contract: vi.fn(() => mockContract),
     EventLog: class EventLog {
       blockNumber: number;
       constructor(blockNumber: number) {
@@ -45,7 +45,7 @@ jest.unstable_mockModule('ethers', () => ({
   },
 }));
 
-jest.unstable_mockModule('../../src/blockchain/config.js', () => ({
+vi.mock('../../src/blockchain/config.js', () => ({
   chainConfig: mockChainConfig,
 }));
 
@@ -56,7 +56,7 @@ describe('EventListenerService', () => {
   let service: InstanceType<typeof EventListenerService>;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     // Reset process.env
     process.env.BASE_SEPOLIA_WS_URL = 'wss://sepolia.base.org';
@@ -189,9 +189,9 @@ describe('EventListenerService', () => {
         { blockNumber: 10007 },
       ];
 
-      const mockHandler = jest.fn().mockResolvedValue(undefined);
+      const mockHandler = vi.fn().mockResolvedValue(undefined);
 
-      mockContract.filters[eventName] = jest.fn(() => ({}));
+      mockContract.filters[eventName] = vi.fn(() => ({}));
       mockContract.queryFilter.mockResolvedValue(mockEvents);
       mockPrismaClient.eventListenerState.upsert.mockResolvedValue({});
 
@@ -224,11 +224,11 @@ describe('EventListenerService', () => {
         { blockNumber: 10007 },
       ];
 
-      const mockHandler = jest.fn()
+      const mockHandler = vi.fn()
         .mockRejectedValueOnce(new Error('Handler error'))
         .mockResolvedValueOnce(undefined);
 
-      mockContract.filters[eventName] = jest.fn(() => ({}));
+      mockContract.filters[eventName] = vi.fn(() => ({}));
       mockContract.queryFilter.mockResolvedValue(mockEvents);
       mockPrismaClient.eventListenerState.upsert.mockResolvedValue({});
 
@@ -253,7 +253,7 @@ describe('EventListenerService', () => {
         contractAddress: '0x' + '1'.repeat(40),
         eventName: 'BountyReleased',
         abi: [],
-        handler: jest.fn(),
+        handler: vi.fn(),
       };
 
       await expect(service.replayEvents(config, 10000, 10010)).rejects.toThrow('Provider not initialized');
@@ -269,7 +269,7 @@ describe('EventListenerService', () => {
 
       mockProvider.getBlockNumber.mockResolvedValue(currentBlock);
       mockPrismaClient.eventListenerState.findUnique.mockResolvedValue(null);
-      mockContract.filters[eventName] = jest.fn(() => ({}));
+      mockContract.filters[eventName] = vi.fn(() => ({}));
       mockContract.queryFilter.mockResolvedValue([]);
       mockContract.on.mockImplementation(() => {});
 
@@ -277,7 +277,7 @@ describe('EventListenerService', () => {
         contractAddress,
         eventName,
         abi: [],
-        handler: jest.fn(),
+        handler: vi.fn(),
         fromBlock,
       };
 
@@ -299,7 +299,7 @@ describe('EventListenerService', () => {
         eventName,
         lastProcessedBlock,
       });
-      mockContract.filters[eventName] = jest.fn(() => ({}));
+      mockContract.filters[eventName] = vi.fn(() => ({}));
       mockContract.queryFilter.mockResolvedValue([]);
       mockContract.on.mockImplementation(() => {});
 
@@ -307,7 +307,7 @@ describe('EventListenerService', () => {
         contractAddress,
         eventName,
         abi: [],
-        handler: jest.fn(),
+        handler: vi.fn(),
       };
 
       await service.startListening(config);
@@ -323,14 +323,14 @@ describe('EventListenerService', () => {
 
       mockProvider.getBlockNumber.mockResolvedValue(currentBlock);
       mockPrismaClient.eventListenerState.findUnique.mockResolvedValue(null);
-      mockContract.filters[eventName] = jest.fn(() => ({}));
+      mockContract.filters[eventName] = vi.fn(() => ({}));
       mockContract.on.mockImplementation(() => {});
 
       const config = {
         contractAddress,
         eventName,
         abi: [],
-        handler: jest.fn(),
+        handler: vi.fn(),
       };
 
       await service.startListening(config);
@@ -342,8 +342,8 @@ describe('EventListenerService', () => {
 
   describe('error handling with exponential backoff', () => {
     it('should retry with exponential backoff', async () => {
-      jest.useFakeTimers();
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      vi.useFakeTimers();
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       // Trigger provider error
       const error = new Error('Connection lost');
@@ -353,13 +353,13 @@ describe('EventListenerService', () => {
         expect.stringContaining('Provider error occurred')
       );
 
-      jest.useRealTimers();
+      vi.useRealTimers();
       consoleErrorSpy.mockRestore();
     });
 
     it('should stop retrying after max attempts', async () => {
-      jest.useFakeTimers();
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      vi.useFakeTimers();
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       // Set retry attempts to max
       (service as any).retryConfig.attempt = 10;
@@ -371,7 +371,7 @@ describe('EventListenerService', () => {
         expect.stringContaining('Max retry attempts reached')
       );
 
-      jest.useRealTimers();
+      vi.useRealTimers();
       consoleErrorSpy.mockRestore();
     });
   });

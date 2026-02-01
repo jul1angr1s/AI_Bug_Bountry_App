@@ -11,7 +11,7 @@ import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { createSocketServer } from './websocket/server.js';
 import { registerSocketHandlers } from './websocket/handlers.js';
 import { getPrismaClient } from './lib/prisma.js';
-import { startValidatorAgent, stopValidatorAgent } from './agents/validator/index.js';
+import { startValidatorAgentLLM, stopValidatorAgentLLM } from './agents/validator/index.js';
 import { startValidationListener, stopValidationListener } from './blockchain/listeners/validation-listener.js';
 import { startBountyListener, stopBountyListener } from './blockchain/listeners/bounty-listener.js';
 import { getReconciliationService } from './services/reconciliation.service.js';
@@ -47,12 +47,12 @@ let paymentWorkerInstance: Worker | null = null;
 server.listen(config.PORT, async () => {
   console.log(`Backend listening on port ${config.PORT} (${config.NODE_ENV})`);
 
-  // Start Validator Agent
+  // Start Validator Agent (LLM-based for Phase 2)
   try {
-    await startValidatorAgent();
-    console.log('Validator Agent started successfully');
+    await startValidatorAgentLLM();
+    console.log('Validator Agent (LLM) started successfully');
   } catch (error) {
-    console.error('Failed to start Validator Agent:', error);
+    console.error('Failed to start Validator Agent (LLM):', error);
   }
 
   // Start ValidationRecorded event listener
@@ -101,11 +101,10 @@ async function shutdown(signal: string): Promise<void> {
 
   // Stop services in order
   try {
-    // Stop Validator Agent
-    await stopValidatorAgent();
-    console.log('Validator Agent stopped');
+    await stopValidatorAgentLLM();
+    console.log('Validator Agent (LLM) stopped');
   } catch (error) {
-    console.error('Error stopping Validator Agent:', error);
+    console.error('Error stopping Validator Agent (LLM):', error);
   }
 
   try {
