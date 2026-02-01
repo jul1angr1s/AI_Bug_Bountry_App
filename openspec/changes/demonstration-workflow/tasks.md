@@ -3,7 +3,7 @@
 **Status**: In Progress
 **Created**: 2026-02-01
 **Total Tasks**: 95
-**Completed**: 0/95 (0%)
+**Completed**: 60/95 (63%)
 
 ## Overview
 
@@ -223,14 +223,14 @@ This task list orchestrates the complete implementation of the demonstration wor
 Each component maps to 1-3 focused PRs (<1,500 lines each):
 
 ### Phase 0 PRs
-- [ ] PR 0.1: OpenSpec cleanup and aligned specs creation
+- [x] PR 0.1: OpenSpec cleanup and aligned specs creation
 
 ### Phase 1 PRs (5-7 PRs)
-- [ ] PR 1.1: Protocol Registration Form (~400 lines)
-- [ ] PR 1.2: Backend GET /protocols endpoint (~200 lines)
-- [ ] PR 1.3: Protocols List Page (~450 lines)
-- [ ] PR 1.4: Scans List Page (~500 lines)
-- [ ] PR 1.5: Protocol Detail Page (~600 lines)
+- [x] PR 1.1: Protocol Registration Form (~400 lines) - PR #42
+- [x] PR 1.2: Backend GET /protocols endpoint (~200 lines) - PR #43
+- [x] PR 1.3: Protocols List Page (~485 lines) - PR #44
+- [x] PR 1.4: Scans List Page (~469 lines) - PR #45
+- [x] PR 1.5: Protocol Detail Page (~470 lines) - PR #46
 - [ ] PR 1.6: Dashboard Real Data Integration (~350 lines)
 
 ### Phase 2 PRs (5 PRs)
