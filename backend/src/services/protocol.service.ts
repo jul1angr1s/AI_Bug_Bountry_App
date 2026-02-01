@@ -334,3 +334,105 @@ export async function getProtocolById(
     return null;
   }
 }
+
+export interface ProtocolListItem {
+  id: string;
+  name: string;
+  githubUrl: string;
+  status: string;
+  riskScore: number | null;
+  scansCount: number;
+  vulnerabilitiesCount: number;
+  createdAt: string;
+}
+
+export interface ProtocolListResult {
+  protocols: ProtocolListItem[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+export async function listProtocols(params: {
+  status?: string;
+  page?: number;
+  limit?: number;
+  userId?: string;
+}): Promise<ProtocolListResult> {
+  try {
+    const page = params.page || 1;
+    const limit = Math.min(params.limit || 20, 100); // Max 100 per page
+    const skip = (page - 1) * limit;
+
+    // Build where clause
+    const whereClause: any = {};
+
+    if (params.status) {
+      whereClause.status = params.status;
+    }
+
+    if (params.userId) {
+      whereClause.authUserId = params.userId;
+    }
+
+    // Get total count
+    const total = await prisma.protocol.count({ where: whereClause });
+
+    // Get protocols with aggregated data
+    const protocols = await prisma.protocol.findMany({
+      where: whereClause,
+      select: {
+        id: true,
+        githubUrl: true,
+        contractName: true,
+        status: true,
+        riskScore: true,
+        createdAt: true,
+        scans: {
+          select: { id: true },
+        },
+        vulnerabilities: {
+          select: { id: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take: limit,
+    });
+
+    const protocolList: ProtocolListItem[] = protocols.map((protocol) => ({
+      id: protocol.id,
+      name: protocol.contractName, // Use contract name as protocol name
+      githubUrl: protocol.githubUrl,
+      status: protocol.status,
+      riskScore: protocol.riskScore,
+      scansCount: protocol.scans.length,
+      vulnerabilitiesCount: protocol.vulnerabilities.length,
+      createdAt: protocol.createdAt.toISOString(),
+    }));
+
+    return {
+      protocols: protocolList,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  } catch (error) {
+    console.error('Error listing protocols:', error);
+    return {
+      protocols: [],
+      pagination: {
+        page: params.page || 1,
+        limit: params.limit || 20,
+        total: 0,
+        totalPages: 0,
+      },
+    };
+  }
+}
