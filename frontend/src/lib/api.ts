@@ -251,3 +251,87 @@ export function subscribeToScanProgress(
     eventSource.close();
   };
 }
+
+// ========== Protocol Registration API (Task 1.1.5) ==========
+
+export interface CreateProtocolRequest {
+  name: string;
+  githubUrl: string;
+  branch?: string;
+  contractPath: string;
+  contractName: string;
+  bountyPoolAddress: string;
+  network?: string;
+}
+
+export interface CreateProtocolResponse {
+  id: string;
+  name: string;
+  status: string;
+  message: string;
+}
+
+export interface ProtocolListItem {
+  id: string;
+  name: string;
+  githubUrl: string;
+  status: 'PENDING' | 'ACTIVE' | 'PAUSED' | 'DEPRECATED';
+  riskScore?: number;
+  scansCount: number;
+  vulnerabilitiesCount: number;
+  createdAt: string;
+}
+
+export interface ProtocolListResponse {
+  protocols: ProtocolListItem[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+/**
+ * Create a new protocol registration
+ */
+export async function createProtocol(request: CreateProtocolRequest): Promise<CreateProtocolResponse> {
+  const headers = await getAuthHeaders();
+  const response = await fetch(`${API_BASE_URL}/api/v1/protocols`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(request),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `Failed to create protocol: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Fetch all protocols with optional filtering
+ */
+export async function fetchProtocols(params?: {
+  status?: string;
+  page?: number;
+  limit?: number;
+}): Promise<ProtocolListResponse> {
+  const headers = await getAuthHeaders();
+  const queryParams = new URLSearchParams();
+
+  if (params?.status) queryParams.append('status', params.status);
+  if (params?.page) queryParams.append('page', params.page.toString());
+  if (params?.limit) queryParams.append('limit', params.limit.toString());
+
+  const url = `${API_BASE_URL}/api/v1/protocols${queryParams.toString() ? `?${queryParams}` : ''}`;
+  const response = await fetch(url, { headers });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch protocols: ${response.statusText}`);
+  }
+
+  return response.json();
+}
