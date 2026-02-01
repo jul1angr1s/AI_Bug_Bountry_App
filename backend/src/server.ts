@@ -105,19 +105,8 @@ async function shutdown(signal: string): Promise<void> {
 
   // Stop services in order
   try {
-<<<<<<< HEAD
-<<<<<<< HEAD
     await stopValidatorAgentLLM();
     console.log('Validator Agent (LLM) stopped');
-=======
-    // Stop Validator Agent
-    await stopValidatorAgent();
-    console.log('Validator Agent stopped');
->>>>>>> main
-=======
-    await stopValidatorAgentLLM();
-    console.log('Validator Agent (LLM) stopped');
->>>>>>> origin/main
   } catch (error) {
     console.error('Error stopping Validator Agent (LLM):', error);
   }
