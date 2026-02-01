@@ -220,6 +220,97 @@ export interface ScanCompletedEvent {
   };
 }
 
+// Phase 4: Payment WebSocket Event Types
+export interface PaymentReleasedEvent {
+  eventType: 'payment:released';
+  timestamp: string;
+  protocolId: string;
+  data: {
+    id: string;
+    amount: number;
+    txHash: string;
+    researcherAddress: string;
+    paidAt: string;
+    validationId: string;
+    severity: string;
+  };
+}
+
+export interface PaymentFailedEvent {
+  eventType: 'payment:failed';
+  timestamp: string;
+  protocolId: string;
+  data: {
+    paymentId: string;
+    failureReason: string;
+    retryCount: number;
+    validationId: string;
+  };
+}
+
+// Payment event emitters
+export async function emitPaymentReleased(
+  protocolId: string,
+  paymentId: string,
+  amount: number,
+  txHash: string,
+  researcherAddress: string,
+  paidAt: Date,
+  validationId: string,
+  severity: string
+): Promise<void> {
+  if (!ioInstance) return;
+
+  const event: PaymentReleasedEvent = {
+    eventType: 'payment:released',
+    timestamp: new Date().toISOString(),
+    protocolId,
+    data: {
+      id: paymentId,
+      amount,
+      txHash,
+      researcherAddress,
+      paidAt: paidAt.toISOString(),
+      validationId,
+      severity,
+    },
+  };
+
+  ioInstance.to(`protocol:${protocolId}`).emit('payment:released', event);
+
+  // Invalidate caches
+  await invalidateCachePattern(`dashboard:stats:*`);
+  await invalidateCachePattern(`protocol:payments:${protocolId}:*`);
+}
+
+export async function emitPaymentFailed(
+  protocolId: string,
+  paymentId: string,
+  failureReason: string,
+  retryCount: number,
+  validationId: string
+): Promise<void> {
+  if (!ioInstance) return;
+
+  const event: PaymentFailedEvent = {
+    eventType: 'payment:failed',
+    timestamp: new Date().toISOString(),
+    protocolId,
+    data: {
+      paymentId,
+      failureReason,
+      retryCount,
+      validationId,
+    },
+  };
+
+  ioInstance.to(`protocol:${protocolId}`).emit('payment:failed', event);
+
+  // Invalidate caches
+  await invalidateCachePattern(`dashboard:stats:*`);
+  await invalidateCachePattern(`protocol:payments:${protocolId}:*`);
+}
+
 // Scan event emitters
 export async function emitScanStarted(
   scanId: string,

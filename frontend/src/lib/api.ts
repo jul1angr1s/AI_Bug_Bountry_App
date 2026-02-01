@@ -251,3 +251,89 @@ export function subscribeToScanProgress(
     eventSource.close();
   };
 }
+
+// ========== USDC API Functions (Task 14.1-14.10) ==========
+
+export interface USDCAllowanceResponse {
+  owner: string;
+  spender: string;
+  allowance: string; // USDC amount in base units (6 decimals)
+  allowanceFormatted: string; // Human-readable format (e.g., "1000.50")
+}
+
+export interface USDCBalanceResponse {
+  address: string;
+  balance: string; // USDC amount in base units (6 decimals)
+  balanceFormatted: string; // Human-readable format (e.g., "1000.50")
+}
+
+export interface USDCApprovalTransactionData {
+  to: string;
+  data: string;
+  value: string;
+  chainId: number;
+  gasLimit: string;
+}
+
+/**
+ * Check USDC allowance for a specific owner and spender
+ */
+export async function fetchUSDCAllowance(
+  owner: string,
+  spender: string
+): Promise<USDCAllowanceResponse> {
+  const headers = await getAuthHeaders();
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/payments/usdc/allowance?owner=${owner}&spender=${spender}`,
+    { headers }
+  );
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: response.statusText }));
+    throw new Error(error.message || `Failed to fetch USDC allowance: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Check USDC balance for a wallet address
+ */
+export async function fetchUSDCBalance(
+  address: string
+): Promise<USDCBalanceResponse> {
+  const headers = await getAuthHeaders();
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/payments/usdc/balance?address=${address}`,
+    { headers }
+  );
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: response.statusText }));
+    throw new Error(error.message || `Failed to fetch USDC balance: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Generate USDC approval transaction data for wallet signing
+ */
+export async function generateUSDCApprovalTx(
+  amount: string,
+  spender: string
+): Promise<USDCApprovalTransactionData> {
+  const headers = await getAuthHeaders();
+  const response = await fetch(`${API_BASE_URL}/api/v1/payments/approve`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ amount, spender }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: response.statusText }));
+    throw new Error(error.message || `Failed to generate approval transaction: ${response.statusText}`);
+  }
+
+  return response.json();
+}
