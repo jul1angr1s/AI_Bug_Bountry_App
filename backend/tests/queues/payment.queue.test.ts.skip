@@ -1,4 +1,4 @@
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock dependencies
 const mockRedisClient = {
@@ -6,21 +6,21 @@ const mockRedisClient = {
 };
 
 const mockQueue = {
-  add: jest.fn(),
-  pause: jest.fn(),
-  resume: jest.fn(),
-  isPaused: jest.fn(),
-  getJobCounts: jest.fn(),
-  close: jest.fn(),
+  add: vi.fn(),
+  pause: vi.fn(),
+  resume: vi.fn(),
+  isPaused: vi.fn(),
+  getJobCounts: vi.fn(),
+  close: vi.fn(),
 };
 
 // Mock modules
-jest.unstable_mockModule('../../src/lib/redis.js', () => ({
+vi.mock('../../src/lib/redis.js', () => ({
   getRedisClient: () => mockRedisClient,
 }));
 
-jest.unstable_mockModule('bullmq', () => ({
-  Queue: jest.fn(() => mockQueue),
+vi.mock('bullmq', () => ({
+  Queue: vi.fn(() => mockQueue),
 }));
 
 // Import after mocks
@@ -34,7 +34,7 @@ const {
 
 describe('PaymentQueue', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('addPaymentJob', () => {
@@ -231,7 +231,7 @@ describe('PaymentQueue', () => {
     it('should have correct retry configuration', async () => {
       // The Queue constructor should be called with retry config
       const { Queue } = await import('bullmq');
-      const QueueMock = Queue as jest.MockedFunction<typeof Queue>;
+      const QueueMock = Queue as vi.MockedFunction<typeof Queue>;
 
       // Check if Queue was instantiated with correct options
       expect(QueueMock).toHaveBeenCalledWith(

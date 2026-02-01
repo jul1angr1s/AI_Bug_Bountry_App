@@ -27,11 +27,11 @@ export const dashboardKeys = {
 /**
  * Hook to fetch protocol details
  */
-export function useProtocol(protocolId: string) {
+export function useProtocol(protocolId: string, options?: { enabled?: boolean }) {
   return useQuery<Protocol, Error>({
     queryKey: dashboardKeys.protocol(protocolId),
     queryFn: () => fetchProtocol(protocolId),
-    enabled: !!protocolId,
+    enabled: options?.enabled !== undefined ? options.enabled : !!protocolId,
     staleTime: 1000 * 60, // 1 minute
     refetchInterval: 1000 * 60 * 5, // 5 minutes
   });
@@ -40,11 +40,11 @@ export function useProtocol(protocolId: string) {
 /**
  * Hook to fetch vulnerabilities
  */
-export function useVulnerabilities(protocolId: string) {
+export function useVulnerabilities(protocolId: string, options?: { enabled?: boolean }) {
   return useQuery<Vulnerability[], Error>({
     queryKey: dashboardKeys.vulnerabilities(protocolId),
     queryFn: () => fetchVulnerabilities(protocolId),
-    enabled: !!protocolId,
+    enabled: options?.enabled !== undefined ? options.enabled : !!protocolId,
     staleTime: 1000 * 30, // 30 seconds
     refetchInterval: 1000 * 60, // 1 minute
   });
