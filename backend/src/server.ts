@@ -12,6 +12,11 @@ import { createSocketServer } from './websocket/server.js';
 import { registerSocketHandlers } from './websocket/handlers.js';
 import { getPrismaClient } from './lib/prisma.js';
 import { startValidatorAgent, stopValidatorAgent } from './agents/validator/index.js';
+import { startPaymentWorker, stopPaymentWorker } from './agents/payment/worker.js';
+import {
+  initializeBlockchainEventListeners,
+  shutdownBlockchainEventListeners,
+} from './services/blockchain-events.service.js';
 
 const app = express();
 
@@ -46,6 +51,22 @@ server.listen(config.PORT, async () => {
   } catch (error) {
     console.error('Failed to start Validator Agent:', error);
   }
+
+  // Start Payment Worker
+  try {
+    await startPaymentWorker();
+    console.log('Payment Worker started successfully');
+  } catch (error) {
+    console.error('Failed to start Payment Worker:', error);
+  }
+
+  // Initialize blockchain event listeners
+  try {
+    await initializeBlockchainEventListeners();
+    console.log('Blockchain event listeners initialized');
+  } catch (error) {
+    console.error('Failed to initialize blockchain event listeners:', error);
+  }
 });
 
 const prisma = getPrismaClient();
@@ -58,7 +79,21 @@ async function shutdown(signal: string): Promise<void> {
     process.exit(1);
   }, 10_000);
 
-  // Stop Validator Agent first
+  // Stop agents and services
+  try {
+    await stopPaymentWorker();
+    console.log('Payment Worker stopped');
+  } catch (error) {
+    console.error('Error stopping Payment Worker:', error);
+  }
+
+  try {
+    await shutdownBlockchainEventListeners();
+    console.log('Blockchain event listeners stopped');
+  } catch (error) {
+    console.error('Error stopping blockchain event listeners:', error);
+  }
+
   try {
     await stopValidatorAgent();
     console.log('Validator Agent stopped');
