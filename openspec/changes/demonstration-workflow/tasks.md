@@ -32,16 +32,16 @@ This task list orchestrates the complete implementation of the demonstration wor
 ## Phase 1: Core Demonstration UI (Week 1)
 
 ### 1.1 Protocol Registration Form
-- [ ] 1.1.1 CREATE `frontend/src/pages/ProtocolRegistration.tsx` - Main page component
-- [ ] 1.1.2 CREATE `frontend/src/components/protocols/ProtocolForm.tsx` - Form component
-- [ ] 1.1.3 Add form fields: Protocol Name, GitHub URL, Contract Path, Contract Name, Bounty Pool Address, Network
-- [ ] 1.1.4 Implement validation: URL format (GitHub), Ethereum address format (bounty pool)
-- [ ] 1.1.5 Add API integration: POST `/api/v1/protocols`
-- [ ] 1.1.6 Implement success feedback: Navigate to `/protocols` with toast notification
-- [ ] 1.1.7 Implement error handling: Display validation errors, network errors
-- [ ] 1.1.8 MODIFY `frontend/src/App.tsx` - Add `/protocols/register` route
-- [ ] 1.1.9 Add loading state during form submission
-- [ ] 1.1.10 Add TailwindCSS + Shadcn UI styling
+- [x] 1.1.1 CREATE `frontend/src/pages/ProtocolRegistration.tsx` - Main page component
+- [x] 1.1.2 CREATE `frontend/src/components/protocols/ProtocolForm.tsx` - Form component
+- [x] 1.1.3 Add form fields: Protocol Name, GitHub URL, Contract Path, Contract Name, Bounty Pool Address, Network
+- [x] 1.1.4 Implement validation: URL format (GitHub), Ethereum address format (bounty pool)
+- [x] 1.1.5 Add API integration: POST `/api/v1/protocols` - Added createProtocol function to lib/api.ts
+- [x] 1.1.6 Implement success feedback: Navigate to `/protocols` with toast notification
+- [x] 1.1.7 Implement error handling: Display validation errors, network errors
+- [x] 1.1.8 MODIFY `frontend/src/App.tsx` - Add `/protocols/register` route
+- [x] 1.1.9 Add loading state during form submission
+- [x] 1.1.10 Add TailwindCSS styling with purple/pink gradient theme
 
 ### 1.2 Protocols List Page
 - [ ] 1.2.1 CREATE `frontend/src/pages/Protocols.tsx` - Main page component
