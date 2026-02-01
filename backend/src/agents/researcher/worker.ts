@@ -11,6 +11,7 @@ import {
   executeCompileStep,
   executeDeployStep,
   executeAnalyzeStep,
+  executeAIDeepAnalysisStep,
   executeProofGenerationStep,
   executeSubmitStep,
   cleanupResources,
@@ -25,6 +26,7 @@ export const ScanErrorCodes = {
   DEPLOY_FAILED: 'DEPLOY_FAILED',
   ANVIL_ERROR: 'ANVIL_ERROR',
   ANALYSIS_FAILED: 'ANALYSIS_FAILED',
+  AI_ANALYSIS_FAILED: 'AI_ANALYSIS_FAILED',
   PROOF_GENERATION_FAILED: 'PROOF_GENERATION_FAILED',
   SUBMISSION_FAILED: 'SUBMISSION_FAILED',
   TIMEOUT: 'TIMEOUT',
@@ -40,6 +42,7 @@ const STEP_TIMEOUTS: Record<ScanStep, number> = {
   [ScanStep.COMPILE]: 10 * 60 * 1000,        // 10 minutes
   [ScanStep.DEPLOY]: 3 * 60 * 1000,          // 3 minutes
   [ScanStep.ANALYZE]: 15 * 60 * 1000,        // 15 minutes
+  [ScanStep.AI_DEEP_ANALYSIS]: 10 * 60 * 1000, // 10 minutes
   [ScanStep.PROOF_GENERATION]: 5 * 60 * 1000, // 5 minutes
   [ScanStep.SUBMIT]: 2 * 60 * 1000,          // 2 minutes
 };
@@ -206,10 +209,10 @@ async function executeScanPipeline(
     throw new Error(ScanErrorCodes.CANCELED);
   }
 
-  // Step 1: Clone Repository
+  // Step 1: Clone Repository (0-15%)
   const cloneStep = await scanStepRepository.startStep(scanId, ScanStep.CLONE);
   try {
-    await emitScanProgress(scanId, protocolId, 'CLONE', ScanState.RUNNING, 10, 'Cloning repository...');
+    await emitScanProgress(scanId, protocolId, 'CLONE', ScanState.RUNNING, 5, 'Cloning repository...');
 
     const cloneResult = await executeCloneStep({
       scanId,
@@ -228,17 +231,17 @@ async function executeScanPipeline(
       clonedPath: cloneResult.clonedPath,
     });
 
-    await emitScanProgress(scanId, protocolId, 'CLONE', ScanState.RUNNING, 20, 'Repository cloned');
+    await emitScanProgress(scanId, protocolId, 'CLONE', ScanState.RUNNING, 15, 'Repository cloned');
   } catch (error) {
     await handleStepFailure(scanId, protocolId, cloneStep.id, ScanErrorCodes.CLONE_FAILED, error);
     throw error;
   }
 
-  // Step 2: Compile Contracts
+  // Step 2: Compile Contracts (15-30%)
   const compileStep = await scanStepRepository.startStep(scanId, ScanStep.COMPILE);
   let compilationResult;
   try {
-    await emitScanProgress(scanId, protocolId, 'COMPILE', ScanState.RUNNING, 30, 'Compiling contracts...');
+    await emitScanProgress(scanId, protocolId, 'COMPILE', ScanState.RUNNING, 20, 'Compiling contracts...');
 
     if (!clonedPath) {
       throw new Error('No cloned path available from previous step');
@@ -259,16 +262,16 @@ async function executeScanPipeline(
       warnings: compilationResult.warnings,
     });
 
-    await emitScanProgress(scanId, protocolId, 'COMPILE', ScanState.RUNNING, 40, 'Compilation successful');
+    await emitScanProgress(scanId, protocolId, 'COMPILE', ScanState.RUNNING, 30, 'Compilation successful');
   } catch (error) {
     await handleStepFailure(scanId, protocolId, compileStep.id, ScanErrorCodes.COMPILE_FAILED, error);
     throw error;
   }
 
-  // Step 3: Deploy to Anvil
+  // Step 3: Deploy to Anvil (30-45%)
   const deployStep = await scanStepRepository.startStep(scanId, ScanStep.DEPLOY);
   try {
-    await emitScanProgress(scanId, protocolId, 'DEPLOY', ScanState.RUNNING, 50, 'Deploying to Anvil...');
+    await emitScanProgress(scanId, protocolId, 'DEPLOY', ScanState.RUNNING, 35, 'Deploying to Anvil...');
 
     if (!compilationResult?.abi || !compilationResult?.bytecode) {
       throw new Error('No ABI or bytecode available from compilation step');
@@ -289,17 +292,18 @@ async function executeScanPipeline(
       deploymentTx: deployResult.transactionHash,
     });
 
-    await emitScanProgress(scanId, protocolId, 'DEPLOY', ScanState.RUNNING, 60, 'Deployment complete');
+    await emitScanProgress(scanId, protocolId, 'DEPLOY', ScanState.RUNNING, 45, 'Deployment complete');
   } catch (error) {
     await cleanupResources(anvilProcess);
     await handleStepFailure(scanId, protocolId, deployStep.id, ScanErrorCodes.DEPLOY_FAILED, error);
     throw error;
   }
 
-  // Step 4: Static Analysis
+  // Step 4: Static Analysis (45-60%)
   const analyzeStep = await scanStepRepository.startStep(scanId, ScanStep.ANALYZE);
+  let slitherFindings: any[] = [];
   try {
-    await emitScanProgress(scanId, protocolId, 'ANALYZE', ScanState.RUNNING, 70, 'Running static analysis...');
+    await emitScanProgress(scanId, protocolId, 'ANALYZE', ScanState.RUNNING, 50, 'Running static analysis...');
 
     if (!clonedPath) {
       throw new Error('No cloned path available from previous step');
@@ -311,31 +315,126 @@ async function executeScanPipeline(
       contractName: protocol.contractName,
     });
 
-    // Store findings
-    for (const finding of analysisResult.findings) {
-      await findingRepository.createFinding({
-        scanId,
-        ...finding,
-      });
-      findingsCount++;
-    }
+    // Store Slither findings for AI analysis step
+    slitherFindings = analysisResult.findings;
 
     await scanStepRepository.completeStep(analyzeStep.id, {
       findingsCount: analysisResult.findings.length,
       analysisTools: analysisResult.toolsUsed,
     });
 
-    await emitScanProgress(scanId, protocolId, 'ANALYZE', ScanState.RUNNING, 80, `Found ${findingsCount} vulnerabilities`);
+    await emitScanProgress(scanId, protocolId, 'ANALYZE', ScanState.RUNNING, 60, `Slither found ${slitherFindings.length} issues`);
   } catch (error) {
     await cleanupResources(anvilProcess);
     await handleStepFailure(scanId, protocolId, analyzeStep.id, ScanErrorCodes.ANALYSIS_FAILED, error);
     throw error;
   }
 
-  // Step 5: Proof Generation
+  // Step 5: AI Deep Analysis (60-75%)
+  const aiAnalysisStep = await scanStepRepository.startStep(scanId, ScanStep.AI_DEEP_ANALYSIS);
+  let finalFindings = slitherFindings;
+  let aiMetrics: any = null;
+  let aiAnalysisFailed = false;
+
+  try {
+    // Check if AI analysis is enabled via feature flag
+    const aiEnabled = process.env.AI_ANALYSIS_ENABLED === 'true';
+
+    if (aiEnabled) {
+      await emitScanProgress(scanId, protocolId, 'AI_DEEP_ANALYSIS', ScanState.RUNNING, 65, 'Running AI deep analysis...');
+
+      if (!clonedPath) {
+        throw new Error('No cloned path available from previous step');
+      }
+
+      const aiAnalysisResult = await executeAIDeepAnalysisStep({
+        clonedPath,
+        contractPath: protocol.contractPath,
+        contractName: protocol.contractName,
+        slitherFindings,
+      });
+
+      // Use AI-enhanced findings if successful
+      if (aiAnalysisResult.aiEnhanced) {
+        finalFindings = aiAnalysisResult.findings;
+        aiMetrics = aiAnalysisResult.metrics;
+
+        await scanStepRepository.completeStep(aiAnalysisStep.id, {
+          aiEnhanced: true,
+          findingsCount: aiAnalysisResult.findings.length,
+          enhancedFindings: aiAnalysisResult.metrics.enhancedFindings,
+          newFindings: aiAnalysisResult.metrics.newFindings,
+          modelUsed: aiAnalysisResult.metrics.modelUsed,
+          processingTimeMs: aiAnalysisResult.metrics.processingTimeMs,
+        });
+
+        await emitScanProgress(
+          scanId,
+          protocolId,
+          'AI_DEEP_ANALYSIS',
+          ScanState.RUNNING,
+          75,
+          `AI enhanced ${aiAnalysisResult.metrics.enhancedFindings} findings, found ${aiAnalysisResult.metrics.newFindings} new issues`
+        );
+      } else {
+        // AI analysis ran but didn't enhance findings
+        finalFindings = slitherFindings;
+
+        await scanStepRepository.completeStep(aiAnalysisStep.id, {
+          aiEnhanced: false,
+          findingsCount: slitherFindings.length,
+          message: 'AI analysis skipped or not implemented',
+        });
+
+        await emitScanProgress(scanId, protocolId, 'AI_DEEP_ANALYSIS', ScanState.RUNNING, 75, 'Using Slither findings only');
+      }
+    } else {
+      // AI analysis is disabled - skip step
+      finalFindings = slitherFindings;
+
+      await scanStepRepository.completeStep(aiAnalysisStep.id, {
+        aiEnhanced: false,
+        findingsCount: slitherFindings.length,
+        message: 'AI analysis disabled via feature flag',
+      });
+
+      await emitScanProgress(scanId, protocolId, 'AI_DEEP_ANALYSIS', ScanState.RUNNING, 75, 'AI analysis disabled - using Slither findings only');
+    }
+  } catch (error) {
+    // AI step failed - mark with AI_ANALYSIS_FAILED but continue with Slither findings
+    console.error('[Worker] AI deep analysis failed, continuing with Slither findings:', error);
+
+    aiAnalysisFailed = true;
+    finalFindings = slitherFindings;
+
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    await scanStepRepository.failStep(aiAnalysisStep.id, ScanErrorCodes.AI_ANALYSIS_FAILED, errorMessage);
+
+    await emitScanProgress(
+      scanId,
+      protocolId,
+      'AI_DEEP_ANALYSIS',
+      ScanState.RUNNING,
+      75,
+      `AI analysis failed - continuing with ${slitherFindings.length} Slither findings`
+    );
+
+    // DO NOT throw error - continue pipeline with Slither findings
+  }
+
+  // Store final findings in database
+  for (const finding of finalFindings) {
+    await findingRepository.createFinding({
+      scanId,
+      ...finding,
+    });
+    findingsCount++;
+  }
+
+  // Step 6: Proof Generation (75-90%)
   const proofStep = await scanStepRepository.startStep(scanId, ScanStep.PROOF_GENERATION);
   try {
-    await emitScanProgress(scanId, protocolId, 'PROOF_GENERATION', ScanState.RUNNING, 90, 'Generating proofs...');
+    await emitScanProgress(scanId, protocolId, 'PROOF_GENERATION', ScanState.RUNNING, 80, 'Generating proofs...');
 
     // Get findings to generate proofs for
     const findings = await findingRepository.getFindingsByScan(scanId);
@@ -355,17 +454,17 @@ async function executeScanPipeline(
       proofsGenerated: proofGenResult.proofsCreated,
     });
 
-    await emitScanProgress(scanId, protocolId, 'PROOF_GENERATION', ScanState.RUNNING, 95, 'Proofs generated');
+    await emitScanProgress(scanId, protocolId, 'PROOF_GENERATION', ScanState.RUNNING, 90, 'Proofs generated');
   } catch (error) {
     await cleanupResources(anvilProcess);
     await handleStepFailure(scanId, protocolId, proofStep.id, ScanErrorCodes.PROOF_GENERATION_FAILED, error);
     throw error;
   }
 
-  // Step 6: Submit to Validator
+  // Step 7: Submit to Validator (90-100%)
   const submitStep = await scanStepRepository.startStep(scanId, ScanStep.SUBMIT);
   try {
-    await emitScanProgress(scanId, protocolId, 'SUBMIT', ScanState.RUNNING, 98, 'Submitting to Validator Agent...');
+    await emitScanProgress(scanId, protocolId, 'SUBMIT', ScanState.RUNNING, 95, 'Submitting to Validator Agent...');
 
     // Get proofs for submission
     const proofs = await proofRepository.getProofsByScan(scanId);
@@ -396,8 +495,11 @@ async function executeScanPipeline(
   }
 
   // Mark scan as succeeded
+  // Note: AI metrics are stored in the AI_DEEP_ANALYSIS step's metadata field
   await scanRepository.updateScanState(scanId, ScanState.SUCCEEDED, {
     findingsCount,
+    // If AI analysis failed, mark the error code
+    ...(aiAnalysisFailed ? { errorCode: ScanErrorCodes.AI_ANALYSIS_FAILED } : {}),
   });
 
   // Emit completion event
