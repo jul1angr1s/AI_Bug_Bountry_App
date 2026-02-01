@@ -9,18 +9,54 @@ export const provider = new ethers.JsonRpcProvider(
   process.env.BASE_SEPOLIA_RPC_URL || 'https://sepolia.base.org'
 );
 
-// Create signer from private key
-export const getSigner = (): ethers.Wallet => {
-  const privateKey = process.env.PRIVATE_KEY || process.env.WALLET_PRIVATE_KEY;
+// Wallet configuration validation
+const validateWalletKeys = (): { privateKey1: string; privateKey2: string } => {
+  const privateKey1 = process.env.PRIVATE_KEY || process.env.WALLET_PRIVATE_KEY;
+  const privateKey2 = process.env.PRIVATE_KEY2;
 
-  if (!privateKey) {
+  if (!privateKey1) {
     throw new Error('PRIVATE_KEY or WALLET_PRIVATE_KEY must be set in environment variables');
   }
 
-  // Add 0x prefix if not present
-  const formattedKey = privateKey.startsWith('0x') ? privateKey : `0x${privateKey}`;
+  if (!privateKey2) {
+    throw new Error('PRIVATE_KEY2 must be set in environment variables for researcher wallet');
+  }
 
+  return { privateKey1, privateKey2 };
+};
+
+/**
+ * Payer wallet - Has PAYER_ROLE on BountyPool contract
+ * This wallet is authorized to release bounty payments to researchers
+ * Uses PRIVATE_KEY environment variable
+ */
+export const payerWallet = (() => {
+  const { privateKey1 } = validateWalletKeys();
+  const formattedKey = privateKey1.startsWith('0x') ? privateKey1 : `0x${privateKey1}`;
   return new ethers.Wallet(formattedKey, provider);
+})();
+
+/**
+ * Researcher wallet - Receives bounty payments (for testing)
+ * This wallet represents a researcher who will receive USDC payments
+ * Uses PRIVATE_KEY2 environment variable
+ */
+export const researcherWallet = (() => {
+  const { privateKey2 } = validateWalletKeys();
+  const formattedKey = privateKey2.startsWith('0x') ? privateKey2 : `0x${privateKey2}`;
+  return new ethers.Wallet(formattedKey, provider);
+})();
+
+/**
+ * Address of the researcher wallet for payment testing
+ */
+export const RESEARCHER_ADDRESS = researcherWallet.address;
+
+/**
+ * @deprecated Use payerWallet instead for explicit wallet role clarity
+ */
+export const getSigner = (): ethers.Wallet => {
+  return payerWallet;
 };
 
 // Contract addresses
@@ -69,6 +105,9 @@ export const usdcConfig = {
 export default {
   provider,
   getSigner,
+  payerWallet,
+  researcherWallet,
+  RESEARCHER_ADDRESS,
   contractAddresses,
   validateContractAddresses,
   chainConfig,
