@@ -62,6 +62,7 @@ enum ScanStep {
   COMPILE
   DEPLOY
   ANALYZE
+  AI_DEEP_ANALYSIS
   PROOF_GENERATION
   SUBMIT
 }
@@ -80,31 +81,37 @@ enum ProofStatus {
   REJECTED
 }
 
+enum AnalysisMethod {
+  STATIC
+  AI
+  HYBRID
+}
+
 model Protocol {
-  id                String         @id @default(uuid())
-  authUserId        String
-  ownerAddress      String
-  githubUrl         String         @unique
-  branch            String
-  contractPath      String
-  contractName      String
-  bountyTerms       String
-  status            ProtocolStatus @default(PENDING)
-  riskScore         Int?
-  createdAt         DateTime       @default(now())
-  updatedAt         DateTime       @updatedAt
-  
+  id           String         @id @default(uuid())
+  authUserId   String
+  ownerAddress String
+  githubUrl    String         @unique
+  branch       String
+  contractPath String
+  contractName String
+  bountyTerms  String
+  status       ProtocolStatus @default(PENDING)
+  riskScore    Int?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
   // Protocol Agent fields
-  registrationState   String?        // PENDING, ACTIVE, FAILED
-  registrationTxHash  String?
-  failureReason       String?
-  fundedAt            DateTime?
-  totalBountyPool     Float          @default(0)
-  availableBounty     Float          @default(0)
-  paidBounty          Float          @default(0)
+  registrationState  String? // PENDING, ACTIVE, FAILED
+  registrationTxHash String?
+  failureReason      String?
+  fundedAt           DateTime?
+  totalBountyPool    Float     @default(0)
+  availableBounty    Float     @default(0)
+  paidBounty         Float     @default(0)
 
   // On-chain fields (Phase 3B)
-  onChainProtocolId   String?        // bytes32 from ProtocolRegistry contract
+  onChainProtocolId String? // bytes32 from ProtocolRegistry contract
 
   vulnerabilities Vulnerability[]
   scans           Scan[]
@@ -126,7 +133,7 @@ model Vulnerability {
   bounty            Float?
   proof             String?
 
-  protocol Protocol @relation(fields: [protocolId], references: [id], onDelete: Cascade)
+  protocol Protocol  @relation(fields: [protocolId], references: [id], onDelete: Cascade)
   payments Payment[]
 
   @@index([protocolId, discoveredAt])
@@ -142,163 +149,169 @@ model Agent {
   uptime         Int?
   scansCompleted Int         @default(0)
 
-  scans    Scan[]
+  scans     Scan[]
   agentRuns AgentRun[]
 
   @@index([lastHeartbeat])
 }
 
 model Scan {
-  id                   String    @id @default(uuid())
-  protocolId           String
-  agentId              String?
-  state                ScanState @default(QUEUED)
-  currentStep          ScanStep?
-  
+  id          String    @id @default(uuid())
+  protocolId  String
+  agentId     String?
+  state       ScanState @default(QUEUED)
+  currentStep ScanStep?
+
   // Target specification
-  targetBranch         String?
-  targetCommitHash     String?
-  
+  targetBranch     String?
+  targetCommitHash String?
+
   // Timing
-  startedAt            DateTime  @default(now())
-  completedAt          DateTime?
-  
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+
   // Progress & Results
-  vulnerabilitiesFound Int       @default(0)
-  findingsCount        Int       @default(0)
-  
+  vulnerabilitiesFound Int @default(0)
+  findingsCount        Int @default(0)
+
   // Error handling
-  errorCode            String?
-  errorMessage         String?
-  retryCount           Int       @default(0)
-  
+  errorCode    String?
+  errorMessage String?
+  retryCount   Int     @default(0)
+
   // Relations
-  protocol Protocol @relation(fields: [protocolId], references: [id], onDelete: Cascade)
-  agent    Agent?   @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  protocol Protocol         @relation(fields: [protocolId], references: [id], onDelete: Cascade)
+  agent    Agent?           @relation(fields: [agentId], references: [id], onDelete: SetNull)
   findings Finding[]
   proofs   Proof[]
   steps    ScanStepRecord[]
-  
+
   @@index([protocolId, state])
   @@index([state, startedAt])
   @@index([agentId])
 }
 
 model Finding {
-  id                String        @id @default(uuid())
-  scanId            String
-  
+  id     String @id @default(uuid())
+  scanId String
+
   // Vulnerability details
   vulnerabilityType String
   severity          Severity
   status            FindingStatus @default(PENDING)
-  
+
   // Location
-  filePath          String
-  lineNumber        Int?
-  functionSelector  String?
-  
+  filePath         String
+  lineNumber       Int?
+  functionSelector String?
+
   // Analysis
-  description       String
-  confidenceScore   Float         @default(0)
-  
+  description     String
+  confidenceScore Float  @default(0)
+
+  // AI Analysis fields (Phase 4)
+  aiConfidenceScore    Float?
+  remediationSuggestion String?         @db.Text
+  codeSnippet          String?         @db.Text
+  analysisMethod       AnalysisMethod?
+
   // Metadata
-  createdAt         DateTime      @default(now())
-  validatedAt       DateTime?
-  
+  createdAt   DateTime  @default(now())
+  validatedAt DateTime?
+
   // Relations
-  scan     Scan   @relation(fields: [scanId], references: [id], onDelete: Cascade)
-  proofs   Proof[]
-  
+  scan   Scan    @relation(fields: [scanId], references: [id], onDelete: Cascade)
+  proofs Proof[]
+
   @@index([scanId])
   @@index([status])
   @@index([severity])
 }
 
 model Proof {
-  id              String      @id @default(uuid())
-  scanId          String
-  findingId       String?
-  
+  id        String  @id @default(uuid())
+  scanId    String
+  findingId String?
+
   // Proof content
-  status          ProofStatus @default(ENCRYPTED)
+  status           ProofStatus @default(ENCRYPTED)
   encryptedPayload String
-  
+
   // Storage
-  ipfsCid         String?
-  storageUrl      String?
-  
+  ipfsCid    String?
+  storageUrl String?
+
   // Cryptography
   researcherSignature String
   validatorPublicKey  String?
   encryptionKeyId     String
-  
+
   // Submission
-  submittedAt     DateTime    @default(now())
-  validatedAt     DateTime?
+  submittedAt DateTime  @default(now())
+  validatedAt DateTime?
 
   // On-chain fields (Phase 3B)
-  onChainValidationId  String?     // bytes32 from ValidationRegistry contract
-  onChainTxHash        String?     // Transaction hash for on-chain validation
+  onChainValidationId String? // bytes32 from ValidationRegistry contract
+  onChainTxHash       String? // Transaction hash for on-chain validation
 
   // Relations
   scan    Scan     @relation(fields: [scanId], references: [id], onDelete: Cascade)
   finding Finding? @relation(fields: [findingId], references: [id], onDelete: SetNull)
-  
+
   @@index([scanId, status])
   @@index([findingId])
 }
 
 model ScanStepRecord {
-  id          String    @id @default(uuid())
-  scanId      String
-  
-  step        ScanStep
-  status      String    // PENDING, RUNNING, COMPLETED, FAILED
-  
+  id     String @id @default(uuid())
+  scanId String
+
+  step   ScanStep
+  status String // PENDING, RUNNING, COMPLETED, FAILED
+
   startedAt   DateTime  @default(now())
   completedAt DateTime?
-  
+
   // Error details
-  errorCode   String?
+  errorCode    String?
   errorMessage String?
-  
+
   // Metadata
-  metadata    Json?
-  
+  metadata Json?
+
   // Relations
   scan Scan @relation(fields: [scanId], references: [id], onDelete: Cascade)
-  
+
   @@index([scanId, step])
   @@index([status])
 }
 
 model AgentRun {
-  id              String   @id @default(uuid())
-  agentId         String
-  
+  id      String @id @default(uuid())
+  agentId String
+
   // Execution context
-  scanId          String?
-  runtimeVersion  String
-  workerId        String
-  
+  scanId         String?
+  runtimeVersion String
+  workerId       String
+
   // Execution metrics
-  startedAt       DateTime @default(now())
-  completedAt     DateTime?
-  duration        Int?     // milliseconds
-  
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  duration    Int? // milliseconds
+
   // Error tracking
-  errorCode       String?
-  errorMessage    String?
-  stackTrace      String?
-  
+  errorCode    String?
+  errorMessage String?
+  stackTrace   String?
+
   // Resources
-  memoryUsage     Int?     // MB
-  cpuUsage        Float?   // percentage
-  
+  memoryUsage Int? // MB
+  cpuUsage    Float? // percentage
+
   // Relations
   agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
-  
+
   @@index([agentId, startedAt])
   @@index([scanId])
   @@index([errorCode])
@@ -314,39 +327,93 @@ model Payment {
   paidAt          DateTime?
 
   // On-chain fields (Phase 3B)
-  onChainBountyId String?       // bytes32 from BountyPool contract
+  onChainBountyId String? // bytes32 from BountyPool contract
 
-  vulnerability Vulnerability @relation(fields: [vulnerabilityId], references: [id], onDelete: Cascade)
+  // Phase 4 payment automation fields
+  researcherAddress String
+  reconciled        Boolean   @default(false)
+  reconciledAt      DateTime?
+  failureReason     String?
+  retryCount        Int       @default(0)
+  queuedAt          DateTime?
+
+  vulnerability   Vulnerability           @relation(fields: [vulnerabilityId], references: [id], onDelete: Cascade)
+  reconciliations PaymentReconciliation[]
+
+  @@index([researcherAddress])
+  @@index([reconciled])
 }
 
 model AuditLog {
-  id          String   @id @default(uuid())
-  protocolId  String
-  action      String   // REGISTRATION_ATTEMPT, FUNDING_SUBMISSION, etc.
-  txHash      String?
-  metadata    Json?
-  createdAt   DateTime @default(now())
-  
+  id         String   @id @default(uuid())
+  protocolId String
+  action     String // REGISTRATION_ATTEMPT, FUNDING_SUBMISSION, etc.
+  txHash     String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
   protocol Protocol @relation(fields: [protocolId], references: [id], onDelete: Cascade)
-  
+
   @@index([protocolId])
   @@index([createdAt])
   @@index([action])
 }
 
 model FundingEvent {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   protocolId  String
   amount      Float
   txHash      String
-  status      String   // PENDING, CONFIRMED, FAILED
-  changeType  String   // DEPOSIT, PAYMENT_RELEASED, RESERVATION
-  createdAt   DateTime @default(now())
+  status      String // PENDING, CONFIRMED, FAILED
+  changeType  String // DEPOSIT, PAYMENT_RELEASED, RESERVATION
+  createdAt   DateTime  @default(now())
   confirmedAt DateTime?
-  
+
   protocol Protocol @relation(fields: [protocolId], references: [id], onDelete: Cascade)
-  
+
   @@index([protocolId])
   @@index([createdAt])
   @@index([status])
+}
+
+model PaymentReconciliation {
+  id              String    @id @default(cuid())
+  paymentId       String? // Nullable for orphaned payments
+  onChainBountyId String // validationId from event
+  txHash          String
+  amount          Float
+  status          String // ORPHANED, MISSING_PAYMENT, UNCONFIRMED_PAYMENT, AMOUNT_MISMATCH, DISCREPANCY, RESOLVED
+  discoveredAt    DateTime  @default(now())
+  resolvedAt      DateTime?
+  notes           String?
+
+  payment Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([onChainBountyId])
+}
+
+model EventListenerState {
+  id                 String   @id @default(cuid())
+  contractAddress    String
+  eventName          String
+  lastProcessedBlock Int
+  updatedAt          DateTime @default(now()) @updatedAt
+
+  @@unique([contractAddress, eventName])
+}
+
+model KnowledgeDocument {
+  id        String    @id @default(uuid())
+  source    String
+  title     String
+  content   String    @db.Text
+  embedding Json
+  severity  Severity?
+  tags      String[]
+  version   Int
+  createdAt DateTime  @default(now())
+
+  @@index([source, version])
+  @@index([tags])
 }
