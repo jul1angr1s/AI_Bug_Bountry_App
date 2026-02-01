@@ -516,4 +516,92 @@ export function getEventListenerService(): EventListenerService {
   return eventListenerService;
 }
 
+/**
+ * Handler for BountyReleased events from BountyPool contract
+ */
+export async function handleBountyReleasedEvent(event: EventLog): Promise<void> {
+  try {
+    console.log('[EventListener] Processing BountyReleased event...');
+
+    const prisma = getPrismaClient();
+
+    // Parse event data
+    const bountyId = event.args?.bountyId || '';
+    const protocolId = event.args?.protocolId || '';
+    const validationId = event.args?.validationId || '';
+    const researcher = event.args?.researcher || '';
+    const amount = event.args?.amount || 0n;
+    const timestamp = event.args?.timestamp || 0n;
+
+    console.log(`  Bounty ID: ${bountyId}`);
+    console.log(`  Protocol ID: ${protocolId}`);
+    console.log(`  Validation ID: ${validationId}`);
+    console.log(`  Researcher: ${researcher}`);
+
+    // Find the payment record by validationId (finding ID)
+    const payment = await prisma.payment.findFirst({
+      where: {
+        vulnerability: {
+          id: validationId,
+        },
+      },
+    });
+
+    if (!payment) {
+      console.warn(
+        `[EventListener] No payment record found for validation ${validationId} - creating reconciliation record`
+      );
+
+      // Create orphaned payment reconciliation record
+      await prisma.paymentReconciliation.create({
+        data: {
+          onChainBountyId: bountyId,
+          txHash: event.transactionHash,
+          amount: Number(amount) / 1e6, // Convert from USDC wei to decimal
+          status: 'ORPHANED',
+          notes: `On-chain bounty released but no payment record found for validation ${validationId}`,
+        },
+      });
+
+      return;
+    }
+
+    // Check if payment is already reconciled
+    if (payment.reconciled) {
+      console.log(`[EventListener] Payment ${payment.id} already reconciled`);
+      return;
+    }
+
+    // Reconcile payment
+    console.log(`[EventListener] Reconciling payment ${payment.id}...`);
+
+    await prisma.payment.update({
+      where: { id: payment.id },
+      data: {
+        onChainBountyId: bountyId,
+        reconciled: true,
+        reconciledAt: new Date(),
+      },
+    });
+
+    // Create successful reconciliation record
+    await prisma.paymentReconciliation.create({
+      data: {
+        paymentId: payment.id,
+        onChainBountyId: bountyId,
+        txHash: event.transactionHash,
+        amount: Number(amount) / 1e6,
+        status: 'RESOLVED',
+        resolvedAt: new Date(),
+        notes: 'Payment successfully reconciled with on-chain event',
+      },
+    });
+
+    console.log(`[EventListener] Payment ${payment.id} reconciled successfully`);
+  } catch (error: any) {
+    console.error('[EventListener] Failed to handle BountyReleased event:', error);
+    throw error;
+  }
+}
+
 export default EventListenerService;
