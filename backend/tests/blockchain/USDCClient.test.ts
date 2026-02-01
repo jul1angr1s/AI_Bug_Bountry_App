@@ -1,13 +1,13 @@
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ethers } from 'ethers';
 
 // Mock contract
 const mockContract = {
-  allowance: jest.fn(),
-  balanceOf: jest.fn(),
+  allowance: vi.fn(),
+  balanceOf: vi.fn(),
   approve: {
-    populateTransaction: jest.fn(),
-    estimateGas: jest.fn(),
+    populateTransaction: vi.fn(),
+    estimateGas: vi.fn(),
   },
 };
 
@@ -53,7 +53,7 @@ describe('USDCClient', () => {
   let client: InstanceType<typeof USDCClient>;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     client = new USDCClient();
   });
 
@@ -192,7 +192,7 @@ describe('USDCClient', () => {
       const spender = mockContractAddresses.bountyPool;
       const amount = BigInt(1000000000);
 
-      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
       mockContract.approve.populateTransaction.mockResolvedValue({
         to: mockUsdcConfig.address,

@@ -1,55 +1,55 @@
-import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { PrismaClient, Payment, Vulnerability, Protocol, Proof, Severity, PaymentStatus } from '@prisma/client';
 
 // Mock dependencies
 const mockPrismaClient = {
   payment: {
-    findUnique: jest.fn(),
-    findFirst: jest.fn(),
-    findMany: jest.fn(),
-    count: jest.fn(),
-    create: jest.fn(),
-    update: jest.fn(),
-    aggregate: jest.fn(),
-    groupBy: jest.fn(),
+    findUnique: vi.fn(),
+    findFirst: vi.fn(),
+    findMany: vi.fn(),
+    count: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    aggregate: vi.fn(),
+    groupBy: vi.fn(),
   },
   vulnerability: {
-    findFirst: jest.fn(),
-    create: jest.fn(),
-    update: jest.fn(),
+    findFirst: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
   },
   proof: {
-    findFirst: jest.fn(),
+    findFirst: vi.fn(),
   },
   protocol: {
-    findUnique: jest.fn(),
-    update: jest.fn(),
+    findUnique: vi.fn(),
+    update: vi.fn(),
   },
   fundingEvent: {
-    create: jest.fn(),
-    findMany: jest.fn(),
+    create: vi.fn(),
+    findMany: vi.fn(),
   },
   auditLog: {
-    create: jest.fn(),
+    create: vi.fn(),
   },
 };
 
 const mockValidationClient = {
-  getValidation: jest.fn(),
+  getValidation: vi.fn(),
 };
 
 const mockBountyClient = {
-  calculateBountyAmount: jest.fn(),
-  getProtocolBalance: jest.fn(),
-  releaseBounty: jest.fn(),
+  calculateBountyAmount: vi.fn(),
+  getProtocolBalance: vi.fn(),
+  releaseBounty: vi.fn(),
 };
 
 const mockUsdcClient = {
-  getAllowance: jest.fn(),
-  getBalance: jest.fn(),
-  generateApprovalTxData: jest.fn(),
-  formatUSDC: jest.fn(),
-  parseUSDC: jest.fn(),
+  getAllowance: vi.fn(),
+  getBalance: vi.fn(),
+  generateApprovalTxData: vi.fn(),
+  formatUSDC: vi.fn(),
+  parseUSDC: vi.fn(),
 };
 
 // Mock modules
@@ -91,7 +91,7 @@ const {
 
 describe('PaymentService', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('createPaymentFromValidation', () => {

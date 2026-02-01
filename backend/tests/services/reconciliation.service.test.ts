@@ -1,28 +1,28 @@
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ethers } from 'ethers';
 
 // Mock dependencies
 const mockPrismaClient = {
   payment: {
-    findMany: jest.fn(),
-    findUnique: jest.fn(),
-    findFirst: jest.fn(),
-    count: jest.fn(),
-    update: jest.fn(),
-    groupBy: jest.fn(),
+    findMany: vi.fn(),
+    findUnique: vi.fn(),
+    findFirst: vi.fn(),
+    count: vi.fn(),
+    update: vi.fn(),
+    groupBy: vi.fn(),
   },
   paymentReconciliation: {
-    findFirst: jest.fn(),
-    findUnique: jest.fn(),
-    findMany: jest.fn(),
-    create: jest.fn(),
-    update: jest.fn(),
-    count: jest.fn(),
-    groupBy: jest.fn(),
+    findFirst: vi.fn(),
+    findUnique: vi.fn(),
+    findMany: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    count: vi.fn(),
+    groupBy: vi.fn(),
   },
   eventListenerState: {
-    findUnique: jest.fn(),
-    upsert: jest.fn(),
+    findUnique: vi.fn(),
+    upsert: vi.fn(),
   },
 };
 
@@ -31,23 +31,23 @@ const mockRedisClient = {
 };
 
 const mockQueue = {
-  add: jest.fn(),
-  getRepeatableJobs: jest.fn(),
-  removeRepeatableByKey: jest.fn(),
-  close: jest.fn(),
+  add: vi.fn(),
+  getRepeatableJobs: vi.fn(),
+  removeRepeatableByKey: vi.fn(),
+  close: vi.fn(),
 };
 
 const mockProvider = {
-  getBlockNumber: jest.fn(),
+  getBlockNumber: vi.fn(),
 };
 
 const mockContract = {
-  queryFilter: jest.fn(),
+  queryFilter: vi.fn(),
   filters: {
-    BountyReleased: jest.fn(),
+    BountyReleased: vi.fn(),
   },
   interface: {
-    parseLog: jest.fn(),
+    parseLog: vi.fn(),
   },
 };
 
@@ -93,7 +93,7 @@ describe('ReconciliationService', () => {
   let service: InstanceType<typeof ReconciliationService>;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     service = new ReconciliationService();
   });
 
@@ -328,7 +328,7 @@ describe('ReconciliationService', () => {
     });
 
     it('should alert when discrepancy count exceeds threshold', async () => {
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       mockProvider.getBlockNumber.mockResolvedValue(43200);
       mockContract.filters.BountyReleased.mockReturnValue({});

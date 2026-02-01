@@ -9,7 +9,7 @@
  * 5. PaymentReconciliation records created
  */
 
-import { describe, test, expect, beforeAll, afterAll, beforeEach } from '@jest/globals';
+import { describe, test, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { ethers } from 'ethers';
 import {
   globalSetup,

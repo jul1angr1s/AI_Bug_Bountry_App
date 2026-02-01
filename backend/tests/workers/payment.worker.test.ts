@@ -1,11 +1,11 @@
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Job } from 'bullmq';
 
 // Mock dependencies
 const mockPrismaClient = {
   payment: {
-    findUnique: jest.fn(),
-    update: jest.fn(),
+    findUnique: vi.fn(),
+    update: vi.fn(),
   },
 };
 
@@ -14,19 +14,19 @@ const mockRedisClient = {
 };
 
 const mockBountyClient = {
-  releaseBounty: jest.fn(),
+  releaseBounty: vi.fn(),
 };
 
 const mockValidationClient = {
-  getValidation: jest.fn(),
+  getValidation: vi.fn(),
 };
 
-const mockEmitPaymentReleased = jest.fn();
-const mockEmitPaymentFailed = jest.fn();
+const mockEmitPaymentReleased = vi.fn();
+const mockEmitPaymentFailed = vi.fn();
 
 const mockWorker = {
-  on: jest.fn(),
-  close: jest.fn(),
+  on: vi.fn(),
+  close: vi.fn(),
 };
 
 // Mock modules
@@ -83,7 +83,7 @@ const { startPaymentWorker, stopPaymentWorker } = await import('../../src/worker
 
 describe('PaymentWorker', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('job processing', () => {

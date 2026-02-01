@@ -1,4 +1,4 @@
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock dependencies
 const mockRedisClient = {
@@ -6,12 +6,12 @@ const mockRedisClient = {
 };
 
 const mockQueue = {
-  add: jest.fn(),
-  pause: jest.fn(),
-  resume: jest.fn(),
-  isPaused: jest.fn(),
-  getJobCounts: jest.fn(),
-  close: jest.fn(),
+  add: vi.fn(),
+  pause: vi.fn(),
+  resume: vi.fn(),
+  isPaused: vi.fn(),
+  getJobCounts: vi.fn(),
+  close: vi.fn(),
 };
 
 // Mock modules
@@ -34,7 +34,7 @@ const {
 
 describe('PaymentQueue', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('addPaymentJob', () => {
