@@ -4,6 +4,9 @@ import type {
   Agent,
   Vulnerability,
   DashboardStats,
+  Payment,
+  PaymentStatus,
+  SeverityLevel,
 } from '../types/dashboard';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -336,6 +339,75 @@ export async function fetchProtocols(params?: {
   return response.json();
 }
 
+// ========== API Client Object ==========
+
+/**
+ * Axios-style API client for hooks
+ * Provides get, post, put, delete methods that return { data: response }
+ */
+export const api = {
+  async get(url: string) {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${API_BASE_URL}/api/v1${url}`, {
+      headers,
+    });
+
+    if (!response.ok) {
+      throw new Error(`API GET request failed: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return { data };
+  },
+
+  async post(url: string, body?: unknown) {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${API_BASE_URL}/api/v1${url}`, {
+      method: 'POST',
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+
+    if (!response.ok) {
+      throw new Error(`API POST request failed: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return { data };
+  },
+
+  async put(url: string, body?: unknown) {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${API_BASE_URL}/api/v1${url}`, {
+      method: 'PUT',
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+
+    if (!response.ok) {
+      throw new Error(`API PUT request failed: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return { data };
+  },
+
+  async delete(url: string) {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${API_BASE_URL}/api/v1${url}`, {
+      method: 'DELETE',
+      headers,
+    });
+
+    if (!response.ok) {
+      throw new Error(`API DELETE request failed: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return { data };
+  },
+};
+
 // ========== USDC API Functions (Task 14.1-14.10) ==========
 
 export interface USDCAllowanceResponse {
@@ -417,6 +489,143 @@ export async function generateUSDCApprovalTx(
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: response.statusText }));
     throw new Error(error.message || `Failed to generate approval transaction: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Leaderboard entry for researcher earnings
+ */
+export interface LeaderboardEntry {
+  researcherAddress: string;
+  totalEarnings: string; // USDC amount
+  paymentCount: number;
+  averagePaymentAmount: string; // USDC amount
+}
+
+/**
+ * Response from fetchLeaderboard API
+ */
+export interface FetchLeaderboardResponse {
+  leaderboard: LeaderboardEntry[];
+}
+
+/**
+ * Fetch earnings leaderboard
+ */
+export async function fetchLeaderboard(
+  limit: number = 10
+): Promise<FetchLeaderboardResponse> {
+  const headers = await getAuthHeaders();
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/payments/leaderboard?limit=${limit}`,
+    { headers }
+  );
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: response.statusText }));
+    throw new Error(error.message || `Failed to fetch leaderboard: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Query parameters for fetching payments
+ */
+export interface FetchPaymentsParams {
+  page?: number;
+  limit?: number;
+  status?: PaymentStatus;
+  severity?: SeverityLevel;
+  startDate?: string;
+  endDate?: string;
+  protocolId?: string;
+}
+
+/**
+ * Response from fetchPayments API
+ */
+export interface FetchPaymentsResponse {
+  payments: Payment[];
+  pagination: {
+    currentPage: number;
+    totalPages: number;
+    totalCount: number;
+    hasNext: boolean;
+    hasPrevious: boolean;
+  };
+}
+
+/**
+ * Fetch payments with optional filtering and pagination
+ */
+export async function fetchPayments(
+  params?: FetchPaymentsParams
+): Promise<FetchPaymentsResponse> {
+  const headers = await getAuthHeaders();
+  const queryParams = new URLSearchParams();
+
+  if (params?.page) queryParams.append('page', params.page.toString());
+  if (params?.limit) queryParams.append('limit', params.limit.toString());
+  if (params?.status) queryParams.append('status', params.status);
+  if (params?.severity) queryParams.append('severity', params.severity);
+  if (params?.startDate) queryParams.append('startDate', params.startDate);
+  if (params?.endDate) queryParams.append('endDate', params.endDate);
+  if (params?.protocolId) queryParams.append('protocolId', params.protocolId);
+
+  const url = `${API_BASE_URL}/api/v1/payments${queryParams.toString() ? `?${queryParams}` : ''}`;
+  const response = await fetch(url, { headers });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: response.statusText }));
+    throw new Error(error.message || `Failed to fetch payments: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+// ========== Bounty Pool API Functions ==========
+
+/**
+ * Pool transaction entry
+ */
+export interface PoolTransaction {
+  id?: string; // Optional ID for tracking
+  type: 'DEPOSIT' | 'PAYMENT';
+  amount: string;
+  timestamp: string; // ISO format
+  txHash: string;
+}
+
+/**
+ * Response from fetchBountyPoolStatus API
+ */
+export interface BountyPoolStatusResponse {
+  availableBalance: string;
+  totalDeposited: string;
+  totalPaid: string;
+  pendingPaymentsTotal: string;
+  pendingPaymentsCount: number;
+  recentTransactions: PoolTransaction[];
+}
+
+/**
+ * Fetch bounty pool status for a protocol
+ */
+export async function fetchBountyPoolStatus(
+  protocolId: string
+): Promise<BountyPoolStatusResponse> {
+  const headers = await getAuthHeaders();
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/protocols/${protocolId}/bounty-pool`,
+    { headers }
+  );
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: response.statusText }));
+    throw new Error(error.message || `Failed to fetch bounty pool status: ${response.statusText}`);
   }
 
   return response.json();
