@@ -11,11 +11,11 @@ export default function Scans() {
   const [statusFilter, setStatusFilter] = useState<string>('');
   const protocolId = searchParams.get('protocolId') || undefined;
 
-  // Fetch scans with filters
+  // Fetch scans with filters (all scans if no protocolId)
   const { data, isLoading, isError, error, refetch, isFetching } = useScans({
     protocolId,
     status: statusFilter || undefined,
-    limit: 20,
+    limit: 50,
   });
 
   // Subscribe to real-time updates
@@ -33,18 +33,25 @@ export default function Scans() {
     }
   };
 
-  // Empty state when no protocolId
-  if (!protocolId) {
+  // Empty state when no scans at all
+  if (!isLoading && !isError && data && data.scans.length === 0 && !statusFilter && !protocolId) {
     return (
       <div className="min-h-screen bg-[#0f1419] py-8 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h1 className="text-3xl font-bold text-white">Scans</h1>
+              <p className="text-gray-400 mt-1">No scans found</p>
+            </div>
+          </div>
+
           <div className="flex flex-col items-center justify-center py-20">
             <div className="w-20 h-20 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-full flex items-center justify-center mb-6">
-              <SearchIcon className="w-10 h-10 text-blue-400" />
+              <Plus className="w-10 h-10 text-blue-400" />
             </div>
-            <h2 className="text-2xl font-bold text-white mb-2">No Protocol Selected</h2>
+            <h2 className="text-2xl font-bold text-white mb-2">No Scans Yet</h2>
             <p className="text-gray-400 text-center max-w-md mb-8">
-              Please select a protocol to view its scans, or navigate to a protocol detail page.
+              No protocols have been scanned yet. Register a protocol to start analyzing for vulnerabilities.
             </p>
             <button
               onClick={() => navigate('/protocols')}
@@ -58,41 +65,17 @@ export default function Scans() {
     );
   }
 
-  // Empty state with protocol but no scans
-  if (!isLoading && !isError && data && data.scans.length === 0 && !statusFilter) {
-    return (
-      <div className="min-h-screen bg-[#0f1419] py-8 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h1 className="text-3xl font-bold text-white">Scans</h1>
-              <p className="text-gray-400 mt-1">No scans for this protocol yet</p>
-            </div>
-          </div>
-
-          <div className="flex flex-col items-center justify-center py-20">
-            <div className="w-20 h-20 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-full flex items-center justify-center mb-6">
-              <Plus className="w-10 h-10 text-blue-400" />
-            </div>
-            <h2 className="text-2xl font-bold text-white mb-2">No Scans Yet</h2>
-            <p className="text-gray-400 text-center max-w-md mb-8">
-              This protocol hasn't been scanned yet. Create a scan to start analyzing for vulnerabilities.
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-[#0f1419] py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-white">Scans</h1>
+            <h1 className="text-3xl font-bold text-white">
+              {protocolId ? 'Protocol Scans' : 'All Scans'}
+            </h1>
             <p className="text-gray-400 mt-1">
-              {data?.total || 0} scan{data?.total !== 1 ? 's' : ''} found
+              {data?.total || 0} scan{data?.total !== 1 ? 's' : ''} {protocolId ? 'for this protocol' : 'across all protocols'}
             </p>
           </div>
           <div className="flex items-center gap-3">
