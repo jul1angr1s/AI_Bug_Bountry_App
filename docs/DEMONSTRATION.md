@@ -235,36 +235,355 @@ Navigate to `/payments` to see:
 
 ## Troubleshooting
 
-### Protocol Agent Fails to Clone
-- Verify GitHub URL is accessible
-- Check network connectivity
-- Ensure sufficient disk space
+### Common Issues
 
-### Researcher Agent Fails to Scan
-- Verify Foundry is installed (`forge --version`)
-- Check Anvil is available
-- Ensure contract compiles successfully
+#### Protocol Agent Fails to Clone
 
-### Validator Agent Fails to Validate
-- Verify MOONSHOT_API_KEY is set correctly
-- Check Kimi API quota and rate limits
-- Review error logs in console
+**Symptoms**: Protocol status stuck at PENDING, error in logs about Git clone failure
 
-### Payment Worker Fails to Process
-- Verify BOUNTY_POOL_ADDRESS is correct
-- Check wallet has sufficient ETH for gas
-- Ensure BountyPool contract has USDC balance
-- Verify PAYOUT_ROLE permissions
+**Solutions**:
 
-### Database Connection Issues
-- Verify PostgreSQL is running
-- Check DATABASE_URL connection string
-- Run migrations: `npm run prisma:migrate`
+```bash
+# Check network connectivity
+ping github.com
 
-### Redis Connection Issues
-- Verify Redis server is running
-- Check Redis connection in logs
-- Default Redis: `redis://localhost:6379`
+# Verify GitHub URL is accessible
+curl -I https://github.com/Cyfrin/2023-11-Thunder-Loan
+
+# Check disk space
+df -h
+
+# Verify Git is installed
+git --version
+
+# Check backend logs
+cd backend
+npm run dev  # Look for detailed error messages
+```
+
+#### Researcher Agent Fails to Scan
+
+**Symptoms**: Scan state shows FAILED, compilation errors in logs
+
+**Solutions**:
+
+```bash
+# Verify Foundry is installed
+forge --version
+# Expected: forge 0.2.0 or higher
+
+# Check if Anvil is available
+anvil --version
+
+# Test contract compilation manually
+cd /tmp
+git clone https://github.com/Cyfrin/2023-11-Thunder-Loan
+cd 2023-11-Thunder-Loan
+forge build
+# If this fails, check Solidity version compatibility
+
+# Verify Slither is installed (optional for AI-only mode)
+slither --version
+
+# Check backend logs for specific error
+grep -i "error" backend/logs/app.log
+```
+
+#### Validator Agent Fails to Validate
+
+**Symptoms**: Validation stuck at PENDING, AI API errors
+
+**Solutions**:
+
+```bash
+# Verify ANTHROPIC_API_KEY is set
+echo $ANTHROPIC_API_KEY
+# or check backend/.env
+
+# Test API key
+curl https://api.anthropic.com/v1/messages \
+  -H "x-api-key: $ANTHROPIC_API_KEY" \
+  -H "anthropic-version: 2023-06-01" \
+  -H "content-type: application/json" \
+  -d '{"model":"claude-sonnet-4-5-20250929","max_tokens":100,"messages":[{"role":"user","content":"Hello"}]}'
+
+# Check API rate limits
+# Visit https://console.anthropic.com/settings/limits
+
+# Disable AI validation temporarily
+# Set in backend/.env:
+AI_ANALYSIS_ENABLED=false
+
+# Restart backend
+cd backend
+npm run dev
+```
+
+#### Payment Worker Fails to Process
+
+**Symptoms**: Payment status shows FAILED, transaction reverts
+
+**Solutions**:
+
+```bash
+# Check wallet balance (Base Sepolia ETH)
+cast balance $YOUR_ADDRESS --rpc-url $BASE_SEPOLIA_RPC_URL
+# Need at least 0.01 ETH for gas
+
+# Get testnet ETH
+# Visit: https://www.coinbase.com/faucets/base-ethereum-sepolia-faucet
+
+# Check USDC balance in BountyPool
+cast call $BOUNTY_POOL_ADDRESS \
+  "getPoolBalance(bytes32)" \
+  $PROTOCOL_ID \
+  --rpc-url $BASE_SEPOLIA_RPC_URL
+
+# Verify contract addresses match
+grep "BOUNTY_POOL_ADDRESS" backend/.env
+grep "BOUNTY_POOL_ADDRESS" frontend/.env
+
+# Check PAYOUT_ROLE is granted
+cast call $BOUNTY_POOL_ADDRESS \
+  "hasRole(bytes32,address)" \
+  0x... \  # PAYOUT_ROLE hash
+  $YOUR_ADDRESS \
+  --rpc-url $BASE_SEPOLIA_RPC_URL
+
+# View contract ABI to debug
+cast abi-encode "releaseBounty(address,bytes32,uint8,uint256)" ...
+```
+
+#### Database Connection Issues
+
+**Symptoms**: "Can't reach database server" errors
+
+**Solutions**:
+
+```bash
+# Check PostgreSQL is running
+pg_isready -h localhost -p 5432
+# Expected: localhost:5432 - accepting connections
+
+# If using Docker
+docker ps | grep postgres
+docker logs postgres
+
+# Start PostgreSQL
+# macOS:
+brew services start postgresql@14
+# Linux:
+sudo systemctl start postgresql
+# Docker:
+docker-compose up -d postgres
+
+# Verify connection string
+echo $DATABASE_URL
+# Should be: postgresql://postgres:password@localhost:5432/bugbounty
+
+# Test connection manually
+psql $DATABASE_URL -c "SELECT 1"
+
+# Check for port conflicts
+lsof -i :5432
+
+# Reset database (development only - DELETES DATA)
+cd backend
+npx prisma migrate reset
+```
+
+#### Redis Connection Issues
+
+**Symptoms**: Queue jobs not processing, WebSocket not working
+
+**Solutions**:
+
+```bash
+# Check Redis is running
+redis-cli ping
+# Expected: PONG
+
+# If using Docker
+docker ps | grep redis
+docker logs redis
+
+# Start Redis
+# macOS:
+brew services start redis
+# Linux:
+sudo systemctl start redis
+# Docker:
+docker-compose up -d redis
+
+# Test connection
+redis-cli
+> SET test "value"
+> GET test
+> DEL test
+> QUIT
+
+# Check Redis URL
+echo $REDIS_URL
+# Should be: redis://localhost:6379
+
+# Check for port conflicts
+lsof -i :6379
+
+# Clear Redis cache (if needed)
+redis-cli FLUSHALL
+```
+
+### Error Messages
+
+#### "Duplicate GitHub URL"
+
+**Cause**: Protocol already registered with this GitHub URL
+
+**Solution**: Use a different protocol or delete existing registration
+
+```bash
+# Find existing protocol
+psql $DATABASE_URL -c "SELECT id, \"githubUrl\" FROM \"Protocol\" WHERE \"githubUrl\" = 'https://github.com/Cyfrin/2023-11-Thunder-Loan';"
+
+# Delete protocol (development only)
+psql $DATABASE_URL -c "DELETE FROM \"Protocol\" WHERE \"githubUrl\" = 'https://github.com/Cyfrin/2023-11-Thunder-Loan';"
+```
+
+#### "Compilation Failed"
+
+**Cause**: Contract doesn't compile with current Foundry version
+
+**Solutions**:
+
+```bash
+# Update Foundry
+foundryup
+
+# Check Solidity version in contract
+grep "pragma solidity" src/**/*.sol
+
+# Try different Foundry version
+foundryup --version nightly-...
+```
+
+#### "Insufficient USDC balance"
+
+**Cause**: BountyPool doesn't have enough USDC
+
+**Solutions**:
+
+```bash
+# Get testnet USDC from faucet
+# Visit: https://faucet.circle.com/
+
+# Or mint directly (if minter role available)
+cast send $USDC_ADDRESS \
+  "mint(address,uint256)" \
+  $BOUNTY_POOL_ADDRESS \
+  100000000 \
+  --rpc-url $BASE_SEPOLIA_RPC_URL \
+  --private-key $PRIVATE_KEY
+
+# Approve and deposit
+cast send $USDC_ADDRESS \
+  "approve(address,uint256)" \
+  $BOUNTY_POOL_ADDRESS \
+  100000000 \
+  --rpc-url $BASE_SEPOLIA_RPC_URL \
+  --private-key $PRIVATE_KEY
+
+cast send $BOUNTY_POOL_ADDRESS \
+  "depositBounty(bytes32,uint256)" \
+  $PROTOCOL_ID \
+  100000000 \
+  --rpc-url $BASE_SEPOLIA_RPC_URL \
+  --private-key $PRIVATE_KEY
+```
+
+#### "WebSocket connection failed"
+
+**Cause**: CORS issue or incorrect WebSocket URL
+
+**Solutions**:
+
+```bash
+# Check WebSocket URL in frontend/.env
+grep "VITE_WS_URL" frontend/.env
+# Development: ws://localhost:3000
+# Production: wss://your-api.railway.app
+
+# Test WebSocket connection
+npm install -g wscat
+wscat -c ws://localhost:3000
+
+# Check CORS configuration in backend
+grep "FRONTEND_URL" backend/.env
+# Should match frontend URL: http://localhost:5173
+
+# Check backend logs for CORS errors
+cd backend
+npm run dev | grep -i cors
+```
+
+### Tips for Successful Demonstration
+
+1. **Pre-flight Checklist**:
+   - [ ] PostgreSQL running
+   - [ ] Redis running
+   - [ ] Database migrations applied
+   - [ ] Environment variables set
+   - [ ] Contracts deployed and funded
+   - [ ] Testnet ETH in wallet (>0.01 ETH)
+   - [ ] Backend health check passes
+
+2. **Run Health Check**:
+
+```bash
+# Check all services
+curl http://localhost:3000/health/detailed
+
+# Expected response:
+# {
+#   "status": "ok",
+#   "checks": {
+#     "database": {"status": "ok"},
+#     "redis": {"status": "ok"},
+#     "memory": {"status": "ok"}
+#   }
+# }
+```
+
+3. **Monitor Logs**:
+
+```bash
+# Terminal 1: Backend logs
+cd backend
+npm run dev
+
+# Terminal 2: Frontend logs
+cd frontend
+npm run dev
+
+# Terminal 3: Database queries (optional)
+npx prisma studio
+
+# Terminal 4: Redis monitor (optional)
+redis-cli monitor
+```
+
+4. **Common Gotchas**:
+   - Thunder Loan requires specific Foundry version
+   - AI analysis requires valid Anthropic API key
+   - Payment requires USDC in BountyPool AND ETH for gas
+   - WebSocket requires CORS configuration
+   - Scan timeout is 10 minutes by default
+
+5. **Optimal Demo Flow**:
+   - Start with a known-good protocol (Thunder Loan)
+   - Monitor backend console for progress
+   - Keep browser console open for errors
+   - Use separate terminal for health checks
+   - Have Basescan open to monitor transactions
 
 ## Performance Benchmarks
 
