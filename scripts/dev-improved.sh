@@ -6,19 +6,22 @@ COMPOSE_FILE="$ROOT_DIR/backend/docker-compose.yml"
 
 pids=()
 
-load_env() {
-  local env_file="$1"
-  if [ -f "$env_file" ]; then
-    set -a
-    # shellcheck disable=SC1090
-    . "$env_file"
-    set +a
-    echo "✓ Loaded env: $env_file"
-  fi
-}
+# Load environment variables (must be at top level, not in function)
+if [ -f "$ROOT_DIR/backend/.env.local" ]; then
+  set -a
+  # shellcheck disable=SC1090
+  . "$ROOT_DIR/backend/.env.local"
+  set +a
+  echo "✓ Loaded env: $ROOT_DIR/backend/.env.local"
+fi
 
-load_env "$ROOT_DIR/backend/.env.local"
-load_env "$ROOT_DIR/backend/.env"
+if [ -f "$ROOT_DIR/backend/.env" ]; then
+  set -a
+  # shellcheck disable=SC1090
+  . "$ROOT_DIR/backend/.env"
+  set +a
+  echo "✓ Loaded env: $ROOT_DIR/backend/.env"
+fi
 
 # ==============================================
 # Pre-flight Checks
