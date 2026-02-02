@@ -15,14 +15,15 @@ export default function ProtocolOverview({ protocol }: ProtocolOverviewProps) {
   };
 
   const statusMap = {
-    MONITORING: 'ONLINE',
+    ACTIVE: 'ONLINE',
+    PENDING: 'OFFLINE',
     PAUSED: 'OFFLINE',
-    INACTIVE: 'OFFLINE',
+    DEPRECATED: 'OFFLINE',
   } as const;
 
   const handleCopyAddress = async () => {
     try {
-      await navigator.clipboard.writeText(protocol.contractAddress);
+      await navigator.clipboard.writeText(protocol.ownerAddress);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
@@ -43,18 +44,18 @@ export default function ProtocolOverview({ protocol }: ProtocolOverviewProps) {
           </div>
           <div>
             <p className="text-xs text-gray-400 mb-1">Protocol</p>
-            <h3 className="text-lg font-semibold text-white break-words">{protocol.name}</h3>
+            <h3 className="text-lg font-semibold text-white break-words">{protocol.contractName}</h3>
           </div>
         </div>
-        <StatusBadge status={statusMap[protocol.status]} />
+        <StatusBadge status={statusMap[protocol.status as keyof typeof statusMap] || 'OFFLINE'} />
       </div>
 
       <div className="space-y-3">
         <div>
-          <p className="text-xs text-gray-400 mb-1">Contract Address</p>
+          <p className="text-xs text-gray-400 mb-1">Owner Address</p>
           <div className="flex items-center gap-2">
             <p className="text-sm text-gray-300 font-mono break-all">
-              {truncateAddress(protocol.contractAddress)}
+              {truncateAddress(protocol.ownerAddress)}
             </p>
             <button
               onClick={handleCopyAddress}
@@ -76,9 +77,9 @@ export default function ProtocolOverview({ protocol }: ProtocolOverviewProps) {
         </div>
 
         <div>
-          <p className="text-xs text-gray-400 mb-1">Bounty Pool</p>
+          <p className="text-xs text-gray-400 mb-1">Available Bounty</p>
           <p className="text-xl sm:text-2xl font-bold text-primary" aria-live="polite">
-            {protocol.bountyPool}
+            ${protocol.availableBounty} USDC
           </p>
         </div>
       </div>
