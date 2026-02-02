@@ -16,6 +16,8 @@ import { startValidationListener, stopValidationListener } from './blockchain/li
 import { startBountyListener, stopBountyListener } from './blockchain/listeners/bounty-listener.js';
 import { getReconciliationService } from './services/reconciliation.service.js';
 import { startPaymentWorker, stopPaymentWorker } from './workers/payment.worker.js';
+import { startProtocolWorker, stopProtocolWorker } from './queues/protocol.queue.js';
+import { startResearcherAgent, stopResearcherAgent } from './agents/researcher/index.js';
 import { setupProcessErrorHandlers } from './lib/process-error-handler.js';
 import type { Worker } from 'bullmq';
 
@@ -75,6 +77,26 @@ server.listen(config.PORT, async () => {
     console.error('Failed to start BountyReleased listener:', error);
   }
 
+  // Start protocol registration worker
+  try {
+    startProtocolWorker();
+    console.log('[ProtocolWorker] Protocol registration worker started successfully');
+    console.log('  Queue: protocol-registration');
+    console.log('  Concurrency: 2');
+  } catch (error) {
+    console.error('Failed to start protocol worker:', error);
+  }
+
+  // Start researcher agent worker
+  try {
+    await startResearcherAgent();
+    console.log('[ResearcherAgent] Researcher agent worker started successfully');
+    console.log('  Queue: scan-jobs');
+    console.log('  Concurrency: 2');
+  } catch (error) {
+    console.error('Failed to start researcher agent worker:', error);
+  }
+
   // Start payment processing worker
   try {
     paymentWorkerInstance = startPaymentWorker();
@@ -125,6 +147,22 @@ async function shutdown(signal: string): Promise<void> {
     console.log('BountyReleased event listener stopped');
   } catch (error) {
     console.error('Error stopping BountyReleased listener:', error);
+  }
+
+  try {
+    // Stop protocol worker
+    await stopProtocolWorker();
+    console.log('[ProtocolWorker] Protocol registration worker stopped');
+  } catch (error) {
+    console.error('Error stopping protocol worker:', error);
+  }
+
+  try {
+    // Stop researcher agent worker
+    await stopResearcherAgent();
+    console.log('[ResearcherAgent] Researcher agent worker stopped');
+  } catch (error) {
+    console.error('Error stopping researcher agent worker:', error);
   }
 
   try {

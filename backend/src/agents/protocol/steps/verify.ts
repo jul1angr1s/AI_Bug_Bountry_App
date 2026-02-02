@@ -30,7 +30,8 @@ export async function verifyContractPath(
     }
 
     // Build full path to contract file
-    const contractFullPath = path.join(repoPath, sanitizedPath, contractName);
+    // contractPath already includes the filename (e.g., "src/protocol/ThunderLoan.sol")
+    const contractFullPath = path.join(repoPath, sanitizedPath);
 
     console.log(`Verifying contract exists at ${contractFullPath}`);
 
@@ -51,10 +52,10 @@ export async function verifyContractPath(
     }
 
     // Verify it's a Solidity file
-    if (!contractName.endsWith('.sol')) {
+    if (!contractFullPath.endsWith('.sol')) {
       return {
         success: false,
-        error: `Contract file must be a Solidity file (.sol): ${contractName}`,
+        error: `Contract file must be a Solidity file (.sol): ${contractFullPath}`,
       };
     }
 
