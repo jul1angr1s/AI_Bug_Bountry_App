@@ -23,14 +23,8 @@ export function useScans(options: UseScanOptions = {}) {
 
   return useQuery<ScanListResponse>({
     queryKey: ['scans', { protocolId, status, page, limit }],
-    queryFn: () => {
-      // Use protocolId if provided, otherwise pass limit
-      if (protocolId) {
-        return fetchScans(protocolId, limit);
-      }
-      throw new Error('protocolId is required for fetching scans');
-    },
-    enabled: enabled && !!protocolId,
+    queryFn: () => fetchScans(protocolId, limit),
+    enabled,
     staleTime: 30000, // Consider data fresh for 30 seconds
     refetchInterval: 30000, // Refetch every 30 seconds for real-time feel
   });

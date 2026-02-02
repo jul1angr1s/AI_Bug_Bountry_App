@@ -246,12 +246,17 @@ export async function createScan(request: CreateScanRequest): Promise<{ scanId: 
 }
 
 /**
- * Fetch scans for a protocol
+ * Fetch scans for a protocol or all scans
  */
-export async function fetchScans(protocolId: string, limit: number = 10): Promise<{ scans: Scan[]; total: number }> {
+export async function fetchScans(protocolId?: string, limit: number = 10): Promise<{ scans: Scan[]; total: number }> {
   const headers = await getAuthHeaders();
+  const params = new URLSearchParams({ limit: limit.toString() });
+  if (protocolId) {
+    params.append('protocolId', protocolId);
+  }
+
   const response = await fetch(
-    `${API_BASE_URL}/api/v1/scans?protocolId=${protocolId}&limit=${limit}`,
+    `${API_BASE_URL}/api/v1/scans?${params.toString()}`,
     { headers }
   );
 
