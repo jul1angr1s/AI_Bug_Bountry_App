@@ -5,3 +5,9 @@ dist
 .env.*.local
 *.log
 backend/contracts/lib/
+
+# Debug and test scripts
+check-*.ts
+fix-*.ts
+delete-*.ts
+cleanup-*.ts
