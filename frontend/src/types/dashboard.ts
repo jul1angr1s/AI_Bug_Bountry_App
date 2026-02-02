@@ -1,6 +1,7 @@
 export type SeverityLevel = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'INFO';
 export type AgentStatus = 'ONLINE' | 'OFFLINE' | 'SCANNING' | 'ERROR';
 export type AgentType = 'Protocol' | 'Researcher' | 'Validator';
+export type PaymentStatus = 'COMPLETED' | 'PENDING' | 'FAILED';
 
 export interface Vulnerability {
   id: string;
@@ -41,4 +42,22 @@ export interface Alert {
   severity: SeverityLevel;
   message: string;
   timestamp: string;
+}
+
+export interface Payment {
+  id: string;
+  researcherAddress: string;
+  amount: string;
+  status: PaymentStatus;
+  txHash?: string;
+  createdAt: string;
+  failureReason?: string;
+  protocol?: {
+    id: string;
+    name?: string;
+  };
+  vulnerability?: {
+    id: string;
+    severity: SeverityLevel;
+  };
 }

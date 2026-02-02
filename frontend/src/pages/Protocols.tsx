@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Filter, Grid3x3, List, Search, RefreshCw } from 'lucide-react';
 import ProtocolCard from '../components/protocols/ProtocolCard';
-import LoadingSkeleton from '../components/shared/LoadingSkeleton';
+import { LoadingSkeleton } from '../components/shared/LoadingSkeleton';
 import { useProtocols, useProtocolsRealtime } from '../hooks/useProtocols';
 
 type ViewMode = 'grid' | 'list';

@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Github, ExternalLink, Play, FileText, Shield } from 'lucide-react';
 import { useProtocol, useProtocolRealtime } from '../hooks/useProtocol';
 import ProtocolStats from '../components/protocols/ProtocolStats';
-import LoadingSkeleton from '../components/shared/LoadingSkeleton';
+import { LoadingSkeleton } from '../components/shared/LoadingSkeleton';
 import StatusBadge from '../components/shared/StatusBadge';
 
 type TabType = 'overview' | 'scans' | 'findings' | 'payments';
