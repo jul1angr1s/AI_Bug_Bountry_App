@@ -12,21 +12,75 @@ import type {
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 /**
+ * Check if the backend server is reachable
+ */
+export async function checkBackendHealth(): Promise<{
+  healthy: boolean;
+  error?: string;
+  cors: boolean;
+}> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/health`, {
+      method: 'GET',
+      mode: 'cors',
+    });
+
+    return {
+      healthy: response.ok,
+      cors: true,
+    };
+  } catch (error) {
+    if (error instanceof TypeError && error.message === 'Failed to fetch') {
+      return {
+        healthy: false,
+        error: 'Backend server is not reachable. Make sure it is running on ' + API_BASE_URL,
+        cors: false,
+      };
+    }
+    return {
+      healthy: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      cors: false,
+    };
+  }
+}
+
+/**
  * Get auth headers for API requests
  */
 async function getAuthHeaders(): Promise<HeadersInit> {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  try {
+    const result = await supabase.auth.getSession();
 
-  if (!session?.access_token) {
-    throw new Error('No active session');
+    if (!result || !result.data) {
+      console.error('[API] Supabase getSession returned invalid response:', result);
+      throw new Error('Authentication service is not responding correctly. Please refresh the page.');
+    }
+
+    const { data: { session }, error } = result;
+
+    if (error) {
+      console.error('[API] Supabase session error:', error);
+      throw new Error(`Authentication error: ${error.message}`);
+    }
+
+    if (!session?.access_token) {
+      console.error('[API] No active session found');
+      throw new Error('No active session. Please log in to continue.');
+    }
+
+    console.log('[API] Authentication successful, user:', session.user?.email);
+    return {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${session.access_token}`,
+    };
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('No active session')) {
+      throw error;
+    }
+    console.error('[API] Unexpected error getting auth headers:', error);
+    throw new Error('Authentication failed. Please try logging in again.');
   }
-
-  return {
-    'Content-Type': 'application/json',
-    Authorization: `Bearer ${session.access_token}`,
-  };
 }
 
 /**
@@ -258,13 +312,12 @@ export function subscribeToScanProgress(
 // ========== Protocol Registration API (Task 1.1.5) ==========
 
 export interface CreateProtocolRequest {
-  name: string;
   githubUrl: string;
   branch?: string;
   contractPath: string;
   contractName: string;
-  bountyPoolAddress: string;
-  network?: string;
+  bountyTerms: string;
+  ownerAddress: string;
 }
 
 export interface CreateProtocolResponse {
@@ -299,19 +352,45 @@ export interface ProtocolListResponse {
  * Create a new protocol registration
  */
 export async function createProtocol(request: CreateProtocolRequest): Promise<CreateProtocolResponse> {
-  const headers = await getAuthHeaders();
-  const response = await fetch(`${API_BASE_URL}/api/v1/protocols`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(request),
-  });
+  try {
+    const headers = await getAuthHeaders();
+    const url = `${API_BASE_URL}/api/v1/protocols`;
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || `Failed to create protocol: ${response.statusText}`);
+    console.log('[API] Creating protocol:', request.name);
+    console.log('[API] Request URL:', url);
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(request),
+    });
+
+    console.log('[API] Response status:', response.status, response.statusText);
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.message || errorData.error?.message || response.statusText;
+      console.error('[API] Protocol creation failed:', errorMessage);
+      throw new Error(errorMessage);
+    }
+
+    const data = await response.json();
+    console.log('[API] Protocol created successfully:', data.id);
+    return data;
+  } catch (error) {
+    // Enhanced error handling for common issues
+    if (error instanceof TypeError && error.message === 'Failed to fetch') {
+      console.error('[API] Network error - possible causes:');
+      console.error('  1. Backend server not running');
+      console.error('  2. CORS policy blocking the request');
+      console.error('  3. Network connectivity issue');
+      console.error('  4. Invalid API URL:', API_BASE_URL);
+      throw new Error(
+        'Network error: Could not connect to the server. Please check if the backend is running on http://localhost:3000'
+      );
+    }
+    throw error;
   }
-
-  return response.json();
 }
 
 /**

@@ -1,14 +1,22 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { ArrowLeft, Shield, AlertCircle } from 'lucide-react';
 import ProtocolForm from '../components/protocols/ProtocolForm';
 import { createProtocol, type CreateProtocolRequest } from '../lib/api';
+import { logDiagnostics } from '../lib/diagnostics';
 
 export default function ProtocolRegistration() {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Run diagnostics on mount to help debug issues
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      logDiagnostics().catch(console.error);
+    }
+  }, []);
 
   const handleSubmit = async (data: CreateProtocolRequest) => {
     setIsSubmitting(true);
@@ -19,7 +27,7 @@ export default function ProtocolRegistration() {
 
       // Show success toast
       toast.success('Protocol registered successfully!', {
-        description: `${response.name} is now being analyzed by our Protocol Agent. You'll be notified when analysis is complete.`,
+        description: `Your protocol is now being analyzed by our Protocol Agent. You'll be notified when analysis is complete.`,
         duration: 5000,
       });
 
@@ -115,11 +123,10 @@ export default function ProtocolRegistration() {
               </p>
             </div>
             <div>
-              <p className="font-medium text-gray-300">What is a Bounty Pool Address?</p>
+              <p className="font-medium text-gray-300">What is an Owner Address?</p>
               <p>
-                This is the address of your deployed BountyPool contract on Base Sepolia that will
-                be used to pay researchers who find vulnerabilities. If you haven't deployed one yet,
-                please do so before registering.
+                This is your wallet address that owns the protocol. It will be used to manage
+                the protocol and verify on-chain registration.
               </p>
             </div>
             <div>
