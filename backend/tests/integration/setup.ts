@@ -366,8 +366,9 @@ export async function createTestPayment(
     amount?: number;
     status?: 'PENDING' | 'COMPLETED' | 'FAILED';
     researcherAddress?: string;
-    txHash?: string;
-    onChainBountyId?: string;
+    txHash?: string | null;
+    onChainBountyId?: string | null;
+    reconciled?: boolean;
   } = {}
 ) {
   return await prisma.payment.create({
@@ -377,8 +378,9 @@ export async function createTestPayment(
       currency: 'USDC',
       status: options.status || 'PENDING',
       researcherAddress: options.researcherAddress || testResearcherWallet.address,
-      txHash: options.txHash,
-      onChainBountyId: options.onChainBountyId,
+      txHash: options.txHash === null ? null : (options.txHash || undefined),
+      onChainBountyId: options.onChainBountyId === null ? null : (options.onChainBountyId || undefined),
+      reconciled: options.reconciled || false,
       queuedAt: new Date(),
     },
   });

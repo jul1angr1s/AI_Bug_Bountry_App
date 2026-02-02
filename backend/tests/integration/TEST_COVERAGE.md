@@ -8,10 +8,12 @@ This document provides a comprehensive overview of the integration test coverage
 
 | Test File | Test Cases | Coverage Areas | Status |
 |-----------|------------|----------------|--------|
-| `payment-flow.test.ts` | 4 | Full payment workflow, error handling, retries | ✅ Complete |
-| `reconciliation-flow.test.ts` | 6 | Payment reconciliation, discrepancy detection | ✅ Complete |
-| `usdc-approval-flow.test.ts` | 11 | USDC approvals, balance queries, validations | ✅ Complete |
-| **Total** | **21** | **All Phase 4 requirements** | ✅ Complete |
+| `payment-flow.test.ts` | 4 | Full payment workflow, error handling, retries | ✅ Enabled |
+| `reconciliation-flow.test.ts` | 6 | Payment reconciliation, discrepancy detection | ✅ Enabled |
+| `usdc-approval-flow.test.ts` | 11 | USDC approvals, balance queries, validations | ✅ Enabled |
+| `validator-agent.test.ts` | 5 | Validator agent LLM validation flow, error handling | ✅ New |
+| `websocket-events.test.ts` | 10 | WebSocket event emissions for all event types | ✅ New |
+| **Total** | **36** | **All Phase 4 + Agent/WebSocket requirements** | ✅ Complete |
 
 ## Detailed Test Coverage
 
@@ -282,6 +284,177 @@ This document provides a comprehensive overview of the integration test coverage
 **Assertions:**
 - Service returns success=true
 - Balance = 0
+
+---
+
+### 4. Validator Agent Tests (validator-agent.test.ts)
+
+#### Test Case 1: Validator Agent Initialization
+**Description:** Validator agent starts and listens for proof submissions
+
+**Steps Tested:**
+1. ✅ Start validator agent LLM worker
+2. ✅ Verify agent is listening on Redis pub/sub
+3. ✅ Confirm agent is ready to process proofs
+
+**Assertions:**
+- Agent starts without errors
+- Redis subscription established
+- Agent is ready for proof processing
+
+#### Test Case 2: Full Validator Agent Flow
+**Description:** End-to-end proof validation using Kimi 2.5 LLM
+
+**Steps Tested:**
+1. ✅ Create protocol, scan, and finding
+2. ✅ Create proof with encrypted exploit code
+3. ✅ Publish proof submission to Redis
+4. ✅ Agent receives and decrypts proof
+5. ✅ Agent analyzes proof with Kimi 2.5 LLM
+6. ✅ Agent updates finding validation status
+7. ✅ Agent updates proof status
+
+**Assertions:**
+- Proof status changes to VALIDATED or REJECTED
+- Finding status updated accordingly
+- validatedAt timestamp set
+- LLM analysis applied correctly
+
+#### Test Case 3: Decryption Error Handling
+**Description:** Handles invalid encrypted payloads gracefully
+
+**Steps Tested:**
+1. ✅ Create proof with invalid encrypted data
+2. ✅ Publish proof submission
+3. ✅ Agent attempts decryption
+4. ✅ Agent handles error and rejects proof
+
+**Assertions:**
+- Proof status = REJECTED
+- No crashes or unhandled errors
+- Error logged appropriately
+
+#### Test Case 4: LLM API Error Handling
+**Description:** Handles LLM API failures gracefully
+
+**Steps Tested:**
+1. ✅ Mock LLM client to throw error
+2. ✅ Create and submit valid proof
+3. ✅ Agent attempts LLM analysis
+4. ✅ Agent handles API error
+
+**Assertions:**
+- Proof marked as REJECTED on LLM failure
+- Error logged
+- Agent continues running (no crash)
+
+#### Test Case 5: Agent Shutdown
+**Description:** Validator agent stops cleanly
+
+**Steps Tested:**
+1. ✅ Start agent
+2. ✅ Stop agent
+3. ✅ Verify clean shutdown
+4. ✅ Test idempotency (stop when already stopped)
+
+**Assertions:**
+- No errors on shutdown
+- Redis subscription cleaned up
+- Idempotent stop operations
+
+---
+
+### 5. WebSocket Events Tests (websocket-events.test.ts)
+
+#### Test Case 1: Payment Released Event
+**Description:** payment:released event emitted correctly
+
+**Assertions:**
+- Event delivered to protocol room subscribers
+- Event type correct
+- All payment data included (id, amount, txHash, etc.)
+- Timestamp included
+
+#### Test Case 2: Payment Failed Event
+**Description:** payment:failed event emitted correctly
+
+**Assertions:**
+- Event delivered to protocol room
+- Failure reason included
+- Retry count included
+- Validation ID included
+
+#### Test Case 3: Scan Started Event
+**Description:** scan:started event emitted correctly
+
+**Assertions:**
+- Event delivered to protocol and scans rooms
+- Scan ID and protocol ID included
+- Agent ID included
+- Branch and commit hash included
+
+#### Test Case 4: Scan Progress Event
+**Description:** scan:progress event emitted correctly
+
+**Assertions:**
+- Event delivered to protocol room
+- Current step and state included
+- Progress percentage included
+- Message included
+
+#### Test Case 5: Scan Completed Event
+**Description:** scan:completed event emitted correctly
+
+**Assertions:**
+- Event delivered to protocol room
+- Final state included
+- Findings count included
+- Duration calculated correctly
+- Error details included (if applicable)
+
+#### Test Case 6: Agent Task Update Event
+**Description:** agent:task_update event emitted correctly
+
+**Assertions:**
+- Event delivered to agents room
+- Agent ID, task, and progress included
+- Estimated completion time included
+
+#### Test Case 7: Protocol Status Change Event
+**Description:** protocol:status_changed event emitted correctly
+
+**Assertions:**
+- Event delivered to protocols room
+- Status and registration state included
+- Transaction hash included (if applicable)
+- Risk score included
+
+#### Test Case 8: Vulnerability Status Change Event
+**Description:** vuln:status_changed event emitted correctly
+
+**Assertions:**
+- Event delivered to protocol room
+- Old and new status included
+- Severity included
+- Payment amount included (if applicable)
+- Rejection reason included (if applicable)
+
+#### Test Case 9: Bounty Pool Update Event
+**Description:** bounty_pool:updated event emitted correctly
+
+**Assertions:**
+- Event delivered to protocol room
+- Total, available, and paid amounts included
+- Change type correct (DEPOSIT, PAYMENT_RELEASED, etc.)
+- Amount of change included
+
+#### Test Case 10: Multiple Client Event Delivery
+**Description:** Multiple clients in same room receive events
+
+**Assertions:**
+- Event delivered to all subscribed clients
+- No duplicate deliveries
+- Correct room targeting
 
 ---
 
