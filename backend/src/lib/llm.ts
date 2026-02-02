@@ -1,12 +1,12 @@
 /**
- * LLM Client for Kimi 2.5 (Moonshot AI)
+ * LLM Client for Kimi 2.5 (Moonshot AI via NVIDIA)
  *
- * Kimi 2.5 is provided by Moonshot AI and is accessed via OpenAI-compatible API.
- * API Endpoint: https://api.moonshot.cn/v1
- * Model: moonshot-v1-8k, moonshot-v1-32k, moonshot-v1-128k
+ * Kimi 2.5 is provided by Moonshot AI and is accessed via NVIDIA's API Gateway.
+ * API Endpoint: https://integrate.api.nvidia.com/v1
+ * Model: moonshotai/kimi-k2.5
  *
- * For this use case (proof validation), we use moonshot-v1-32k for balance of
- * context window and cost.
+ * This model supports extended thinking via chat_template_kwargs.
+ * For proof validation, we use max_tokens: 16384 for detailed analysis.
  */
 
 interface LLMMessage {
@@ -29,40 +29,51 @@ export class KimiLLMClient {
   private model: string;
 
   constructor() {
-    // Get API key from environment
-    this.apiKey = process.env.KIMI_API_KEY || process.env.MOONSHOT_API_KEY || '';
+    // Get API key from environment (NVIDIA API key format: nvapi-...)
+    this.apiKey = process.env.KIMI_API_KEY || '';
 
     if (!this.apiKey) {
       throw new Error(
-        'KIMI_API_KEY or MOONSHOT_API_KEY environment variable is required'
+        'KIMI_API_KEY environment variable is required (NVIDIA API key)'
       );
     }
 
-    // Moonshot AI API endpoint (OpenAI-compatible)
-    this.baseUrl = process.env.KIMI_API_URL || 'https://api.moonshot.cn/v1';
+    // NVIDIA API Gateway endpoint for Kimi 2.5
+    this.baseUrl = process.env.KIMI_API_URL || 'https://integrate.api.nvidia.com/v1';
 
-    // Model: moonshot-v1-32k for proof validation (good balance)
-    this.model = process.env.KIMI_MODEL || 'moonshot-v1-32k';
+    // Model: moonshotai/kimi-k2.5 via NVIDIA
+    this.model = process.env.KIMI_MODEL || 'moonshotai/kimi-k2.5';
 
     console.log(`[KimiLLM] Initialized with model: ${this.model}`);
   }
 
   /**
-   * Send chat completion request to Kimi
+   * Send chat completion request to Kimi 2.5 via NVIDIA API
    */
-  async chat(messages: LLMMessage[], temperature: number = 0.3): Promise<LLMResponse> {
+  async chat(
+    messages: LLMMessage[],
+    temperature: number = 0.3,
+    maxTokens: number = 16384,
+    enableThinking: boolean = true
+  ): Promise<LLMResponse> {
     try {
       const response = await fetch(`${this.baseUrl}/chat/completions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${this.apiKey}`,
+          Accept: 'application/json', // Use 'text/event-stream' for streaming
         },
         body: JSON.stringify({
           model: this.model,
           messages,
           temperature,
-          max_tokens: 2000,
+          max_tokens: maxTokens,
+          top_p: 1.0,
+          stream: false, // Set to true for streaming support
+          chat_template_kwargs: {
+            thinking: enableThinking, // Enable extended thinking for Kimi 2.5
+          },
         }),
       });
 
@@ -76,7 +87,24 @@ export class KimiLLMClient {
       const data = await response.json();
 
       // Extract response
-      const content = data.choices?.[0]?.message?.content || '';
+      // Kimi 2.5 with thinking mode returns reasoning in 'reasoning_content' or 'reasoning' field
+      // and the final answer in 'content' field (may be null if all tokens used for thinking)
+      const message = data.choices?.[0]?.message;
+      const content = message?.content || '';
+      const reasoning = message?.reasoning_content || message?.reasoning || '';
+
+      // If thinking mode is enabled and we got reasoning but no content,
+      // use the reasoning as the response
+      // Otherwise, combine reasoning and content if both present
+      let fullContent = '';
+      if (reasoning && !content) {
+        fullContent = reasoning;
+      } else if (reasoning && content) {
+        fullContent = `${reasoning}\n\n---\n\n${content}`;
+      } else {
+        fullContent = content;
+      }
+
       const usage = data.usage
         ? {
             promptTokens: data.usage.prompt_tokens,
@@ -86,7 +114,7 @@ export class KimiLLMClient {
         : undefined;
 
       return {
-        content,
+        content: fullContent,
         usage,
       };
     } catch (error) {
@@ -162,7 +190,9 @@ Respond with ONLY the JSON object, no additional text.`;
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
         ],
-        0.3 // Low temperature for consistent validation
+        0.3, // Low temperature for consistent validation
+        16384, // Max tokens for detailed analysis
+        true // Enable thinking mode for deep reasoning
       );
 
       // Parse JSON response
@@ -214,7 +244,9 @@ Respond with ONLY the JSON object, no additional text.`;
     try {
       const response = await this.chat(
         [{ role: 'user', content: 'Hello, respond with OK' }],
-        0
+        0, // Temperature
+        100, // Max tokens (small for health check)
+        false // Disable thinking for simple health check
       );
       return response.content.toLowerCase().includes('ok');
     } catch (error) {

@@ -24,12 +24,14 @@ Third-party services and API integrations required for the platform.
 
 ### 1. Kimi AI (Inference)
 ```env
-KIMI_API_KEY=sk-bw...
-KIMI_BASE_URL=https://api.moonshot.cn/v1
-KIMI_MODEL=kimi-k.25
+KIMI_API_KEY=nvapi-...
+KIMI_API_URL=https://integrate.api.nvidia.com/v1
+KIMI_MODEL=moonshotai/kimi-k2.5
 ```
-- Provider: Moonshot AI
+- Provider: Moonshot AI (via NVIDIA API Gateway)
+- Model: kimi-k2.5
 - Context Window: 128k+
+- Features: Extended thinking mode
 
 ### 2. Supabase (Database/Auth)
 ```env
