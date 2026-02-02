@@ -6,22 +6,26 @@ COMPOSE_FILE="$ROOT_DIR/backend/docker-compose.yml"
 
 pids=()
 
-# Load environment variables (must be at top level, not in function)
-if [ -f "$ROOT_DIR/backend/.env.local" ]; then
-  set -a
-  # shellcheck disable=SC1090
-  . "$ROOT_DIR/backend/.env.local"
-  set +a
-  echo "✓ Loaded env: $ROOT_DIR/backend/.env.local"
-fi
+# Load environment variables using export (handles special characters)
+load_env_safe() {
+  local env_file="$1"
+  if [ -f "$env_file" ]; then
+    # Export variables line by line, handling special characters
+    while IFS='=' read -r key value; do
+      # Skip empty lines and comments
+      [[ -z "$key" || "$key" =~ ^[[:space:]]*# ]] && continue
+      # Remove quotes if present
+      value="${value%\"}"
+      value="${value#\"}"
+      # Export the variable
+      export "$key=$value"
+    done < <(grep -v '^#' "$env_file" | grep -v '^[[:space:]]*$')
+    echo "✓ Loaded env: $env_file"
+  fi
+}
 
-if [ -f "$ROOT_DIR/backend/.env" ]; then
-  set -a
-  # shellcheck disable=SC1090
-  . "$ROOT_DIR/backend/.env"
-  set +a
-  echo "✓ Loaded env: $ROOT_DIR/backend/.env"
-fi
+load_env_safe "$ROOT_DIR/backend/.env.local"
+load_env_safe "$ROOT_DIR/backend/.env"
 
 # ==============================================
 # Pre-flight Checks
