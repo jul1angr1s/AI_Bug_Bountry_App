@@ -11,3 +11,4 @@ check-*.ts
 fix-*.ts
 delete-*.ts
 cleanup-*.ts
+clean-*.ts
