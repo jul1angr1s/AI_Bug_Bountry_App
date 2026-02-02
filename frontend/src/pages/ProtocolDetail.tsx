@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Github, ExternalLink, Play, FileText, Shield } from 'lucide-react';
+import { ArrowLeft, Github, ExternalLink, Play, FileText, Shield, AlertCircle, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { useProtocol, useProtocolRealtime } from '../hooks/useProtocol';
+import { useQuery } from '@tanstack/react-query';
+import { fetchScans, fetchScanFindings } from '../lib/api';
 import ProtocolStats from '../components/protocols/ProtocolStats';
 import { LoadingSkeleton } from '../components/shared/LoadingSkeleton';
 import StatusBadge from '../components/shared/StatusBadge';
@@ -15,6 +17,27 @@ export default function ProtocolDetail() {
 
   const { data: protocol, isLoading, isError, error } = useProtocol(id || '');
   useProtocolRealtime(id || '');
+
+  // Fetch scans when scans tab is active
+  const { data: scansData, isLoading: scansLoading } = useQuery({
+    queryKey: ['scans', id],
+    queryFn: () => fetchScans(id || '', 50),
+    enabled: !!id && activeTab === 'scans',
+  });
+
+  // Fetch findings when findings tab is active
+  const { data: findingsData, isLoading: findingsLoading } = useQuery({
+    queryKey: ['findings', id],
+    queryFn: async () => {
+      // Get the most recent scan
+      const scans = await fetchScans(id || '', 1);
+      if (scans.scans.length > 0) {
+        return fetchScanFindings(scans.scans[0].id);
+      }
+      return { findings: [], total: 0, scanId: '' };
+    },
+    enabled: !!id && activeTab === 'findings',
+  });
 
   const handleBack = () => {
     navigate('/protocols');
@@ -251,20 +274,134 @@ export default function ProtocolDetail() {
             )}
 
             {activeTab === 'scans' && (
-              <div className="text-center py-12">
-                <p className="text-gray-400 mb-4">Scans list will be displayed here</p>
-                <button
-                  onClick={() => navigate(`/scans?protocolId=${id}`)}
-                  className="px-4 py-2 bg-purple-500/20 border border-purple-500/30 text-purple-400 rounded-lg hover:bg-purple-500/30 transition-colors"
-                >
-                  View All Scans
-                </button>
+              <div>
+                {scansLoading ? (
+                  <div className="space-y-4">
+                    {[...Array(3)].map((_, i) => (
+                      <LoadingSkeleton key={i} className="h-24" />
+                    ))}
+                  </div>
+                ) : scansData && scansData.scans.length > 0 ? (
+                  <div className="space-y-4">
+                    {scansData.scans.map((scan) => (
+                      <div key={scan.id} className="p-4 bg-gray-800/30 rounded-lg border border-gray-700 hover:border-gray-600 transition-colors">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <span className="text-sm font-mono text-gray-400">
+                                #{scan.id.substring(0, 8)}
+                              </span>
+                              {scan.state === 'SUCCEEDED' && (
+                                <span className="flex items-center gap-1 text-xs px-2 py-1 bg-green-500/20 text-green-400 rounded">
+                                  <CheckCircle className="w-3 h-3" />
+                                  Succeeded
+                                </span>
+                              )}
+                              {scan.state === 'FAILED' && (
+                                <span className="flex items-center gap-1 text-xs px-2 py-1 bg-red-500/20 text-red-400 rounded">
+                                  <XCircle className="w-3 h-3" />
+                                  Failed
+                                </span>
+                              )}
+                              {scan.state === 'RUNNING' && (
+                                <span className="flex items-center gap-1 text-xs px-2 py-1 bg-blue-500/20 text-blue-400 rounded">
+                                  <Clock className="w-3 h-3" />
+                                  Running
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-4 text-sm text-gray-400">
+                              <span>Started: {new Date(scan.startedAt).toLocaleString()}</span>
+                              {scan.finishedAt && (
+                                <span>Finished: {new Date(scan.finishedAt).toLocaleString()}</span>
+                              )}
+                              <span className="text-purple-400">{scan.findingsCount} findings</span>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => navigate(`/scans/${scan.id}`)}
+                            className="px-3 py-1 text-sm bg-purple-500/20 border border-purple-500/30 text-purple-400 rounded hover:bg-purple-500/30 transition-colors"
+                          >
+                            View Details
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <p className="text-gray-400 mb-4">No scans found</p>
+                    <button
+                      onClick={handleTriggerScan}
+                      className="px-4 py-2 bg-purple-500/20 border border-purple-500/30 text-purple-400 rounded-lg hover:bg-purple-500/30 transition-colors"
+                    >
+                      Trigger First Scan
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
             {activeTab === 'findings' && (
-              <div className="text-center py-12">
-                <p className="text-gray-400">Findings list will be displayed here</p>
+              <div>
+                {findingsLoading ? (
+                  <div className="space-y-4">
+                    {[...Array(5)].map((_, i) => (
+                      <LoadingSkeleton key={i} className="h-32" />
+                    ))}
+                  </div>
+                ) : findingsData && findingsData.findings.length > 0 ? (
+                  <div className="space-y-4">
+                    {findingsData.findings.map((finding) => (
+                      <div key={finding.id} className="p-4 bg-gray-800/30 rounded-lg border border-gray-700">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            {finding.severity === 'CRITICAL' && (
+                              <span className="px-2 py-1 text-xs font-semibold bg-red-500/20 text-red-400 rounded">
+                                CRITICAL
+                              </span>
+                            )}
+                            {finding.severity === 'HIGH' && (
+                              <span className="px-2 py-1 text-xs font-semibold bg-orange-500/20 text-orange-400 rounded">
+                                HIGH
+                              </span>
+                            )}
+                            {finding.severity === 'MEDIUM' && (
+                              <span className="px-2 py-1 text-xs font-semibold bg-yellow-500/20 text-yellow-400 rounded">
+                                MEDIUM
+                              </span>
+                            )}
+                            {finding.severity === 'LOW' && (
+                              <span className="px-2 py-1 text-xs font-semibold bg-blue-500/20 text-blue-400 rounded">
+                                LOW
+                              </span>
+                            )}
+                            <h4 className="text-lg font-semibold text-white">{finding.vulnerabilityType}</h4>
+                          </div>
+                          <span className="px-2 py-1 text-xs bg-gray-700 text-gray-300 rounded">
+                            {(finding.confidenceScore * 100).toFixed(0)}% confidence
+                          </span>
+                        </div>
+                        <p className="text-gray-300 mb-3">{finding.description}</p>
+                        <div className="flex items-center gap-4 text-sm text-gray-400">
+                          <span className="flex items-center gap-1">
+                            <FileText className="w-4 h-4" />
+                            {finding.filePath}
+                            {finding.lineNumber && `:${finding.lineNumber}`}
+                          </span>
+                          <span className="px-2 py-0.5 bg-gray-800 rounded text-xs">
+                            {finding.status}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <AlertCircle className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+                    <p className="text-gray-400">No findings found</p>
+                  </div>
+                )}
               </div>
             )}
 

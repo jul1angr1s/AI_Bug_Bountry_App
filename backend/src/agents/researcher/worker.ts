@@ -122,11 +122,12 @@ export function createResearcherWorker(): Worker<ScanJobData> {
           stackTrace: error instanceof Error ? error.stack : undefined,
         });
 
-        // Update agent status
+        // Set agent back to ONLINE (not ERROR) - the agent is still running,
+        // it's just this particular scan that failed
         await prisma.agent.update({
           where: { id: agent.id },
-          data: { 
-            status: AgentStatus.ERROR,
+          data: {
+            status: AgentStatus.ONLINE,
             currentTask: null,
           },
         });
@@ -268,8 +269,10 @@ async function executeScanPipeline(
     throw error;
   }
 
-  // Step 3: Deploy to Anvil (30-45%)
+  // Step 3: Deploy to Anvil (30-45%) - OPTIONAL
   const deployStep = await scanStepRepository.startStep(scanId, ScanStep.DEPLOY);
+  let deploymentFailed = false;
+
   try {
     await emitScanProgress(scanId, protocolId, 'DEPLOY', ScanState.RUNNING, 35, 'Deploying to Anvil...');
 
@@ -294,9 +297,24 @@ async function executeScanPipeline(
 
     await emitScanProgress(scanId, protocolId, 'DEPLOY', ScanState.RUNNING, 45, 'Deployment complete');
   } catch (error) {
+    // Deployment is optional - continue with static analysis even if it fails
+    console.warn('[Worker] Deployment failed, continuing with static analysis only:', error);
+    deploymentFailed = true;
+
     await cleanupResources(anvilProcess);
-    await handleStepFailure(scanId, protocolId, deployStep.id, ScanErrorCodes.DEPLOY_FAILED, error);
-    throw error;
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    await scanStepRepository.failStep(deployStep.id, ScanErrorCodes.DEPLOY_FAILED, errorMessage);
+
+    await emitScanProgress(
+      scanId,
+      protocolId,
+      'DEPLOY',
+      ScanState.RUNNING,
+      45,
+      'Deployment skipped - continuing with static analysis'
+    );
+
+    // Do NOT throw - continue with static analysis
   }
 
   // Step 4: Static Analysis (45-60%)
@@ -431,34 +449,45 @@ async function executeScanPipeline(
     findingsCount++;
   }
 
-  // Step 6: Proof Generation (75-90%)
+  // Step 6: Proof Generation (75-90%) - Skip if deployment failed
   const proofStep = await scanStepRepository.startStep(scanId, ScanStep.PROOF_GENERATION);
-  try {
-    await emitScanProgress(scanId, protocolId, 'PROOF_GENERATION', ScanState.RUNNING, 80, 'Generating proofs...');
 
-    // Get findings to generate proofs for
-    const findings = await findingRepository.getFindingsByScan(scanId);
-
-    if (!clonedPath) {
-      throw new Error('No cloned path available from previous step');
-    }
-
-    const proofGenResult = await executeProofGenerationStep({
-      scanId,
-      findings,
-      clonedPath,
-      deploymentAddress,
-    });
-
+  if (deploymentFailed || !deploymentAddress) {
+    // Skip proof generation if deployment failed
+    console.log('[Worker] Skipping proof generation (no deployment)');
     await scanStepRepository.completeStep(proofStep.id, {
-      proofsGenerated: proofGenResult.proofsCreated,
+      proofsGenerated: 0,
+      message: 'Skipped - deployment not available',
     });
+    await emitScanProgress(scanId, protocolId, 'PROOF_GENERATION', ScanState.RUNNING, 90, 'Proof generation skipped');
+  } else {
+    try {
+      await emitScanProgress(scanId, protocolId, 'PROOF_GENERATION', ScanState.RUNNING, 80, 'Generating proofs...');
 
-    await emitScanProgress(scanId, protocolId, 'PROOF_GENERATION', ScanState.RUNNING, 90, 'Proofs generated');
-  } catch (error) {
-    await cleanupResources(anvilProcess);
-    await handleStepFailure(scanId, protocolId, proofStep.id, ScanErrorCodes.PROOF_GENERATION_FAILED, error);
-    throw error;
+      // Get findings to generate proofs for
+      const findings = await findingRepository.getFindingsByScan(scanId);
+
+      if (!clonedPath) {
+        throw new Error('No cloned path available from previous step');
+      }
+
+      const proofGenResult = await executeProofGenerationStep({
+        scanId,
+        findings,
+        clonedPath,
+        deploymentAddress,
+      });
+
+      await scanStepRepository.completeStep(proofStep.id, {
+        proofsGenerated: proofGenResult.proofsCreated,
+      });
+
+      await emitScanProgress(scanId, protocolId, 'PROOF_GENERATION', ScanState.RUNNING, 90, 'Proofs generated');
+    } catch (error) {
+      await cleanupResources(anvilProcess);
+      await handleStepFailure(scanId, protocolId, proofStep.id, ScanErrorCodes.PROOF_GENERATION_FAILED, error);
+      throw error;
+    }
   }
 
   // Step 7: Submit to Validator (90-100%)
