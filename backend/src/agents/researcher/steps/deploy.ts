@@ -86,26 +86,40 @@ export async function executeDeployStep(params: DeployStepParams): Promise<Deplo
  */
 function startAnvil(port: number): Promise<ChildProcess> {
   return new Promise((resolve, reject) => {
+    console.log(`[Deploy] Spawning anvil on port ${port}...`);
     const anvil = spawn('anvil', [
       '--port', port.toString(),
       '--host', '127.0.0.1',
-      '--silent', // Reduce output noise
+      // Removed --silent flag to see output
     ]);
 
     let started = false;
+    let outputBuffer = '';
 
     anvil.stdout?.on('data', (data) => {
       const output = data.toString();
+      outputBuffer += output;
+      console.log('[Deploy] Anvil stdout:', output.trim());
 
-      // Check if Anvil has started
-      if (output.includes('Listening') && !started) {
+      // Check if Anvil has started - look for multiple indicators
+      if ((output.includes('Listening') || output.includes('localhost:') || outputBuffer.includes('Accounts')) && !started) {
         started = true;
-        resolve(anvil);
+        console.log('[Deploy] Anvil started successfully!');
+        // Give Anvil a moment to fully initialize
+        setTimeout(() => resolve(anvil), 500);
       }
     });
 
     anvil.stderr?.on('data', (data) => {
-      console.error('[Deploy] Anvil stderr:', data.toString());
+      const errorOutput = data.toString();
+      console.error('[Deploy] Anvil stderr:', errorOutput.trim());
+
+      // Some Anvil messages go to stderr but aren't actually errors
+      if (errorOutput.includes('Listening') && !started) {
+        started = true;
+        console.log('[Deploy] Anvil started successfully (detected via stderr)!');
+        resolve(anvil);
+      }
     });
 
     anvil.on('error', (error) => {
@@ -120,13 +134,14 @@ function startAnvil(port: number): Promise<ChildProcess> {
       }
     });
 
-    // Timeout after 10 seconds
+    // Timeout after 15 seconds (increased from 10)
     setTimeout(() => {
       if (!started) {
+        console.error('[Deploy] Anvil startup timeout after 15 seconds');
         anvil.kill();
         reject(new Error('Anvil startup timeout'));
       }
-    }, 10000);
+    }, 15000);
   });
 }
 

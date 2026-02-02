@@ -296,9 +296,11 @@ export async function getProtocolById(
           select: {
             id: true,
             startedAt: true,
+            findings: {
+              select: { id: true },
+            },
           },
           orderBy: { startedAt: 'desc' },
-          take: 1,
         },
       },
     });
@@ -306,6 +308,9 @@ export async function getProtocolById(
     if (!protocol) {
       return null;
     }
+
+    // Count total findings across all scans
+    const totalFindings = protocol.scans.reduce((sum, scan) => sum + scan.findings.length, 0);
 
     const overview: ProtocolOverview = {
       id: protocol.id,
@@ -322,7 +327,7 @@ export async function getProtocolById(
       createdAt: protocol.createdAt.toISOString(),
       updatedAt: protocol.updatedAt.toISOString(),
       stats: {
-        vulnerabilityCount: protocol.vulnerabilities.length,
+        vulnerabilityCount: totalFindings, // Count findings instead of vulnerabilities
         scanCount: protocol.scans.length,
         lastScanAt: protocol.scans[0]?.startedAt?.toISOString() || null,
       },
@@ -392,7 +397,12 @@ export async function listProtocols(params: {
         riskScore: true,
         createdAt: true,
         scans: {
-          select: { id: true },
+          select: {
+            id: true,
+            findings: {
+              select: { id: true },
+            },
+          },
         },
         vulnerabilities: {
           select: { id: true },
@@ -403,16 +413,21 @@ export async function listProtocols(params: {
       take: limit,
     });
 
-    const protocolList: ProtocolListItem[] = protocols.map((protocol) => ({
-      id: protocol.id,
-      name: protocol.contractName, // Use contract name as protocol name
-      githubUrl: protocol.githubUrl,
-      status: protocol.status,
-      riskScore: protocol.riskScore,
-      scansCount: protocol.scans.length,
-      vulnerabilitiesCount: protocol.vulnerabilities.length,
-      createdAt: protocol.createdAt.toISOString(),
-    }));
+    const protocolList: ProtocolListItem[] = protocols.map((protocol) => {
+      // Count total findings across all scans
+      const totalFindings = protocol.scans.reduce((sum, scan) => sum + scan.findings.length, 0);
+
+      return {
+        id: protocol.id,
+        name: protocol.contractName, // Use contract name as protocol name
+        githubUrl: protocol.githubUrl,
+        status: protocol.status,
+        riskScore: protocol.riskScore,
+        scansCount: protocol.scans.length,
+        vulnerabilitiesCount: totalFindings, // Count findings instead of vulnerabilities
+        createdAt: protocol.createdAt.toISOString(),
+      };
+    });
 
     return {
       protocols: protocolList,

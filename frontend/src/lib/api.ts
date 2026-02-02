@@ -86,7 +86,7 @@ async function getAuthHeaders(): Promise<HeadersInit> {
 /**
  * Fetch protocol details
  */
-export async function fetchProtocol(protocolId: string): Promise<Protocol> {
+export async function fetchProtocol(protocolId: string): Promise<any> {
   const headers = await getAuthHeaders();
   const response = await fetch(`${API_BASE_URL}/api/v1/protocols/${protocolId}`, {
     headers,
@@ -96,7 +96,35 @@ export async function fetchProtocol(protocolId: string): Promise<Protocol> {
     throw new Error(`Failed to fetch protocol: ${response.statusText}`);
   }
 
-  return response.json();
+  const result = await response.json();
+
+  // Backend returns { data: { ...protocol, stats: { ... } } }
+  // Map it to the format expected by the frontend
+  if (result.data) {
+    const protocol = result.data;
+    return {
+      id: protocol.id,
+      githubUrl: protocol.githubUrl,
+      branch: protocol.branch,
+      contractPath: protocol.contractPath,
+      contractName: protocol.contractName,
+      status: protocol.status,
+      registrationState: protocol.registrationState,
+      ownerAddress: protocol.ownerAddress,
+      riskScore: protocol.riskScore,
+      totalBountyPool: protocol.totalBountyPool,
+      availableBounty: protocol.availableBounty,
+      paidBounty: protocol.paidBounty,
+      createdAt: protocol.createdAt,
+      updatedAt: protocol.updatedAt,
+      // Map stats to root level for easier access
+      scansCount: protocol.stats?.scanCount || 0,
+      vulnerabilitiesCount: protocol.stats?.vulnerabilityCount || 0,
+      lastScanAt: protocol.stats?.lastScanAt,
+    };
+  }
+
+  return result;
 }
 
 /**
