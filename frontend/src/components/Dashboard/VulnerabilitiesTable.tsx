@@ -113,11 +113,11 @@ export default function VulnerabilitiesTable({
                   <span className="text-sm text-gray-300">{vuln.status}</span>
                 </td>
                 <td className="hidden md:table-cell px-4 sm:px-6 py-4" role="cell">
-                  <span className="text-sm text-gray-300">{vuln.protocol}</span>
+                  <span className="text-sm text-gray-300">{vuln.protocol || '-'}</span>
                 </td>
                 <td className="hidden sm:table-cell px-4 sm:px-6 py-4" role="cell">
                   <span className="text-sm font-semibold text-primary">
-                    {vuln.bounty || '-'}
+                    {vuln.bounty ? `$${vuln.bounty} USDC` : '-'}
                   </span>
                 </td>
               </tr>

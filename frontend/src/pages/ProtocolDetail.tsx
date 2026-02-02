@@ -29,10 +29,12 @@ export default function ProtocolDetail() {
   const { data: findingsData, isLoading: findingsLoading } = useQuery({
     queryKey: ['findings', id],
     queryFn: async () => {
-      // Get the most recent scan
-      const scans = await fetchScans(id || '', 1);
-      if (scans.scans.length > 0) {
-        return fetchScanFindings(scans.scans[0].id);
+      // Get recent scans and find the first SUCCEEDED scan
+      const scans = await fetchScans(id || '', 10);
+      const succeededScan = scans.scans.find((scan) => scan.state === 'SUCCEEDED');
+
+      if (succeededScan) {
+        return fetchScanFindings(succeededScan.id);
       }
       return { findings: [], total: 0, scanId: '' };
     },
