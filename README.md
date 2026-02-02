@@ -575,10 +575,21 @@ See payment dashboard at `http://localhost:5173/payments` during development.
 
 ## 📚 Documentation
 
+### Getting Started
+
+- [**Demonstration Guide**](docs/DEMONSTRATION.md) - Complete workflow demonstration with Thunder Loan
+- [**Deployment Guide**](docs/DEPLOYMENT.md) - Step-by-step deployment instructions (local, Docker, production)
+- [**Architecture Overview**](docs/ARCHITECTURE.md) - System architecture, data flows, and technology stack
+
+### API & Integration
+
+- [**API Documentation**](docs/API.md) - Complete REST API reference with examples
+- [**WebSocket Events**](docs/WEBSOCKET_EVENTS.md) - Real-time event system documentation
+
 ### Smart Contracts
 
-- [**Deployment Guide**](backend/contracts/DEPLOYMENT_GUIDE.md) - How to deploy contracts to Base Sepolia
-- [**Integration Test Guide**](backend/contracts/INTEGRATION_TEST_GUIDE.md) - Running E2E tests on testnet
+- [**Contract Deployment**](backend/contracts/DEPLOYMENT_GUIDE.md) - How to deploy contracts to Base Sepolia
+- [**Integration Testing**](backend/contracts/INTEGRATION_TEST_GUIDE.md) - Running E2E tests on testnet
 - [**Contract Specifications**](openspec/changes/phase-3b-smart-contracts/specs/contracts/spec.md) - Detailed contract documentation
 
 ### Backend Services
