@@ -15,6 +15,7 @@
     "test": "vitest run --exclude='**/*.ai.test.ts'",
     "test:ai": "vitest run --testNamePattern='.*\\.ai\\.test\\.ts$'",
     "test:integration": "vitest run tests/integration",
+    "test:e2e": "vitest run tests/e2e",
     "test:watch": "vitest watch",
     "test:coverage": "vitest run --coverage",
     "prisma:generate": "prisma generate",
