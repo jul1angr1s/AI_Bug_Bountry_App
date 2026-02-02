@@ -7,6 +7,7 @@ import ProtocolRegistration from './pages/ProtocolRegistration';
 import Protocols from './pages/Protocols';
 import ProtocolDetail from './pages/ProtocolDetail';
 import Scans from './pages/Scans';
+import ScanDetail from './pages/ScanDetail';
 import PaymentDashboard from './pages/PaymentDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 import { Toaster } from './components/Toaster';
@@ -21,6 +22,7 @@ function App() {
           <Route path="/protocols/register" element={<ProtocolRegistration />} />
           <Route path="/protocols/:id" element={<ProtocolDetail />} />
           <Route path="/scans" element={<Scans />} />
+          <Route path="/scans/:id" element={<ScanDetail />} />
           <Route path="/validations" element={<Validations />} />
           <Route path="/payments" element={<Payments />} />
           <Route
