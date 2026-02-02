@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useValidations } from '../hooks/useValidations';
 import ValidationCard from '../components/validations/ValidationCard';
-import LoadingSkeleton from '../components/LoadingSkeleton';
+import { LoadingSkeleton } from '../components/shared/LoadingSkeleton';
 
 export default function Validations() {
   const [statusFilter, setStatusFilter] = useState<string>('');

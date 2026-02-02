@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Plus, Filter, RefreshCw, Search as SearchIcon } from 'lucide-react';
 import ScanCard from '../components/scans/ScanCard';
-import LoadingSkeleton from '../components/shared/LoadingSkeleton';
+import { LoadingSkeleton } from '../components/shared/LoadingSkeleton';
 import { useScans, useScansRealtime } from '../hooks/useScans';
 
 export default function Scans() {

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { usePayments } from '../hooks/usePayments';
 import PaymentCard from '../components/payments/PaymentCard';
-import LoadingSkeleton from '../components/LoadingSkeleton';
+import { LoadingSkeleton } from '../components/shared/LoadingSkeleton';
 
 export default function Payments() {
   const [statusFilter, setStatusFilter] = useState<string>('');

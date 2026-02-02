@@ -1,5 +1,5 @@
 import { Activity, AlertTriangle, DollarSign, Users } from 'lucide-react';
-import LoadingSkeleton from '../shared/LoadingSkeleton';
+import { LoadingSkeleton } from '../shared/LoadingSkeleton';
 
 interface ProtocolStatsProps {
   stats: {
