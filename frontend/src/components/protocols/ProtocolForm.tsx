@@ -7,22 +7,21 @@ interface ProtocolFormProps {
 }
 
 interface FormErrors {
-  name?: string;
   githubUrl?: string;
   contractPath?: string;
   contractName?: string;
-  bountyPoolAddress?: string;
+  bountyTerms?: string;
+  ownerAddress?: string;
 }
 
 export default function ProtocolForm({ onSubmit, isSubmitting = false }: ProtocolFormProps) {
   const [formData, setFormData] = useState<CreateProtocolRequest>({
-    name: '',
     githubUrl: '',
     branch: 'main',
     contractPath: '',
     contractName: '',
-    bountyPoolAddress: '',
-    network: 'base-sepolia',
+    bountyTerms: 'Standard bug bounty terms: Critical - $10,000, High - $5,000, Medium - $1,000, Low - $500',
+    ownerAddress: '',
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
@@ -40,10 +39,6 @@ export default function ProtocolForm({ onSubmit, isSubmitting = false }: Protoco
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
 
-    if (!formData.name.trim()) {
-      newErrors.name = 'Protocol name is required';
-    }
-
     if (!formData.githubUrl.trim()) {
       newErrors.githubUrl = 'GitHub URL is required';
     } else if (!validateGitHubUrl(formData.githubUrl)) {
@@ -60,10 +55,14 @@ export default function ProtocolForm({ onSubmit, isSubmitting = false }: Protoco
       newErrors.contractName = 'Contract name is required';
     }
 
-    if (!formData.bountyPoolAddress.trim()) {
-      newErrors.bountyPoolAddress = 'Bounty pool address is required';
-    } else if (!validateEthereumAddress(formData.bountyPoolAddress)) {
-      newErrors.bountyPoolAddress = 'Must be a valid Ethereum address (0x...)';
+    if (!formData.bountyTerms.trim()) {
+      newErrors.bountyTerms = 'Bounty terms are required';
+    }
+
+    if (!formData.ownerAddress.trim()) {
+      newErrors.ownerAddress = 'Owner address is required';
+    } else if (!validateEthereumAddress(formData.ownerAddress)) {
+      newErrors.ownerAddress = 'Must be a valid Ethereum address (0x...)';
     }
 
     setErrors(newErrors);
@@ -94,25 +93,6 @@ export default function ProtocolForm({ onSubmit, isSubmitting = false }: Protoco
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Protocol Name */}
-      <div>
-        <label htmlFor="name" className="block text-sm font-medium text-gray-300 mb-2">
-          Protocol Name *
-        </label>
-        <input
-          type="text"
-          id="name"
-          value={formData.name}
-          onChange={(e) => handleChange('name', e.target.value)}
-          className={`w-full px-4 py-2 bg-[#1a1f2e] border ${
-            errors.name ? 'border-red-500' : 'border-gray-700'
-          } rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent`}
-          placeholder="Thunder Loan Protocol"
-          disabled={isSubmitting}
-        />
-        {errors.name && <p className="mt-1 text-sm text-red-500">{errors.name}</p>}
-      </div>
-
       {/* GitHub URL */}
       <div>
         <label htmlFor="githubUrl" className="block text-sm font-medium text-gray-300 mb-2">
@@ -186,47 +166,32 @@ export default function ProtocolForm({ onSubmit, isSubmitting = false }: Protoco
         {errors.contractName && <p className="mt-1 text-sm text-red-500">{errors.contractName}</p>}
       </div>
 
-      {/* Bounty Pool Address */}
+      {/* Owner Address */}
       <div>
-        <label htmlFor="bountyPoolAddress" className="block text-sm font-medium text-gray-300 mb-2">
-          Bounty Pool Address *
+        <label htmlFor="ownerAddress" className="block text-sm font-medium text-gray-300 mb-2">
+          Owner Address *
         </label>
         <input
           type="text"
-          id="bountyPoolAddress"
-          value={formData.bountyPoolAddress}
-          onChange={(e) => handleChange('bountyPoolAddress', e.target.value)}
+          id="ownerAddress"
+          value={formData.ownerAddress}
+          onChange={(e) => handleChange('ownerAddress', e.target.value)}
           className={`w-full px-4 py-2 bg-[#1a1f2e] border ${
-            errors.bountyPoolAddress ? 'border-red-500' : 'border-gray-700'
+            errors.ownerAddress ? 'border-red-500' : 'border-gray-700'
           } rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent`}
           placeholder="0x..."
           disabled={isSubmitting}
         />
-        {errors.bountyPoolAddress && (
-          <p className="mt-1 text-sm text-red-500">{errors.bountyPoolAddress}</p>
+        {errors.ownerAddress && (
+          <p className="mt-1 text-sm text-red-500">{errors.ownerAddress}</p>
         )}
         <p className="mt-1 text-sm text-gray-500">
-          Existing deployed BountyPool contract address on Base Sepolia
+          Your wallet address that owns this protocol
         </p>
       </div>
 
-      {/* Network */}
-      <div>
-        <label htmlFor="network" className="block text-sm font-medium text-gray-300 mb-2">
-          Network
-        </label>
-        <select
-          id="network"
-          value={formData.network}
-          onChange={(e) => handleChange('network', e.target.value)}
-          className="w-full px-4 py-2 bg-[#1a1f2e] border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-          disabled={isSubmitting}
-        >
-          <option value="base-sepolia">Base Sepolia</option>
-          <option value="base">Base Mainnet</option>
-          <option value="ethereum-sepolia">Ethereum Sepolia</option>
-        </select>
-      </div>
+      {/* Bounty Terms (optional - hidden field with default) */}
+      <input type="hidden" name="bountyTerms" value={formData.bountyTerms} />
 
       {/* Submit Button */}
       <div className="flex gap-4">
