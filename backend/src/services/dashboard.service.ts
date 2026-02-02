@@ -69,6 +69,12 @@ export async function getDashboardStats(protocolId?: string, userId?: string): P
           select: {
             startedAt: true,
             completedAt: true,
+            findings: {
+              select: {
+                severity: true,
+                status: true,
+              },
+            },
           },
           orderBy: { startedAt: 'desc' },
         },
@@ -104,13 +110,20 @@ export async function getDashboardStats(protocolId?: string, userId?: string): P
       totalBountyPool += 0;
       availableBounty += 0;
 
-      for (const vuln of protocol.vulnerabilities) {
-        vulnerabilityCounts[vuln.severity]++;
-        statusCounts[vuln.status]++;
+      // Count findings from scans instead of vulnerabilities table
+      for (const scan of protocol.scans) {
+        for (const finding of scan.findings) {
+          vulnerabilityCounts[finding.severity]++;
+          // Map finding status to vulnerability status format
+          const mappedStatus = finding.status === 'PENDING' ? 'OPEN' :
+                              finding.status === 'VALIDATED' ? 'ACKNOWLEDGED' :
+                              finding.status === 'REJECTED' ? 'DISMISSED' : 'OPEN';
+          statusCounts[mappedStatus]++;
+        }
       }
 
       totalScans += protocol.scans.length;
-      
+
       if (protocol.scans.length > 0 && (!lastScan || protocol.scans[0].startedAt > lastScan)) {
         lastScan = protocol.scans[0].startedAt;
       }
@@ -265,16 +278,25 @@ export async function getProtocolVulnerabilities(
   status?: VulnerabilityStatus
 ): Promise<PaginatedVulnerabilities | null> {
   const cacheKey = CACHE_KEYS.PROTOCOL_VULNERABILITIES(protocolId, page, limit, sort, severity, status);
-  
+
   const cached = await getCache<PaginatedVulnerabilities>(cacheKey);
   if (cached) {
     return cached;
   }
 
   try {
-    const whereClause: any = { protocolId };
+    // Query findings from scans instead of vulnerability table
+    const whereClause: any = {
+      scan: { protocolId },
+    };
     if (severity) whereClause.severity = severity;
-    if (status) whereClause.status = status;
+    if (status) {
+      // Map vulnerability status to finding status
+      const findingStatus = status === 'OPEN' ? 'PENDING' :
+                           status === 'ACKNOWLEDGED' ? 'VALIDATED' :
+                           status === 'DISMISSED' ? 'REJECTED' : 'PENDING';
+      whereClause.status = findingStatus;
+    }
 
     let orderBy: any = {};
     switch (sort) {
@@ -282,45 +304,53 @@ export async function getProtocolVulnerabilities(
         orderBy = { severity: 'desc' };
         break;
       case 'date':
-        orderBy = { discoveredAt: 'desc' };
+        orderBy = { createdAt: 'desc' };
         break;
       case 'status':
         orderBy = { status: 'asc' };
         break;
       default:
-        orderBy = { discoveredAt: 'desc' };
+        orderBy = { createdAt: 'desc' };
     }
 
     const skip = (page - 1) * limit;
 
-    const [vulnerabilities, total] = await Promise.all([
-      prisma.vulnerability.findMany({
+    const [findings, total] = await Promise.all([
+      prisma.finding.findMany({
         where: whereClause,
         select: {
           id: true,
+          vulnerabilityType: true,
           severity: true,
           status: true,
-          discoveredAt: true,
-          bounty: true,
+          createdAt: true,
+          description: true,
         },
         orderBy,
         skip,
         take: limit,
       }),
-      prisma.vulnerability.count({ where: whereClause }),
+      prisma.finding.count({ where: whereClause }),
     ]);
 
     const totalPages = Math.ceil(total / limit);
 
     const result: PaginatedVulnerabilities = {
-      data: vulnerabilities.map(v => ({
-        id: v.id,
-        title: `Vulnerability ${v.id.slice(0, 8)}`,
-        severity: v.severity,
-        status: v.status,
-        discoveredAt: v.discoveredAt.toISOString(),
-        bounty: v.bounty,
-      })),
+      data: findings.map(f => {
+        // Map finding status to vulnerability status
+        const mappedStatus = f.status === 'PENDING' ? 'OPEN' :
+                            f.status === 'VALIDATED' ? 'ACKNOWLEDGED' :
+                            f.status === 'REJECTED' ? 'DISMISSED' :
+                            f.status === 'DUPLICATE' ? 'DISMISSED' : 'OPEN';
+        return {
+          id: f.id,
+          title: f.vulnerabilityType,
+          severity: f.severity,
+          status: mappedStatus as VulnerabilityStatus,
+          discoveredAt: f.createdAt.toISOString(),
+          bounty: null, // Findings don't have bounties yet
+        };
+      }),
       pagination: {
         total,
         page,
@@ -331,7 +361,7 @@ export async function getProtocolVulnerabilities(
     };
 
     await setCache(cacheKey, result, CACHE_TTL.VULNERABILITIES);
-    
+
     return result;
   } catch (error) {
     console.error('Error fetching vulnerabilities:', error);

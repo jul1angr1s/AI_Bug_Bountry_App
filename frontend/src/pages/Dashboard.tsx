@@ -98,10 +98,15 @@ export default function Dashboard() {
     }
   };
 
-  // Handle errors
-  const error = protocolError || vulnError || agentsError || statsError;
-  if (error) {
-    console.error('Dashboard error:', error);
+  // Handle errors - agents error is expected for non-admin users
+  const criticalError = protocolError || vulnError || statsError;
+  if (criticalError) {
+    console.error('Dashboard error:', criticalError);
+  }
+
+  // Log agents error separately (expected for non-admin)
+  if (agentsError) {
+    console.log('Agents endpoint not accessible (requires admin role):', agentsError);
   }
 
   // Loading state - show while fetching initial data
@@ -135,8 +140,8 @@ export default function Dashboard() {
     );
   }
 
-  // Error state - backend unavailable
-  if (error && !isInitialLoading) {
+  // Error state - backend unavailable (only show for critical errors, not agents)
+  if (criticalError && !isInitialLoading) {
     return (
       <div className="p-8">
         <div className="max-w-2xl mx-auto mt-20">
@@ -209,6 +214,13 @@ export default function Dashboard() {
           <h2 className="text-xl font-semibold text-white mb-4">Agent Status</h2>
           {agentsLoading ? (
             <AgentStatusGridSkeleton />
+          ) : agentsError ? (
+            <div className="bg-[#1a1f2e] border border-gray-800 rounded-lg p-8 text-center">
+              <p className="text-gray-400">Agent status requires admin access</p>
+              <p className="text-sm text-gray-500 mt-2">
+                Contact your administrator to view agent status
+              </p>
+            </div>
           ) : agents && agents.length > 0 ? (
             <AgentStatusGrid agents={agents} />
           ) : (
