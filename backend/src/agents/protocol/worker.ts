@@ -134,46 +134,57 @@ export async function processProtocolRegistration(
     });
 
     // =================
-    // STEP 5: On-chain Registration (Base Sepolia)
+    // STEP 5: On-chain Registration (Base Sepolia) - Optional
     // =================
-    await emitAgentTaskUpdate('protocol-agent', 'Registering on-chain', 85);
-    await job.updateProgress(85);
+    const skipOnChainRegistration = process.env.SKIP_ONCHAIN_REGISTRATION === 'true';
+    let onChainTxHash: string | undefined;
 
-    // Register protocol on-chain using ProtocolRegistry contract
-    const registryClient = new ProtocolRegistryClient();
+    if (skipOnChainRegistration) {
+      console.log('[Protocol Agent] Skipping on-chain registration (SKIP_ONCHAIN_REGISTRATION=true)');
+      await emitAgentTaskUpdate('protocol-agent', 'Skipping on-chain registration', 85);
+      await job.updateProgress(90);
+    } else {
+      await emitAgentTaskUpdate('protocol-agent', 'Registering on-chain', 85);
+      await job.updateProgress(85);
 
-    const onChainResult = await registryClient.registerProtocol(
-      protocol.githubUrl,
-      protocol.contractPath,
-      protocol.contractName,
-      JSON.stringify(protocol.bountyTerms || {})
-    );
+      // Register protocol on-chain using ProtocolRegistry contract
+      const registryClient = new ProtocolRegistryClient();
 
-    console.log(`[Protocol Agent] On-chain registration successful`);
-    console.log(`  Protocol ID: ${onChainResult.protocolId}`);
-    console.log(`  TX Hash: ${onChainResult.txHash}`);
-    console.log(`  Block: ${onChainResult.blockNumber}`);
+      const onChainResult = await registryClient.registerProtocol(
+        protocol.githubUrl,
+        protocol.contractPath,
+        protocol.contractName,
+        JSON.stringify(protocol.bountyTerms || {})
+      );
 
-    // Update database with on-chain protocol ID and transaction hash
-    await prisma.protocol.update({
-      where: { id: protocolId },
-      data: {
-        onChainProtocolId: onChainResult.protocolId,
-        registrationTxHash: onChainResult.txHash,
-      },
-    });
+      console.log(`[Protocol Agent] On-chain registration successful`);
+      console.log(`  Protocol ID: ${onChainResult.protocolId}`);
+      console.log(`  TX Hash: ${onChainResult.txHash}`);
+      console.log(`  Block: ${onChainResult.blockNumber}`);
+
+      onChainTxHash = onChainResult.txHash;
+
+      // Update database with on-chain protocol ID and transaction hash
+      await prisma.protocol.update({
+        where: { id: protocolId },
+        data: {
+          onChainProtocolId: onChainResult.protocolId,
+          registrationTxHash: onChainResult.txHash,
+        },
+      });
+    }
 
     // =================
     // STEP 6: Update Protocol Status
     // =================
-    await updateProtocolRegistrationState(protocolId, 'ACTIVE', onChainResult.txHash);
+    await updateProtocolRegistrationState(protocolId, 'ACTIVE', onChainTxHash);
     await job.updateProgress(95);
 
     // Emit protocol status change event
     await emitProtocolStatusChange(protocolId, {
       status: 'ACTIVE',
       registrationState: 'ACTIVE',
-      registrationTxHash: onChainResult.txHash,
+      registrationTxHash: onChainTxHash,
       riskScore,
     });
 
@@ -225,7 +236,7 @@ export async function processProtocolRegistration(
     return {
       success: true,
       protocolId,
-      txHash: onChainResult.txHash,
+      txHash: onChainTxHash,
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';

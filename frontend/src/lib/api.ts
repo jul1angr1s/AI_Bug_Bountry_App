@@ -143,7 +143,9 @@ export async function fetchVulnerabilities(
     throw new Error(`Failed to fetch vulnerabilities: ${response.statusText}`);
   }
 
-  return response.json();
+  const result = await response.json();
+  // Backend returns { data: { data: [...], pagination: {...} } }
+  return result.data?.data || [];
 }
 
 /**
@@ -157,7 +159,9 @@ export async function fetchAgents(): Promise<Agent[]> {
     throw new Error(`Failed to fetch agents: ${response.statusText}`);
   }
 
-  return response.json();
+  const result = await response.json();
+  // Backend returns { data: [...agents] }
+  return result.data || [];
 }
 
 /**
@@ -171,7 +175,13 @@ export async function fetchStats(): Promise<DashboardStats> {
     throw new Error(`Failed to fetch stats: ${response.statusText}`);
   }
 
-  return response.json();
+  const result = await response.json();
+  // Backend returns { data: {...stats} }
+  return result.data || {
+    bountyPool: '0',
+    vulnerabilitiesFound: 0,
+    totalPaid: '0',
+  };
 }
 
 // ========== Scan API Functions (Task 5.1-5.2) ==========
