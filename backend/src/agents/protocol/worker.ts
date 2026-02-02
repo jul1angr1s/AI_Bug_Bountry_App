@@ -6,6 +6,8 @@ import { cloneRepository, cleanupRepository } from './steps/clone.js';
 import { verifyContractPath, listSolidityFiles } from './steps/verify.js';
 import { compileContract, calculateRiskScore } from './steps/compile.js';
 import { ProtocolRegistryClient } from '../../blockchain/index.js';
+import { scanRepository } from '../../db/repositories.js';
+import { enqueueScan } from '../../queues/scanQueue.js';
 
 const prisma = getPrismaClient();
 
@@ -123,16 +125,11 @@ export async function processProtocolRegistration(
     const riskScore = calculateRiskScore(compileResult.bytecode!, compileResult.abi!);
     console.log(`[Protocol Agent] Risk score calculated: ${riskScore}`);
 
-    // Store compilation artifacts
+    // Store risk score
     await prisma.protocol.update({
       where: { id: protocolId },
       data: {
         riskScore,
-        compiledArtifacts: {
-          abi: compileResult.abi,
-          bytecode: compileResult.bytecode,
-          compiledAt: new Date().toISOString(),
-        },
       },
     });
 
@@ -181,7 +178,36 @@ export async function processProtocolRegistration(
     });
 
     // =================
-    // STEP 7: Cleanup
+    // STEP 7: Trigger Automatic Scan
+    // =================
+    await emitAgentTaskUpdate('protocol-agent', 'Triggering vulnerability scan', 96);
+    await job.updateProgress(96);
+
+    try {
+      // Create scan job in database
+      const scan = await scanRepository.createScan({
+        protocolId,
+        targetBranch: protocol.branch,
+      });
+
+      console.log(`[Protocol Agent] Created scan ${scan.id} for protocol ${protocolId}`);
+
+      // Enqueue scan job for researcher agent
+      await enqueueScan({
+        scanId: scan.id,
+        protocolId,
+        targetBranch: protocol.branch,
+      });
+
+      console.log(`[Protocol Agent] Enqueued scan ${scan.id} for processing`);
+    } catch (scanError) {
+      // Log error but don't fail the registration
+      console.error(`[Protocol Agent] Failed to trigger automatic scan:`, scanError);
+      console.log(`[Protocol Agent] Protocol registration succeeded, but scan must be triggered manually`);
+    }
+
+    // =================
+    // STEP 8: Cleanup
     // =================
     await emitAgentTaskUpdate('protocol-agent', 'Cleaning up', 98);
     if (repoPath) {

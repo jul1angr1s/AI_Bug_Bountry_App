@@ -98,6 +98,18 @@ export async function getProtocolQueueStatus(): Promise<{
   };
 }
 
+// Start protocol worker
+export function startProtocolWorker(): Worker<ProtocolRegistrationJobData> {
+  console.log('[ProtocolWorker] Initializing protocol registration worker...');
+  return protocolWorker;
+}
+
+// Stop protocol worker
+export async function stopProtocolWorker(): Promise<void> {
+  await protocolWorker.close();
+  console.log('[ProtocolWorker] Protocol registration worker stopped');
+}
+
 // Graceful shutdown
 export async function closeProtocolQueue(): Promise<void> {
   await protocolWorker.close();

@@ -5,6 +5,7 @@ import { scanRepository, findingRepository } from '../db/repositories.js';
 import { requireAuth } from '../middleware/auth.js';
 import { ValidationError, NotFoundError } from '../errors/CustomError.js';
 import { getRedisClient } from '../lib/redis.js';
+import { enqueueScan } from '../queues/scanQueue.js';
 import type { FindingsListResponse } from '../types/api.js';
 
 const router = Router();
@@ -27,6 +28,14 @@ router.post('/', requireAuth, async (req, res, next) => {
 
     // Create scan job
     const scan = await scanRepository.createScan({
+      protocolId,
+      targetBranch: branch,
+      targetCommitHash: commitHash,
+    });
+
+    // Enqueue scan job for researcher agent
+    await enqueueScan({
+      scanId: scan.id,
       protocolId,
       targetBranch: branch,
       targetCommitHash: commitHash,
