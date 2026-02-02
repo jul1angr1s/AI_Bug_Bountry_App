@@ -110,7 +110,7 @@ export default function ProtocolDetail() {
                   <Shield className="w-8 h-8 text-purple-400" />
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold text-white">{protocol.name}</h1>
+                  <h1 className="text-3xl font-bold text-white">{protocol.contractName || 'Unknown Protocol'}</h1>
                   <div className="flex items-center gap-3 mt-2">
                     <StatusBadge status={protocol.status} />
                     {protocol.riskScore !== null && (
@@ -134,7 +134,7 @@ export default function ProtocolDetail() {
                   className="flex items-center gap-2 hover:text-purple-400 transition-colors"
                 >
                   <Github className="w-4 h-4" />
-                  {protocol.githubUrl.replace('https://github.com/', '')}
+                  {protocol.githubUrl?.replace('https://github.com/', '') || protocol.githubUrl}
                   <ExternalLink className="w-3 h-3" />
                 </a>
                 <span className="text-gray-600">•</span>
