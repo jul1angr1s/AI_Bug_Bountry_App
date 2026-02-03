@@ -7,6 +7,9 @@ import { fetchScans, fetchScanFindings } from '../lib/api';
 import ProtocolStats from '../components/protocols/ProtocolStats';
 import { LoadingSkeleton } from '../components/shared/LoadingSkeleton';
 import StatusBadge from '../components/shared/StatusBadge';
+import RegistrationProgress from '../components/protocols/RegistrationProgress';
+import ScanProgressLive from '../components/protocols/ScanProgressLive';
+import { useLatestScan } from '../hooks/useLatestScan';
 
 type TabType = 'overview' | 'scans' | 'findings' | 'payments';
 
@@ -17,6 +20,7 @@ export default function ProtocolDetail() {
 
   const { data: protocol, isLoading, isError, error } = useProtocol(id || '');
   useProtocolRealtime(id || '');
+  const { data: latestScan } = useLatestScan(id || '');
 
   // Fetch scans when scans tab is active
   const { data: scansData, isLoading: scansLoading } = useQuery({
@@ -218,6 +222,22 @@ export default function ProtocolDetail() {
             {activeTab === 'overview' && (
               <div>
                 <h3 className="text-lg font-semibold text-white mb-4">Protocol Overview</h3>
+
+                {/* Live Progress Card */}
+                {protocol.status === 'PENDING' && (
+                  <div className="bg-purple-500/5 border border-purple-500/20 rounded-lg p-6 mb-6">
+                    <h4 className="text-base font-semibold text-white mb-4">Registration Progress</h4>
+                    <RegistrationProgress protocolId={id || ''} />
+                  </div>
+                )}
+
+                {latestScan && (latestScan.state === 'RUNNING' || latestScan.state === 'PENDING') && (
+                  <div className="bg-blue-500/5 border border-blue-500/20 rounded-lg p-6 mb-6">
+                    <h4 className="text-base font-semibold text-white mb-4">Scan in Progress</h4>
+                    <ScanProgressLive scanId={latestScan.id} />
+                  </div>
+                )}
+
                 <div className="space-y-4 text-gray-300">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>

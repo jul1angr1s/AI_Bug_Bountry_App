@@ -1,7 +1,11 @@
 import type { Job } from 'bullmq';
 import { getPrismaClient } from '../../lib/prisma.js';
 import { updateProtocolRegistrationState } from '../../services/protocol.service.js';
-import { emitAgentTaskUpdate, emitProtocolStatusChange } from '../../websocket/events.js';
+import {
+  emitAgentTaskUpdate,
+  emitProtocolStatusChange,
+  emitProtocolRegistrationProgress
+} from '../../websocket/events.js';
 import { cloneRepository, cleanupRepository } from './steps/clone.js';
 import { verifyContractPath, listSolidityFiles } from './steps/verify.js';
 import { compileContract, calculateRiskScore } from './steps/compile.js';
@@ -57,6 +61,13 @@ export async function processProtocolRegistration(
     // STEP 1: Clone Repository
     // =================
     await emitAgentTaskUpdate('protocol-agent', 'Cloning repository', 10);
+    await emitProtocolRegistrationProgress(
+      protocolId,
+      'CLONE',
+      'IN_PROGRESS',
+      10,
+      'Cloning repository from GitHub'
+    );
     await job.updateProgress(10);
 
     const cloneResult = await cloneRepository(
@@ -72,10 +83,25 @@ export async function processProtocolRegistration(
     repoPath = cloneResult.repoPath!;
     console.log(`[Protocol Agent] Repository cloned to ${repoPath}`);
 
+    await emitProtocolRegistrationProgress(
+      protocolId,
+      'CLONE',
+      'COMPLETED',
+      15,
+      'Repository cloned successfully'
+    );
+
     // =================
     // STEP 2: Verify Contract Path
     // =================
     await emitAgentTaskUpdate('protocol-agent', 'Verifying contract path', 30);
+    await emitProtocolRegistrationProgress(
+      protocolId,
+      'VERIFY',
+      'IN_PROGRESS',
+      30,
+      'Verifying contract path exists'
+    );
     await job.updateProgress(30);
 
     const verifyResult = await verifyContractPath(
@@ -97,10 +123,25 @@ export async function processProtocolRegistration(
 
     console.log(`[Protocol Agent] Contract verified at ${verifyResult.contractFullPath}`);
 
+    await emitProtocolRegistrationProgress(
+      protocolId,
+      'VERIFY',
+      'COMPLETED',
+      35,
+      'Contract path verified successfully'
+    );
+
     // =================
     // STEP 3: Compile Contracts
     // =================
     await emitAgentTaskUpdate('protocol-agent', 'Compiling contracts with Foundry', 50);
+    await emitProtocolRegistrationProgress(
+      protocolId,
+      'COMPILE',
+      'IN_PROGRESS',
+      50,
+      'Compiling contracts with Foundry'
+    );
     await job.updateProgress(50);
 
     const compileResult = await compileContract(
@@ -116,10 +157,25 @@ export async function processProtocolRegistration(
     console.log(`[Protocol Agent] Contract compiled successfully`);
     console.log(`[Protocol Agent] Bytecode size: ${compileResult.bytecode!.length / 2} bytes`);
 
+    await emitProtocolRegistrationProgress(
+      protocolId,
+      'COMPILE',
+      'COMPLETED',
+      60,
+      'Contracts compiled successfully'
+    );
+
     // =================
     // STEP 4: Calculate Risk Score
     // =================
     await emitAgentTaskUpdate('protocol-agent', 'Calculating risk score', 70);
+    await emitProtocolRegistrationProgress(
+      protocolId,
+      'RISK_SCORE',
+      'IN_PROGRESS',
+      70,
+      'Calculating protocol risk score'
+    );
     await job.updateProgress(70);
 
     const riskScore = calculateRiskScore(compileResult.bytecode!, compileResult.abi!);
@@ -133,6 +189,14 @@ export async function processProtocolRegistration(
       },
     });
 
+    await emitProtocolRegistrationProgress(
+      protocolId,
+      'RISK_SCORE',
+      'COMPLETED',
+      75,
+      `Risk score: ${riskScore}/100`
+    );
+
     // =================
     // STEP 5: On-chain Registration (Base Sepolia) - Optional
     // =================
@@ -142,9 +206,23 @@ export async function processProtocolRegistration(
     if (skipOnChainRegistration) {
       console.log('[Protocol Agent] Skipping on-chain registration (SKIP_ONCHAIN_REGISTRATION=true)');
       await emitAgentTaskUpdate('protocol-agent', 'Skipping on-chain registration', 85);
+      await emitProtocolRegistrationProgress(
+        protocolId,
+        'ON_CHAIN_REGISTRATION',
+        'COMPLETED',
+        85,
+        'Skipped on-chain registration (dev mode)'
+      );
       await job.updateProgress(90);
     } else {
       await emitAgentTaskUpdate('protocol-agent', 'Registering on-chain', 85);
+      await emitProtocolRegistrationProgress(
+        protocolId,
+        'ON_CHAIN_REGISTRATION',
+        'IN_PROGRESS',
+        85,
+        'Registering protocol on Base Sepolia'
+      );
       await job.updateProgress(85);
 
       // Register protocol on-chain using ProtocolRegistry contract
@@ -172,11 +250,26 @@ export async function processProtocolRegistration(
           registrationTxHash: onChainResult.txHash,
         },
       });
+
+      await emitProtocolRegistrationProgress(
+        protocolId,
+        'ON_CHAIN_REGISTRATION',
+        'COMPLETED',
+        90,
+        `Protocol registered on-chain (TX: ${onChainResult.txHash.substring(0, 10)}...)`
+      );
     }
 
     // =================
     // STEP 6: Update Protocol Status
     // =================
+    await emitProtocolRegistrationProgress(
+      protocolId,
+      'STATUS_UPDATE',
+      'IN_PROGRESS',
+      92,
+      'Updating protocol status to ACTIVE'
+    );
     await updateProtocolRegistrationState(protocolId, 'ACTIVE', onChainTxHash);
     await job.updateProgress(95);
 
@@ -188,10 +281,25 @@ export async function processProtocolRegistration(
       riskScore,
     });
 
+    await emitProtocolRegistrationProgress(
+      protocolId,
+      'STATUS_UPDATE',
+      'COMPLETED',
+      95,
+      'Protocol status updated to ACTIVE'
+    );
+
     // =================
     // STEP 7: Trigger Automatic Scan
     // =================
     await emitAgentTaskUpdate('protocol-agent', 'Triggering vulnerability scan', 96);
+    await emitProtocolRegistrationProgress(
+      protocolId,
+      'TRIGGER_SCAN',
+      'IN_PROGRESS',
+      96,
+      'Triggering vulnerability scan'
+    );
     await job.updateProgress(96);
 
     try {
@@ -211,10 +319,26 @@ export async function processProtocolRegistration(
       });
 
       console.log(`[Protocol Agent] Enqueued scan ${scan.id} for processing`);
+
+      await emitProtocolRegistrationProgress(
+        protocolId,
+        'TRIGGER_SCAN',
+        'COMPLETED',
+        98,
+        'Vulnerability scan started'
+      );
     } catch (scanError) {
       // Log error but don't fail the registration
       console.error(`[Protocol Agent] Failed to trigger automatic scan:`, scanError);
       console.log(`[Protocol Agent] Protocol registration succeeded, but scan must be triggered manually`);
+
+      await emitProtocolRegistrationProgress(
+        protocolId,
+        'TRIGGER_SCAN',
+        'FAILED',
+        98,
+        'Failed to trigger scan, must start manually'
+      );
     }
 
     // =================
@@ -229,6 +353,13 @@ export async function processProtocolRegistration(
     // Complete
     // =================
     await emitAgentTaskUpdate('protocol-agent', 'Registration complete', 100);
+    await emitProtocolRegistrationProgress(
+      protocolId,
+      'COMPLETED',
+      'COMPLETED',
+      100,
+      'Protocol registration completed successfully'
+    );
     await job.updateProgress(100);
 
     console.log(`[Protocol Agent] Registration completed successfully for protocol ${protocolId}`);
@@ -252,6 +383,13 @@ export async function processProtocolRegistration(
 
     // Emit failure event
     await emitAgentTaskUpdate('protocol-agent', `Registration failed: ${errorMessage}`, 0);
+    await emitProtocolRegistrationProgress(
+      protocolId,
+      'FAILED',
+      'FAILED',
+      0,
+      `Registration failed: ${errorMessage}`
+    );
     await emitProtocolStatusChange(protocolId, {
       status: 'PENDING',
       registrationState: 'FAILED',

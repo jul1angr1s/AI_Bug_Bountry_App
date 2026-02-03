@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { Github, Activity, AlertTriangle, Clock } from 'lucide-react';
 import StatusBadge from '../shared/StatusBadge';
 import type { ProtocolListItem } from '../../lib/api';
+import ProtocolProgressIndicator from './ProtocolProgressIndicator';
 
 interface ProtocolCardProps {
   protocol: ProtocolListItem;
@@ -122,6 +123,9 @@ export default function ProtocolCard({ protocol }: ProtocolCardProps) {
           <div className="text-xs text-gray-500">Created</div>
         </div>
       </div>
+
+      {/* Progress Indicator (for PENDING protocols) */}
+      <ProtocolProgressIndicator protocolId={protocol.id} status={protocol.status} />
 
       {/* Footer */}
       <div className="pt-4 border-t border-gray-800">
