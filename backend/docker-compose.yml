@@ -18,6 +18,8 @@ services:
       target: development
     container_name: thunder-backend
     restart: unless-stopped
+    env_file:
+      - .env
     ports:
       - "3000:3000"
     deploy:
@@ -46,8 +48,7 @@ services:
       - ./src:/app/src:ro
       - ./prisma:/app/prisma:ro
       - ./tests:/app/tests:ro
-      # Preserve node_modules in container
-      - /app/node_modules
+      - ./contracts:/app/contracts:ro
     depends_on:
       postgres:
         condition: service_healthy
