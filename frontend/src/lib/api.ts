@@ -77,16 +77,31 @@ async function getAuthHeaders(): Promise<HeadersInit> {
   } catch (error) {
     // Handle AbortError specifically (from React Strict Mode or navigation)
     if (error instanceof Error && error.name === 'AbortError') {
-      console.log('[API] Session fetch aborted, retrying...');
-      // Wait a bit and retry once
-      await new Promise(resolve => setTimeout(resolve, 100));
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.access_token) {
-        return {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
-        };
+      console.log('[API] Session fetch aborted, trying localStorage fallback...');
+
+      // Fallback: Try to get session from localStorage directly
+      const storageKey = 'thunder-security-auth';
+      const keys = ['sb-ekxbtdlnbellyhovgoxw-auth-token', storageKey];
+
+      for (const key of keys) {
+        try {
+          const stored = localStorage.getItem(key);
+          if (stored) {
+            const sessionData = JSON.parse(stored);
+            const token = sessionData?.access_token || sessionData?.currentSession?.access_token;
+            if (token) {
+              console.log('[API] Using token from localStorage');
+              return {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`,
+              };
+            }
+          }
+        } catch (e) {
+          // Continue to next key
+        }
       }
+
       throw new Error('No active session. Please connect your wallet.');
     }
 
