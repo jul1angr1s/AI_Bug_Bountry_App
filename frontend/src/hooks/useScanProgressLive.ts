@@ -84,7 +84,7 @@ export function useScanProgressLive(scanId: string | null) {
       return;
     }
 
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    const apiUrl = import.meta.env.VITE_API_BASE_URL?.replace('/api/v1', '') || 'http://localhost:3000';
     const url = `${apiUrl}/api/v1/scans/${scanId}/progress`;
     const eventSource = new EventSource(url, {
       withCredentials: true,

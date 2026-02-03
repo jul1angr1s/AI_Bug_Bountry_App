@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { requireAdmin } from '../middleware/admin.js';
+import { sseAuthenticate } from '../middleware/sse-auth.js';
 import { validateRequest } from '../middleware/validation.js';
 import { dashboardRateLimits } from '../middleware/rate-limit.js';
 import {
@@ -212,7 +213,7 @@ router.post(
 // GET /api/v1/protocols/:id/registration-progress - SSE stream for registration progress
 router.get(
   '/:id/registration-progress',
-  requireAuth,
+  sseAuthenticate,
   validateRequest({ params: protocolIdSchema }),
   async (req: Request, res: Response) => {
     const { id } = req.params;

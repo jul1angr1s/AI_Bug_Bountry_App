@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import cookieParser from 'cookie-parser';
 import http from 'http';
 import apiRouter from './routes/index.js';
 import { config } from './config/env.js';
@@ -31,10 +32,12 @@ app.use(
   cors({
     origin: config.FRONTEND_URL,
     credentials: true,
+    exposedHeaders: ['Set-Cookie'],
   })
 );
 app.use(morgan(config.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use(express.json({ limit: '10mb' }));
+app.use(cookieParser());
 app.use(requestId);
 app.use(authenticate);
 
