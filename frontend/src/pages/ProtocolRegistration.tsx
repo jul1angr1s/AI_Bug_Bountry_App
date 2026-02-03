@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { ArrowLeft, Shield, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Shield, AlertCircle, Wallet } from 'lucide-react';
 import ProtocolForm from '../components/protocols/ProtocolForm';
 import { createProtocol, type CreateProtocolRequest } from '../lib/api';
 import { logDiagnostics } from '../lib/diagnostics';
+import { useAuth } from '../lib/auth';
 
 export default function ProtocolRegistration() {
   const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -19,6 +21,17 @@ export default function ProtocolRegistration() {
   }, []);
 
   const handleSubmit = async (data: CreateProtocolRequest) => {
+    // Check authentication before submitting
+    if (!user) {
+      const authError = 'Please connect your wallet to register a protocol.';
+      setError(authError);
+      toast.error('Authentication Required', {
+        description: authError,
+        duration: 5000,
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     setError(null);
 
@@ -72,6 +85,22 @@ export default function ProtocolRegistration() {
             </div>
           </div>
         </div>
+
+        {/* Authentication Warning */}
+        {!authLoading && !user && (
+          <div className="mb-8 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+            <div className="flex gap-3">
+              <Wallet className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+              <div className="text-sm">
+                <p className="font-medium text-yellow-400 mb-1">Wallet Connection Required</p>
+                <p className="text-gray-300">
+                  Please connect your wallet using the "Connect Wallet" button at the bottom left
+                  to register a protocol. You must be authenticated to submit protocol registrations.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Info Banner */}
         <div className="mb-8 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
