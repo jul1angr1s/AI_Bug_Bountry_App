@@ -35,7 +35,7 @@ export async function runDiagnostics(): Promise<{
       error: undefined as string | undefined,
     },
     environment: {
-      apiUrl: import.meta.env.VITE_API_URL || 'http://localhost:3000',
+      apiUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000',
       supabaseUrl: import.meta.env.VITE_SUPABASE_URL,
       hasSupabaseKey: Boolean(import.meta.env.VITE_SUPABASE_ANON_KEY),
     },

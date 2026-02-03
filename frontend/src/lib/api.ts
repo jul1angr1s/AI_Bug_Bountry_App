@@ -9,7 +9,7 @@ import type {
   SeverityLevel,
 } from '../types/dashboard';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 
 /**
  * Check if the backend server is reachable
@@ -20,7 +20,7 @@ export async function checkBackendHealth(): Promise<{
   cors: boolean;
 }> {
   try {
-    const response = await fetch(`${API_BASE_URL}/health`, {
+    const response = await fetch(`${API_BASE_URL}/api/v1/health`, {
       method: 'GET',
       mode: 'cors',
     });

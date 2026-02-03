@@ -88,6 +88,54 @@ else
   echo "✓ Frontend dependencies installed"
 fi
 
+# Check frontend .env configuration (CRITICAL: avoid double /api/v1 paths)
+echo ""
+echo "=== Frontend Configuration Checks ==="
+echo ""
+if [ -f "$ROOT_DIR/frontend/.env" ]; then
+  VITE_API_BASE_URL=$(grep "^VITE_API_BASE_URL=" "$ROOT_DIR/frontend/.env" | cut -d'=' -f2- | tr -d '"' | tr -d "'" || echo "")
+  if [[ "$VITE_API_BASE_URL" == *"/api/v1"* ]]; then
+    echo "❌ ERROR: VITE_API_BASE_URL should NOT include '/api/v1' suffix"
+    echo "   Current value: $VITE_API_BASE_URL"
+    echo "   Expected: http://localhost:3000"
+    echo "   The codebase appends '/api/v1' to paths automatically"
+    echo ""
+    echo "   Fix: Edit frontend/.env and change:"
+    echo "   VITE_API_BASE_URL=http://localhost:3000"
+    exit 1
+  else
+    echo "✓ Frontend .env: VITE_API_BASE_URL correctly configured"
+  fi
+else
+  echo "⚠️  WARNING: frontend/.env not found"
+fi
+
+# Check if backend contracts are compiled (for Docker)
+if [ ! -d "$ROOT_DIR/backend/contracts/out" ] || [ -z "$(ls -A "$ROOT_DIR/backend/contracts/out" 2>/dev/null)" ]; then
+  echo ""
+  echo "⚠️  WARNING: Backend contracts not compiled"
+  echo "   Docker backend needs compiled contracts in backend/contracts/out/"
+  echo "   This may cause blockchain listener failures"
+  echo ""
+  echo "   To compile contracts:"
+  echo "   cd backend/contracts && forge build"
+else
+  echo "✓ Backend contracts compiled"
+fi
+
+# Validate docker-compose.yml has necessary volumes
+if [ -f "$COMPOSE_FILE" ]; then
+  if ! grep -q "contracts:/app/contracts" "$COMPOSE_FILE"; then
+    echo "⚠️  WARNING: docker-compose.yml may be missing contracts volume mount"
+    echo "   Backend needs contracts volume: ./contracts:/app/contracts:ro"
+  fi
+  if ! grep -q "env_file:" "$COMPOSE_FILE"; then
+    echo "⚠️  WARNING: docker-compose.yml may be missing .env file loading"
+    echo "   Backend needs: env_file: - .env"
+  fi
+  echo "✓ Docker compose configuration validated"
+fi
+
 # ==============================================
 # Helper Functions
 # ==============================================
@@ -273,6 +321,17 @@ if [ "${SKIP_DB_INIT:-0}" = "0" ]; then
     echo "❌ ERROR: Database schema initialization failed"
     echo "   Please check database connection and schema"
     exit 1
+  fi
+
+  # If using Docker backend, also run migrations in container
+  if docker ps --format '{{.Names}}' | grep -q "thunder-backend"; then
+    echo "🐳 Running migrations in Docker backend container..."
+    if docker exec thunder-backend npx prisma migrate deploy 2>/dev/null; then
+      echo "✓ Docker backend migrations applied"
+    else
+      echo "⚠️  WARNING: Could not run migrations in Docker container"
+      echo "   This is normal if backend container is not running yet"
+    fi
   fi
 else
   echo "⏭️  Skipping database initialization (SKIP_DB_INIT=1)"
