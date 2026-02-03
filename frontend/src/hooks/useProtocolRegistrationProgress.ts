@@ -41,10 +41,18 @@ export function useProtocolRegistrationProgress(protocolId: string | null) {
       return;
     }
 
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    const apiUrl = import.meta.env.VITE_API_BASE_URL?.replace('/api/v1', '') || 'http://localhost:3000';
+
+    // Development: Query param fallback for SSE authentication
+    // In production, cookie authentication is used (set via syncAuthCookie)
+    const isDev = import.meta.env.MODE === 'development';
+    const token = isDev ? localStorage.getItem('token') : undefined;
 
     // Create SSE connection
-    const url = `${apiUrl}/api/v1/protocols/${protocolId}/registration-progress`;
+    const url = token
+      ? `${apiUrl}/api/v1/protocols/${protocolId}/registration-progress?token=${token}`
+      : `${apiUrl}/api/v1/protocols/${protocolId}/registration-progress`;
+
     const eventSource = new EventSource(url, {
       withCredentials: true,
     });

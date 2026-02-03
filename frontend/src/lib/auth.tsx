@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from './supabase';
+import { syncAuthCookie, clearAuthCookie } from './auth-cookies';
 import {
   connectWallet,
   createSiweMessage,
@@ -41,6 +42,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (currentSession) {
           setSession(currentSession);
           setUser(mapSupabaseUserToUser(currentSession.user));
+          // Sync auth cookie for SSE authentication
+          await syncAuthCookie();
         }
       } catch (error) {
         console.error('Error initializing auth:', error);
@@ -60,9 +63,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (newSession) {
         setSession(newSession);
         setUser(mapSupabaseUserToUser(newSession.user));
+        // Sync auth cookie for SSE authentication
+        await syncAuthCookie();
       } else {
         setSession(null);
         setUser(null);
+        // Clear auth cookie on sign out
+        clearAuthCookie();
       }
 
       setLoading(false);
@@ -129,6 +136,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (data.session && data.user) {
         setSession(data.session);
         setUser(mapSupabaseUserToUser(data.user));
+        // Sync auth cookie for SSE authentication
+        await syncAuthCookie();
         console.log('Successfully signed in with SIWE');
       }
     } catch (error) {
@@ -152,6 +161,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       setSession(null);
       setUser(null);
+      // Clear auth cookie on sign out
+      clearAuthCookie();
       console.log('Successfully signed out');
     } catch (error) {
       console.error('Sign out error:', error);

@@ -33,7 +33,9 @@
   "dependencies": {
     "@prisma/client": "^5.0.0",
     "@supabase/supabase-js": "^2.38.0",
+    "@types/cookie-parser": "^1.4.10",
     "bullmq": "^5.67.2",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.3.0",
     "ethers": "^6.16.0",
