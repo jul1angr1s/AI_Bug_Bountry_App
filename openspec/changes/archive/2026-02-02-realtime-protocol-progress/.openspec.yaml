@@ -1,0 +1,15 @@
+name: realtime-protocol-progress
+schema: standard
+version: 1.0.0
+status: completed
+created: 2026-02-02
+completed: 2026-02-02
+artifacts:
+  - name: spec
+    status: done
+  - name: plan
+    status: done
+  - name: tasks
+    status: done
+  - name: implementation
+    status: done
