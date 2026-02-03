@@ -50,6 +50,22 @@ mainnet = { key = "demo" }
       console.log('Created minimal foundry.toml configuration');
     }
 
+    // Initialize git submodules if they exist
+    try {
+      const gitmodulesPath = path.join(repoPath, '.gitmodules');
+      await fs.access(gitmodulesPath);
+      console.log('Initializing git submodules...');
+      await execAsync('git submodule update --init --recursive', {
+        cwd: repoPath,
+        timeout: 120000, // 2 minute timeout for submodules
+        maxBuffer: 10 * 1024 * 1024,
+      });
+      console.log('Git submodules initialized successfully');
+    } catch (error) {
+      // No .gitmodules file or submodule init failed, continue anyway
+      console.log('No git submodules or initialization skipped');
+    }
+
     // Run forge build
     const { stdout, stderr } = await execAsync('forge build --force', {
       cwd: repoPath,

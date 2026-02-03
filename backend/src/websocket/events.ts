@@ -63,6 +63,18 @@ export interface ProtocolStatusChangedEvent {
   };
 }
 
+export interface ProtocolRegistrationProgressEvent {
+  eventType: 'protocol:registration_progress';
+  timestamp: string;
+  protocolId: string;
+  data: {
+    currentStep: string;
+    state: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
+    progress: number;
+    message: string;
+  };
+}
+
 // Event emitter functions
 export async function emitAgentTaskUpdate(
   agentId: string,
@@ -178,6 +190,37 @@ export async function emitProtocolStatusChange(
   // Invalidate caches
   await invalidateCachePattern(`dashboard:stats:*`);
   await invalidateCache(`protocol:${protocolId}`);
+}
+
+export async function emitProtocolRegistrationProgress(
+  protocolId: string,
+  currentStep: string,
+  state: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED',
+  progress: number,
+  message: string
+): Promise<void> {
+  if (!ioInstance) return;
+
+  const event: ProtocolRegistrationProgressEvent = {
+    eventType: 'protocol:registration_progress',
+    timestamp: new Date().toISOString(),
+    protocolId,
+    data: {
+      currentStep,
+      state,
+      progress,
+      message,
+    },
+  };
+
+  // Emit to protocol room
+  ioInstance.to(`protocol:${protocolId}`).emit('protocol:registration_progress', event);
+  ioInstance.to('protocols').emit('protocol:registration_progress', event);
+
+  // Also publish to Redis for SSE subscribers
+  const { getRedisClient } = await import('../lib/redis.js');
+  const redis = getRedisClient();
+  await redis.publish(`protocol:${protocolId}:registration`, JSON.stringify(event));
 }
 
 // Task 2.5: Scan WebSocket Event Types
