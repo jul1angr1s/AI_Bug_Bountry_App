@@ -264,7 +264,7 @@ router.get(
       }
 
       res.status(200).json({
-        data: result.payments,
+        payments: result.payments,
         pagination: result.pagination,
       });
     } catch (error) {

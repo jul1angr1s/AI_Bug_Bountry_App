@@ -97,57 +97,63 @@ async function processPayment(job: Job<PaymentJobData>): Promise<void> {
     console.log(`  Address: ${researcherAddress}`);
 
     // Step 4: Verify validation outcome is CONFIRMED (Task 5.2)
-    const validationClient = new ValidationRegistryClient();
-    let onChainValidation;
+    const offchainValidation = process.env.PAYMENT_OFFCHAIN_VALIDATION === 'true';
 
-    try {
-      onChainValidation = await validationClient.getValidation(validationId);
+    if (!offchainValidation) {
+      const validationClient = new ValidationRegistryClient();
+      let onChainValidation;
 
-      if (!onChainValidation.exists) {
-        throw new Error(`Validation not found on-chain: ${validationId}`);
-      }
+      try {
+        onChainValidation = await validationClient.getValidation(validationId);
 
-      if (onChainValidation.outcome !== ValidationOutcome.CONFIRMED) {
-        const outcomeNames = ['CONFIRMED', 'REJECTED', 'INCONCLUSIVE'];
-        const outcomeName = outcomeNames[onChainValidation.outcome] || 'UNKNOWN';
+        if (!onChainValidation.exists) {
+          throw new Error(`Validation not found on-chain: ${validationId}`);
+        }
 
-        console.error('[PaymentWorker] Validation outcome is not CONFIRMED');
-        console.error(`  Validation ID: ${validationId}`);
-        console.error(`  Outcome: ${outcomeName}`);
+        if (onChainValidation.outcome !== ValidationOutcome.CONFIRMED) {
+          const outcomeNames = ['CONFIRMED', 'REJECTED', 'INCONCLUSIVE'];
+          const outcomeName = outcomeNames[onChainValidation.outcome] || 'UNKNOWN';
 
+          console.error('[PaymentWorker] Validation outcome is not CONFIRMED');
+          console.error(`  Validation ID: ${validationId}`);
+          console.error(`  Outcome: ${outcomeName}`);
+
+          await prisma.payment.update({
+            where: { id: paymentId },
+            data: {
+              status: 'FAILED',
+              failureReason: `Validation outcome is ${outcomeName}, expected CONFIRMED`,
+            },
+          });
+
+          await emitPaymentFailed(
+            protocolId,
+            paymentId,
+            `Validation outcome is ${outcomeName}`,
+            payment.retryCount,
+            validationId
+          );
+
+          // Don't retry - this is a permanent failure
+          return;
+        }
+
+        console.log('[PaymentWorker] Validation outcome verified: CONFIRMED');
+      } catch (error: any) {
+        console.error('[PaymentWorker] Failed to verify validation:', error.message);
+
+        // Increment retry count and re-throw for BullMQ retry
         await prisma.payment.update({
           where: { id: paymentId },
           data: {
-            status: 'FAILED',
-            failureReason: `Validation outcome is ${outcomeName}, expected CONFIRMED`,
+            retryCount: payment.retryCount + 1,
           },
         });
 
-        await emitPaymentFailed(
-          protocolId,
-          paymentId,
-          `Validation outcome is ${outcomeName}`,
-          payment.retryCount,
-          validationId
-        );
-
-        // Don't retry - this is a permanent failure
-        return;
+        throw new Error(`Failed to verify validation: ${error.message}`);
       }
-
-      console.log('[PaymentWorker] Validation outcome verified: CONFIRMED');
-    } catch (error: any) {
-      console.error('[PaymentWorker] Failed to verify validation:', error.message);
-
-      // Increment retry count and re-throw for BullMQ retry
-      await prisma.payment.update({
-        where: { id: paymentId },
-        data: {
-          retryCount: payment.retryCount + 1,
-        },
-      });
-
-      throw new Error(`Failed to verify validation: ${error.message}`);
+    } else {
+      console.warn('[PaymentWorker] Off-chain validation enabled - skipping on-chain validation check');
     }
 
     // Step 5: Map severity to BountySeverity enum

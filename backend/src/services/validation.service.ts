@@ -1,5 +1,6 @@
 import { getPrismaClient } from '../lib/prisma.js';
 import { FindingStatus, Severity } from '@prisma/client';
+import { ethers } from 'ethers';
 
 const prisma = getPrismaClient();
 
@@ -127,12 +128,12 @@ export class ValidationService {
     const amount = this.calculateBountyAmount(finding.severity);
 
     // Create payment record
+    const researcherAddress = await this.resolveResearcherAddress();
+
     const payment = await prisma.payment.create({
       data: {
         vulnerabilityId: finding.id,
-        researcherAddress:
-          process.env.DEFAULT_RESEARCHER_ADDRESS ||
-          '0x0000000000000000000000000000000000000000', // TODO: Get from finding/proof
+        researcherAddress,
         amount,
         currency: 'USDC',
         status: 'PENDING',
@@ -144,9 +145,11 @@ export class ValidationService {
 
     // Import and queue payment job
     const { addPaymentJob } = await import('../queues/payment.queue.js');
+    const validationId = ethers.id(findingId);
+
     await addPaymentJob({
       paymentId: payment.id,
-      validationId: findingId,
+      validationId,
       protocolId: finding.scan.protocolId,
     });
   }
@@ -166,6 +169,24 @@ export class ValidationService {
     };
 
     return baseReward * (multipliers[severity] || 1);
+  }
+
+  private async resolveResearcherAddress(): Promise<string> {
+    if (process.env.RESEARCHER_ADDRESS) {
+      return process.env.RESEARCHER_ADDRESS;
+    }
+
+    if (process.env.PRIVATE_KEY2) {
+      const formattedKey = process.env.PRIVATE_KEY2.startsWith('0x')
+        ? process.env.PRIVATE_KEY2
+        : `0x${process.env.PRIVATE_KEY2}`;
+      return new ethers.Wallet(formattedKey).address;
+    }
+
+    return (
+      process.env.DEFAULT_RESEARCHER_ADDRESS ||
+      '0x0000000000000000000000000000000000000000'
+    );
   }
 
   /**
