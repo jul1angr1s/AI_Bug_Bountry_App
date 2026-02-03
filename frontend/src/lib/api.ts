@@ -75,6 +75,21 @@ async function getAuthHeaders(): Promise<HeadersInit> {
       Authorization: `Bearer ${session.access_token}`,
     };
   } catch (error) {
+    // Handle AbortError specifically (from React Strict Mode or navigation)
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.log('[API] Session fetch aborted, retrying...');
+      // Wait a bit and retry once
+      await new Promise(resolve => setTimeout(resolve, 100));
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) {
+        return {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        };
+      }
+      throw new Error('No active session. Please connect your wallet.');
+    }
+
     if (error instanceof Error && error.message.includes('No active session')) {
       throw error;
     }

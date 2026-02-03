@@ -32,6 +32,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
+
     // Check for existing Supabase session
     const initAuth = async () => {
       try {
@@ -39,16 +41,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           data: { session: currentSession },
         } = await supabase.auth.getSession();
 
-        if (currentSession) {
+        if (isMounted && currentSession) {
           setSession(currentSession);
           setUser(mapSupabaseUserToUser(currentSession.user));
           // Sync auth cookie for SSE authentication
           await syncAuthCookie();
         }
       } catch (error) {
+        // Ignore AbortError from React Strict Mode double-rendering
+        if (error instanceof Error && error.name === 'AbortError') {
+          console.log('[Auth] Initialization aborted (React Strict Mode)');
+          return;
+        }
         console.error('Error initializing auth:', error);
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
@@ -89,6 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     return () => {
+      isMounted = false;
       subscription.unsubscribe();
       cleanup();
     };

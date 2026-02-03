@@ -32,6 +32,11 @@ export async function syncAuthCookie(): Promise<void> {
       console.log('[Auth] Auth cookie cleared');
     }
   } catch (error) {
+    // Ignore AbortError from React Strict Mode or navigation
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.log('[Auth] Cookie sync aborted (expected in dev mode)');
+      return;
+    }
     console.error('[Auth] Failed to sync auth cookie:', error);
   }
 }
