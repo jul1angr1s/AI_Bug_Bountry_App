@@ -847,7 +847,10 @@ export async function getPaymentList(
     const where: any = {};
 
     if (filters.protocolId) {
-      where.vulnerability = { protocolId: filters.protocolId };
+      where.vulnerability = {
+        protocolId: filters.protocolId,
+        ...(filters.severity ? { severity: filters.severity } : {}),
+      };
     }
 
     if (filters.status) {
@@ -876,6 +879,13 @@ export async function getPaymentList(
               vulnerabilityHash: true,
               protocolId: true,
               discoveredAt: true,
+              protocol: {
+                select: {
+                  id: true,
+                  githubUrl: true,
+                  contractName: true,
+                },
+              },
             },
           },
         },
@@ -898,12 +908,32 @@ export async function getPaymentList(
         status: p.status,
         txHash: p.txHash,
         researcherAddress: p.researcherAddress,
+        createdAt:
+          p.queuedAt?.toISOString() ||
+          p.paidAt?.toISOString() ||
+          p.vulnerability.discoveredAt.toISOString(),
         paidAt: p.paidAt?.toISOString() || null,
         queuedAt: p.queuedAt?.toISOString() || null,
         reconciled: p.reconciled,
         failureReason: p.failureReason,
         retryCount: p.retryCount,
-        vulnerability: p.vulnerability,
+        protocol: p.vulnerability.protocol
+          ? {
+              id: p.vulnerability.protocol.id,
+              name:
+                p.vulnerability.protocol.contractName ||
+                p.vulnerability.protocol.githubUrl.split('/').pop() ||
+                'Unknown',
+            }
+          : null,
+        vulnerability: {
+          id: p.vulnerability.id,
+          severity: p.vulnerability.severity,
+          status: p.vulnerability.status,
+          vulnerabilityHash: p.vulnerability.vulnerabilityHash,
+          protocolId: p.vulnerability.protocolId,
+          discoveredAt: p.vulnerability.discoveredAt,
+        },
       })),
       pagination: {
         totalCount,

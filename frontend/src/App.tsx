@@ -1,8 +1,7 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import DashboardLayout from './layouts/DashboardLayout';
 import Dashboard from './pages/Dashboard';
 import Validations from './pages/Validations';
-import Payments from './pages/Payments';
 import ProtocolRegistration from './pages/ProtocolRegistration';
 import Protocols from './pages/Protocols';
 import ProtocolDetail from './pages/ProtocolDetail';
@@ -24,9 +23,9 @@ function App() {
           <Route path="/scans" element={<Scans />} />
           <Route path="/scans/:id" element={<ScanDetail />} />
           <Route path="/validations" element={<Validations />} />
-          <Route path="/payments" element={<Payments />} />
+          <Route path="/payments" element={<Navigate to="/protocols" replace />} />
           <Route
-            path="/payments/dashboard"
+            path="/protocols/:id/payments"
             element={
               <ProtectedRoute>
                 <PaymentDashboard />
