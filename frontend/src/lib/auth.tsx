@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { supabase } from './supabase';
 import { syncAuthCookie, clearAuthCookie } from './auth-cookies';
 import {
@@ -30,6 +30,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const userRef = useRef<User | null>(null);
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
 
   useEffect(() => {
     let isMounted = true;
@@ -86,7 +92,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Listen for wallet account changes
     const cleanup = onAccountsChanged(async (accounts) => {
-      const currentUser = user;
+      const currentUser = userRef.current;
       if (accounts.length === 0) {
         // Wallet disconnected
         await signOut();
@@ -102,7 +108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       subscription.unsubscribe();
       cleanup();
     };
-  }, [user]);
+  }, []); // Empty dependencies - only run once on mount
 
   /**
    * Sign in with Ethereum (SIWE)
