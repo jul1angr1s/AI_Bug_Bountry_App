@@ -42,7 +42,7 @@ router.post('/', requireAuth, async (req, res, next) => {
     });
 
     // Publish scan creation event to Redis for queue workers
-    const redis = await getRedisClient();
+    const redis = getRedisClient();
     await redis.publish('scan:created', JSON.stringify({
       scanId: scan.id,
       protocolId,
@@ -180,7 +180,7 @@ router.get('/:id/progress', requireAuth, async (req, res, next) => {
     })}\n\n`);
 
     // Subscribe to Redis for real-time updates
-    const redis = await getRedisClient();
+    const redis = getRedisClient();
     const subscriber = redis.duplicate();
     
     await subscriber.subscribe(`scan:${id}:progress`);
@@ -230,7 +230,7 @@ router.delete('/:id', requireAuth, async (req, res, next) => {
     const canceledScan = await scanRepository.cancelScan(id);
 
     // Publish cancel event to Redis
-    const redis = await getRedisClient();
+    const redis = getRedisClient();
     await redis.publish('scan:canceled', JSON.stringify({
       scanId: id,
       timestamp: new Date().toISOString(),

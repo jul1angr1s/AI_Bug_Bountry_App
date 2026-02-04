@@ -5,7 +5,7 @@ import { BountyPoolClient, BountySeverity } from '../../blockchain/contracts/Bou
 import { Severity, PaymentStatus } from '@prisma/client';
 import type { PaymentJobData } from '../../queues/payment.queue.js';
 
-const redis = await getRedisClient();
+const redis = getRedisClient();
 const prisma = getPrismaClient();
 
 let worker: Worker | null = null;
