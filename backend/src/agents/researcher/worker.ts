@@ -449,45 +449,46 @@ async function executeScanPipeline(
     findingsCount++;
   }
 
-  // Step 6: Proof Generation (75-90%) - Skip if deployment failed
+  // Step 6: Proof Generation (75-90%) - Generate proofs even if deployment failed
+  // For demonstration: proofs can be generated based on findings without deployment
   const proofStep = await scanStepRepository.startStep(scanId, ScanStep.PROOF_GENERATION);
 
-  if (deploymentFailed || !deploymentAddress) {
-    // Skip proof generation if deployment failed
-    console.log('[Worker] Skipping proof generation (no deployment)');
-    await scanStepRepository.completeStep(proofStep.id, {
-      proofsGenerated: 0,
-      message: 'Skipped - deployment not available',
-    });
-    await emitScanProgress(scanId, protocolId, 'PROOF_GENERATION', ScanState.RUNNING, 90, 'Proof generation skipped');
-  } else {
-    try {
-      await emitScanProgress(scanId, protocolId, 'PROOF_GENERATION', ScanState.RUNNING, 80, 'Generating proofs...');
+  try {
+    await emitScanProgress(scanId, protocolId, 'PROOF_GENERATION', ScanState.RUNNING, 80, 'Generating proofs...');
 
-      // Get findings to generate proofs for
-      const findings = await findingRepository.getFindingsByScan(scanId);
+    // Get findings to generate proofs for
+    const findings = await findingRepository.getFindingsByScan(scanId);
 
-      if (!clonedPath) {
-        throw new Error('No cloned path available from previous step');
-      }
+    if (!clonedPath) {
+      throw new Error('No cloned path available from previous step');
+    }
 
+    if (findings.length === 0) {
+      console.log('[Worker] No findings to generate proofs for');
+      await scanStepRepository.completeStep(proofStep.id, {
+        proofsGenerated: 0,
+        message: 'No findings to generate proofs for',
+      });
+      await emitScanProgress(scanId, protocolId, 'PROOF_GENERATION', ScanState.RUNNING, 90, 'No findings for proof generation');
+    } else {
       const proofGenResult = await executeProofGenerationStep({
         scanId,
         findings,
         clonedPath,
-        deploymentAddress,
+        deploymentAddress: deploymentAddress || undefined, // Pass undefined if no deployment
       });
 
       await scanStepRepository.completeStep(proofStep.id, {
         proofsGenerated: proofGenResult.proofsCreated,
+        deploymentUsed: !!deploymentAddress,
       });
 
-      await emitScanProgress(scanId, protocolId, 'PROOF_GENERATION', ScanState.RUNNING, 90, 'Proofs generated');
-    } catch (error) {
-      await cleanupResources(anvilProcess);
-      await handleStepFailure(scanId, protocolId, proofStep.id, ScanErrorCodes.PROOF_GENERATION_FAILED, error);
-      throw error;
+      await emitScanProgress(scanId, protocolId, 'PROOF_GENERATION', ScanState.RUNNING, 90, `${proofGenResult.proofsCreated} proofs generated`);
     }
+  } catch (error) {
+    await cleanupResources(anvilProcess);
+    await handleStepFailure(scanId, protocolId, proofStep.id, ScanErrorCodes.PROOF_GENERATION_FAILED, error);
+    throw error;
   }
 
   // Step 7: Submit to Validator (90-100%)
