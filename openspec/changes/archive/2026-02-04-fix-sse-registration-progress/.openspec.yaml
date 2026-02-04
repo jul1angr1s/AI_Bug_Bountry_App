@@ -1,0 +1,13 @@
+name: fix-sse-registration-progress
+schema: standard
+version: 1.0.0
+status: completed
+created: 2026-02-04
+completed: 2026-02-04
+artifacts:
+  - name: spec
+    status: done
+  - name: tasks
+    status: done
+  - name: implementation
+    status: done
