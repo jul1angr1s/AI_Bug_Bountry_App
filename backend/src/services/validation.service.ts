@@ -108,12 +108,36 @@ export class ValidationService {
       throw new Error(`Finding ${findingId} not found`);
     }
 
-    // Check if payment already exists
+    // Create or find Vulnerability record (Finding -> Vulnerability mapping)
+    // Vulnerability is the on-chain concept, Finding is the scan result
+    const vulnerabilityHash = ethers.id(`${finding.scanId}:${finding.id}`);
+    
+    let vulnerability = await prisma.vulnerability.findFirst({
+      where: {
+        protocolId: finding.scan.protocolId,
+        vulnerabilityHash,
+      },
+    });
+
+    if (!vulnerability) {
+      // Create Vulnerability record from Finding
+      vulnerability = await prisma.vulnerability.create({
+        data: {
+          protocolId: finding.scan.protocolId,
+          vulnerabilityHash,
+          severity: finding.severity,
+          status: 'ACKNOWLEDGED',
+          bounty: this.calculateBountyAmount(finding.severity),
+          proof: finding.description,
+        },
+      });
+      console.log(`[ValidationService] Created vulnerability ${vulnerability.id} for finding ${findingId}`);
+    }
+
+    // Check if payment already exists for this vulnerability
     const existingPayment = await prisma.payment.findFirst({
       where: {
-        vulnerability: {
-          id: finding.id,
-        },
+        vulnerabilityId: vulnerability.id,
       },
     });
 
@@ -132,7 +156,7 @@ export class ValidationService {
 
     const payment = await prisma.payment.create({
       data: {
-        vulnerabilityId: finding.id,
+        vulnerabilityId: vulnerability.id, // Use vulnerability ID, not finding ID
         researcherAddress,
         amount,
         currency: 'USDC',
@@ -158,14 +182,15 @@ export class ValidationService {
    * Calculate bounty amount based on severity
    */
   private calculateBountyAmount(severity: Severity): number {
-    const baseReward = 500; // $500 base
+    // DEMO MODE: Using small amounts for testing ($0.5 for HIGH severity)
+    const baseReward = 0.1; // $0.10 base (for testing)
 
     const multipliers: Record<Severity, number> = {
-      CRITICAL: 10,
-      HIGH: 5,
-      MEDIUM: 2,
-      LOW: 1,
-      INFO: 0.5,
+      CRITICAL: 10,  // $1.00
+      HIGH: 5,       // $0.50
+      MEDIUM: 2,     // $0.20
+      LOW: 1,        // $0.10
+      INFO: 0.5,     // $0.05
     };
 
     return baseReward * (multipliers[severity] || 1);
