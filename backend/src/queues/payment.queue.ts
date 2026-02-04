@@ -1,7 +1,8 @@
 import { Queue, Worker, Job } from 'bullmq';
 import { getRedisClient } from '../lib/redis.js';
 
-const redisClient = getRedisClient();
+// Initialize Redis client
+const redisClient = await getRedisClient();
 
 // Payment Job Data Interface (Task 2.1)
 export interface PaymentJobData {

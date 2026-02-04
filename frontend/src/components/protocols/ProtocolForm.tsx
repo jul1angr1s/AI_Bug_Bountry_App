@@ -61,7 +61,7 @@ export default function ProtocolForm({ onSubmit, isSubmitting = false }: Protoco
 
     if (!formData.ownerAddress.trim()) {
       newErrors.ownerAddress = 'Owner address is required';
-    } else if (!validateEthereumAddress(formData.ownerAddress)) {
+    } else if (!validateEthereumAddress(formData.ownerAddress.trim())) {
       newErrors.ownerAddress = 'Must be a valid Ethereum address (0x...)';
     }
 
@@ -77,7 +77,17 @@ export default function ProtocolForm({ onSubmit, isSubmitting = false }: Protoco
     }
 
     try {
-      await onSubmit(formData);
+      // Trim all string fields before submitting
+      const trimmedData = {
+        ...formData,
+        githubUrl: formData.githubUrl.trim(),
+        branch: formData.branch.trim(),
+        contractPath: formData.contractPath.trim(),
+        contractName: formData.contractName.trim(),
+        bountyTerms: formData.bountyTerms.trim(),
+        ownerAddress: formData.ownerAddress.trim(),
+      };
+      await onSubmit(trimmedData);
     } catch (error) {
       console.error('Form submission error:', error);
     }
