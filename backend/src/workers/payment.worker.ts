@@ -9,7 +9,7 @@ import { RESEARCHER_ADDRESS } from '../blockchain/config.js';
 import { emitPaymentReleased, emitPaymentFailed } from '../websocket/events.js';
 import { usdcConfig } from '../blockchain/config.js';
 
-const redisClient = getRedisClient();
+const redisClient = await getRedisClient();
 const prisma = getPrismaClient();
 
 /**
@@ -159,30 +159,67 @@ async function processPayment(job: Job<PaymentJobData>): Promise<void> {
     // Step 5: Map severity to BountySeverity enum
     const severity = mapSeverity(payment.vulnerability.severity);
 
+    // Step 5.5: Get the on-chain protocol ID (bytes32) from the Protocol record
+    const protocol = await prisma.protocol.findUnique({
+      where: { id: payment.vulnerability.protocolId },
+      select: { onChainProtocolId: true },
+    });
+
+    // Use on-chain protocol ID if available, otherwise convert UUID to bytes32
+    const onChainProtocolId = protocol?.onChainProtocolId || ethers.id(protocolId);
+
     console.log('[PaymentWorker] Payment details:');
     console.log(`  Amount: ${payment.amount} ${payment.currency}`);
     console.log(`  Severity: ${payment.vulnerability.severity} -> ${BountySeverity[severity]}`);
+    console.log(`  On-chain Protocol ID: ${onChainProtocolId}`);
 
     // Step 6: Call BountyPool.releaseBounty() (Task 5.3)
-    const bountyClient = new BountyPoolClient();
-
-    console.log('[PaymentWorker] Calling BountyPool.releaseBounty()...');
-
+    // Check for demo mode - skip on-chain payment if enabled
+    const skipOnchainPayment = process.env.SKIP_ONCHAIN_PAYMENT === 'true';
+    
     let releaseResult;
-    try {
-      releaseResult = await bountyClient.releaseBounty(
-        protocolId,
-        validationId,
-        researcherAddress,
-        severity
-      );
+    
+    if (skipOnchainPayment) {
+      // Demo mode: Simulate successful payment without on-chain call
+      console.log('[PaymentWorker] DEMO MODE: Skipping on-chain payment');
+      console.log(`  Amount: ${payment.amount} USDC`);
+      console.log(`  Researcher: ${researcherAddress}`);
+      
+      // Create mock release result
+      const mockTxHash = `0xdemo${Date.now().toString(16).padStart(56, '0')}`;
+      const mockBountyId = ethers.id(`${paymentId}:${Date.now()}`);
+      
+      releaseResult = {
+        txHash: mockTxHash,
+        blockNumber: Math.floor(Date.now() / 1000),
+        amount: BigInt(Math.floor(payment.amount * 10 ** usdcConfig.decimals)),
+        bountyId: mockBountyId,
+        timestamp: Math.floor(Date.now() / 1000),
+      };
+      
+      console.log('[PaymentWorker] DEMO MODE: Payment simulated successfully!');
+      console.log(`  Mock TX Hash: ${releaseResult.txHash}`);
+      console.log(`  Amount: ${payment.amount} USDC`);
+    } else {
+      // Production mode: Execute on-chain payment
+      const bountyClient = new BountyPoolClient();
 
-      console.log('[PaymentWorker] Bounty released successfully!');
-      console.log(`  TX Hash: ${releaseResult.txHash}`);
-      console.log(`  Block: ${releaseResult.blockNumber}`);
-      console.log(`  Amount: ${ethers.formatUnits(releaseResult.amount, usdcConfig.decimals)} USDC`);
-      console.log(`  Bounty ID: ${releaseResult.bountyId}`);
-    } catch (error: any) {
+      console.log('[PaymentWorker] Calling BountyPool.releaseBounty()...');
+
+      try {
+        releaseResult = await bountyClient.releaseBounty(
+          onChainProtocolId, // Use the bytes32 on-chain ID, not UUID
+          validationId,
+          researcherAddress,
+          severity
+        );
+
+        console.log('[PaymentWorker] Bounty released successfully!');
+        console.log(`  TX Hash: ${releaseResult.txHash}`);
+        console.log(`  Block: ${releaseResult.blockNumber}`);
+        console.log(`  Amount: ${ethers.formatUnits(releaseResult.amount, usdcConfig.decimals)} USDC`);
+        console.log(`  Bounty ID: ${releaseResult.bountyId}`);
+      } catch (error: any) {
       console.error('[PaymentWorker] Failed to release bounty:', error.message);
 
       // Task 5.4 - Scenario: Worker handles insufficient pool funds
@@ -223,6 +260,7 @@ async function processPayment(job: Job<PaymentJobData>): Promise<void> {
       });
 
       throw error; // Re-throw to trigger BullMQ retry
+      }
     }
 
     // Step 7: Update Payment record on success (Task 5.3)

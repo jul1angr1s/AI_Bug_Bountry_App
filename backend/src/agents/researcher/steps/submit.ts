@@ -33,7 +33,7 @@ export async function executeSubmitStep(params: SubmitStepParams): Promise<Submi
 
   console.log(`[Submit] Submitting ${proofs.length} proofs for scan ${scanId}...`);
 
-  const redis = getRedisClient();
+  const redis = await getRedisClient();
   const submissionTimestamp = new Date().toISOString();
   let proofsSubmitted = 0;
 

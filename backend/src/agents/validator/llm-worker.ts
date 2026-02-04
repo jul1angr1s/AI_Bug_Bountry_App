@@ -7,7 +7,7 @@ import { decryptProof, type ProofSubmissionMessage } from './steps/decrypt.js';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
-const redis = getRedisClient();
+const redis = await getRedisClient();
 const prisma = getPrismaClient();
 
 let isRunning = false;
@@ -48,12 +48,17 @@ export async function startValidatorAgentLLM(): Promise<void> {
     throw error;
   }
 
-  // Create Redis subscriber
+  // Create Redis subscriber (use a new client instance for pub/sub)
+  // Note: duplicate() creates a new connection, no need to call connect() manually
   subscriber = redis.duplicate();
-  await subscriber.connect();
 
-  // Subscribe to proof submission channel
-  await subscriber.subscribe('PROOF_SUBMISSION', async (message: string) => {
+  // Set up message handler BEFORE subscribing (ioredis pattern)
+  // In ioredis, subscribe() doesn't take a message callback - messages come via 'message' event
+  subscriber.on('message', async (channel: string, message: string) => {
+    if (channel !== 'PROOF_SUBMISSION') {
+      return;
+    }
+
     try {
       const submission: ProofSubmissionMessage = JSON.parse(message);
       console.log(
@@ -68,6 +73,10 @@ export async function startValidatorAgentLLM(): Promise<void> {
       console.error('[Validator Agent LLM] Failed to parse proof submission:', error);
     }
   });
+
+  // Now subscribe to the channel
+  await subscriber.subscribe('PROOF_SUBMISSION');
+  console.log('[Validator Agent LLM] Subscribed to PROOF_SUBMISSION channel');
 
   isRunning = true;
   console.log('[Validator Agent LLM] Running and listening for proofs...');
@@ -161,14 +170,14 @@ async function processValidationLLM(submission: ProofSubmissionMessage): Promise
     // =================
     // STEP 4: Analyze proof with Kimi 2.5 LLM
     // =================
-    const proofCode =
-      typeof proof.exploitCode === 'string'
-        ? proof.exploitCode
-        : JSON.stringify(proof.exploitCode, null, 2);
+    // Build proof details from exploitDetails (the correct field in DecryptedProof)
+    const proofDetails = proof.exploitDetails
+      ? `Reproduction Steps:\n${proof.exploitDetails.reproductionSteps?.join('\n') || 'N/A'}\n\nExpected Outcome: ${proof.exploitDetails.expectedOutcome || 'N/A'}\n\nActual Outcome: ${proof.exploitDetails.actualOutcome || 'N/A'}`
+      : `Description: ${proof.description}\nLocation: ${proof.location?.filePath || 'unknown'}:${proof.location?.lineNumber || 'N/A'}`;
 
     const analysis = await kimiClient.analyzeProof(
       proof.vulnerabilityType,
-      proofCode,
+      proofDetails,
       contractCode,
       finding.description
     );
