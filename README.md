@@ -909,20 +909,27 @@ KIMI_MODEL=moonshotai/kimi-k2.5
 
 ### Payment Flow
 
-```
-ValidationRecorded (CONFIRMED)
-    ↓
-Payment Record Created
-    ↓
-BullMQ Job Queued
-    ↓
-BountyPool.releaseBounty()
-    ↓
-BountyReleased Event
-    ↓
-Payment Reconciliation
-    ↓
-Database Updated
+```mermaid
+graph TB
+    Start([⚡ ValidationRecorded<br/>CONFIRMED])
+
+    Start --> Step1[📝 Payment Record<br/>Created]
+    Step1 --> Step2[📋 BullMQ Job<br/>Queued]
+    Step2 --> Step3[💰 BountyPool<br/>releaseBounty]
+    Step3 --> Step4[📡 BountyReleased<br/>Event Emitted]
+    Step4 --> Step5[🔄 Payment<br/>Reconciliation]
+    Step5 --> Step6[💾 Database<br/>Updated]
+
+    Step6 --> Complete([✅ Payment Complete])
+
+    style Start fill:#10B981,stroke:#059669,stroke-width:3px,color:#fff
+    style Step1 fill:#3B82F6,stroke:#1E40AF,stroke-width:2px,color:#fff
+    style Step2 fill:#8B5CF6,stroke:#7C3AED,stroke-width:2px,color:#fff
+    style Step3 fill:#FFD700,stroke:#FFA500,stroke-width:3px,color:#000
+    style Step4 fill:#EC4899,stroke:#BE185D,stroke-width:2px,color:#fff
+    style Step5 fill:#F59E0B,stroke:#D97706,stroke-width:2px,color:#fff
+    style Step6 fill:#06B6D4,stroke:#0891B2,stroke-width:2px,color:#fff
+    style Complete fill:#10B981,stroke:#059669,stroke-width:3px,color:#fff
 ```
 
 See payment dashboard at `http://localhost:5173/payments` during development.
