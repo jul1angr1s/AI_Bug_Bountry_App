@@ -41,7 +41,6 @@ interface RetryConfig {
 export class EventListenerService {
   private wsProvider: WebSocketProvider | null = null;
   private listeners: Map<string, Contract> = new Map();
-  private listenerConfigs: Map<string, EventListenerConfig> = new Map();
   private isShuttingDown = false;
   private retryConfig: RetryConfig = {
     attempt: 0,
@@ -50,7 +49,6 @@ export class EventListenerService {
     maxDelay: 60000, // 60 seconds
   };
   private reconnectTimeout: NodeJS.Timeout | null = null;
-  private healthCheckInterval: NodeJS.Timeout | null = null;
   private prisma = getPrismaClient();
 
   constructor() {
@@ -74,12 +72,22 @@ export class EventListenerService {
         name: chainConfig.name,
       });
 
+      // Set up provider event handlers
+      this.wsProvider.on('error', (error) => {
+        console.error('[EventListener] WebSocket provider error:', error);
+        this.handleProviderError(error);
+      });
+
+      this.wsProvider.on('close', () => {
+        console.warn('[EventListener] WebSocket connection closed');
+        if (!this.isShuttingDown) {
+          this.handleProviderError(new Error('WebSocket connection closed'));
+        }
+      });
+
       // Test connection by getting current block
       const currentBlock = await this.wsProvider.getBlockNumber();
       console.log(`[EventListener] Connected successfully! Current block: ${currentBlock}`);
-
-      // Start provider health check polling
-      this.startProviderHealthCheck();
 
       // Reset retry counter on successful connection
       this.retryConfig.attempt = 0;
@@ -87,52 +95,6 @@ export class EventListenerService {
       console.error('[EventListener] Failed to initialize provider:', error.message);
       throw error;
     }
-  }
-
-  /**
-   * Start provider health check polling
-   */
-  private startProviderHealthCheck(): void {
-    // Clear any existing health check interval
-    if (this.healthCheckInterval) {
-      clearInterval(this.healthCheckInterval);
-      this.healthCheckInterval = null;
-    }
-
-    this.healthCheckInterval = setInterval(async () => {
-      try {
-        if (this.wsProvider && !this.isShuttingDown) {
-          await this.wsProvider.getBlockNumber();
-          // If we reach here, provider is healthy
-        }
-      } catch (error: any) {
-        console.error('[EventListener] Provider health check failed:', error.message);
-        this.handleProviderError(error);
-      }
-    }, 30000); // Check every 30 seconds
-
-    console.log('[EventListener] Provider health check started (30s interval)');
-  }
-
-  /**
-   * Check if we should skip historical event replay (Alchemy free tier)
-   */
-  private shouldSkipHistoricalReplay(): boolean {
-    const wsUrl = this.getWebSocketUrl();
-    const isAlchemy = wsUrl.includes('alchemy.com') || wsUrl.includes('alchemyapi.io');
-    const hasPaidKey = process.env.ALCHEMY_API_KEY_PAID === 'true';
-
-    return isAlchemy && !hasPaidKey;
-  }
-
-  /**
-   * Get the number of recent blocks to start from (instead of historical replay)
-   * Note: For Alchemy free tier, we use 9 blocks because the range is inclusive on both ends
-   */
-  private getRecentBlockOffset(): number {
-    const blocks = parseInt(process.env.EVENT_REPLAY_RECENT_BLOCKS || '1000', 10);
-    // Alchemy counts inclusive, so if we want to replay N blocks, we need offset of N-1
-    return this.shouldSkipHistoricalReplay() ? Math.max(blocks - 1, 0) : blocks;
   }
 
   /**
@@ -294,10 +256,6 @@ export class EventListenerService {
    */
   public async startListening(config: EventListenerConfig): Promise<void> {
     try {
-      // Store listener config for reconnection
-      const key = `${config.contractAddress}:${config.eventName}`;
-      this.listenerConfigs.set(key, config);
-
       // Initialize provider if not already done
       if (!this.wsProvider) {
         await this.initializeProvider();
@@ -333,29 +291,15 @@ export class EventListenerService {
           await this.replayEvents(config, fromBlock, currentBlock);
         }
       } else if (fromBlock !== undefined) {
-        // No state exists, check if we should skip historical replay
-        if (this.shouldSkipHistoricalReplay()) {
-          const offset = this.getRecentBlockOffset();
-          fromBlock = currentBlock - offset;
-          console.log(`[EventListener] Skipping historical replay (Alchemy free tier), starting from block ${fromBlock}`);
-        } else {
-          console.log(`  Starting from configured block: ${fromBlock}`);
-        }
+        console.log(`  Starting from configured block: ${fromBlock}`);
 
         // Replay events from configured start block
         if (fromBlock < currentBlock) {
           await this.replayEvents(config, fromBlock, currentBlock);
         }
       } else {
-        // Start from recent block by default on free tier
-        if (this.shouldSkipHistoricalReplay()) {
-          const offset = this.getRecentBlockOffset();
-          fromBlock = currentBlock - offset;
-          console.log(`[EventListener] Starting from recent block: ${fromBlock} (Alchemy free tier)`);
-        } else {
-          fromBlock = currentBlock;
-          console.log('  Starting from current block (no historical replay)');
-        }
+        console.log('  Starting from current block (no historical replay)');
+        fromBlock = currentBlock;
       }
 
       // Create contract instance for event listening
@@ -452,12 +396,9 @@ export class EventListenerService {
         // Reinitialize provider
         await this.initializeProvider();
 
-        // Restart all listeners
-        console.log(`[EventListener] Restarting ${this.listenerConfigs.size} listeners...`);
-        for (const [key, config] of this.listenerConfigs) {
-          console.log(`[EventListener] Restarting listener: ${key}`);
-          await this.startListening(config);
-        }
+        // TODO: Restart all listeners
+        // This would require storing listener configs and restarting them
+        // For now, the server restart will handle this
 
         console.log('[EventListener] Reconnection successful');
       } catch (reconnectError: any) {
@@ -483,12 +424,6 @@ export class EventListenerService {
       if (this.reconnectTimeout) {
         clearTimeout(this.reconnectTimeout);
         this.reconnectTimeout = null;
-      }
-
-      // Clear health check interval
-      if (this.healthCheckInterval) {
-        clearInterval(this.healthCheckInterval);
-        this.healthCheckInterval = null;
       }
 
       // Remove all event listeners

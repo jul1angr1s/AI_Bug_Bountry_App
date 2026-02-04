@@ -354,24 +354,6 @@ export class ProofRepository {
       orderBy: { submittedAt: 'desc' },
     });
   }
-
-  /**
-   * Get a single proof by ID
-   */
-  async getProofById(proofId: string): Promise<Proof | null> {
-    return this.prisma.proof.findUnique({
-      where: { id: proofId },
-    });
-  }
-
-  /**
-   * Get a single finding by ID (used by decrypt step)
-   */
-  async getFindingById(findingId: string): Promise<Finding | null> {
-    return this.prisma.finding.findUnique({
-      where: { id: findingId },
-    });
-  }
 }
 
 export class ScanStepRepository {

@@ -3,8 +3,7 @@ import { getRedisClient } from '../lib/redis.js';
 import { processProtocolRegistration } from '../agents/protocol/index.js';
 import type { ProtocolRegistrationJobData } from '../agents/protocol/worker.js';
 
-// Initialize Redis client and queues
-const redisClient = await getRedisClient();
+const redisClient = getRedisClient();
 
 // Protocol Registration Queue
 export const protocolQueue = new Queue('protocol-registration', {
