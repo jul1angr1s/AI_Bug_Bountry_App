@@ -242,14 +242,51 @@ router.get(
       res.write(': connected\n\n');
 
       // Subscribe to Redis channel for this protocol's registration progress
-      const redis = getRedisClient();
+      // Note: ioredis duplicate() returns an already-connected client - no .connect() needed
+      const redis = await getRedisClient();
       const subscriber = redis.duplicate();
-      await subscriber.connect();
 
       const channel = `protocol:${id}:registration`;
       await subscriber.subscribe(channel);
-
       console.log(`[SSE] Client subscribed to ${channel}`);
+
+      // If protocol is already ACTIVE or FAILED, send completion event immediately
+      // This fixes the race condition where registration completes before SSE connects
+      if (protocol.status === 'ACTIVE') {
+        const completionEvent = {
+          type: 'registration_progress',
+          data: {
+            protocolId: id,
+            currentStep: 'COMPLETED',
+            state: 'COMPLETED',
+            progress: 100,
+            message: 'Protocol registration completed successfully',
+            timestamp: new Date().toISOString()
+          }
+        };
+        res.write(`data: ${JSON.stringify(completionEvent)}\n\n`);
+        res.write('event: close\ndata: {}\n\n');
+        subscriber.quit();
+        res.end();
+        return;
+      } else if (protocol.status === 'FAILED') {
+        const failureEvent = {
+          type: 'registration_progress',
+          data: {
+            protocolId: id,
+            currentStep: 'FAILED',
+            state: 'FAILED',
+            progress: 0,
+            message: 'Protocol registration failed',
+            timestamp: new Date().toISOString()
+          }
+        };
+        res.write(`data: ${JSON.stringify(failureEvent)}\n\n`);
+        res.write('event: close\ndata: {}\n\n');
+        subscriber.quit();
+        res.end();
+        return;
+      }
 
       // Handle incoming messages from Redis
       subscriber.on('message', (receivedChannel, message) => {
