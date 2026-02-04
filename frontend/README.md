@@ -1,122 +1,84 @@
-# Frontend - Thunder Security Dashboard
+# 🛡️ Autonomous Bug Bounty Console
 
-Dashboard UI for the Autonomous Bug Bounty Orchestrator.
+> *The command center for continuous, AI-powered security auditing.*
 
-## Tech Stack
+Welcome to the **Frontend Console** of the Autonomous Bug Bounty platform. This is a high-performance, real-time dashboard built with **React 18** and **Vite**, designed to give researchers and protocol maintainers a God-mode view of the security landscape.
 
-- **Framework**: React 18 + TypeScript
-- **Build Tool**: Vite
-- **Styling**: Tailwind CSS
-- **Testing**: Vitest + React Testing Library
-- **Auth**: Supabase Auth
-- **Routing**: React Router v6
+## ⚡ Architecture Flow
 
-## Getting Started
+```mermaid
+graph TD
+    User([👤 User]) -->|Connects Wallet| Wallet[🦊 Wagmi / Viem]
+    User -->|Interacts| UI[🖥️ React 18 Dashboard]
 
-### Prerequisites
+    subgraph Client Layer
+        UI -->|State Mgmt| STORE[🐻 Zustand Store]
+        UI -->|Data Fetching| QUERY[⚡ TanStack Query]
+    end
 
-- Node.js 20.x LTS
-- npm or yarn
+    subgraph Network Layer
+        UI -->|Real-time Events| WS[🔌 Socket.io Client]
+        UI -->|Auth & DB| SUPA[🔥 Supabase Client]
+        Wallet -->|Signatures| CHAIN[⛓️ Base Sepolia / Anvil]
+    end
 
-### Installation
+    WS <-->|Live Updates| BACKEND[🚀 Backend API]
+```
+
+## 🛠️ Technology Stack
+
+We use a modern, type-safe stack optimized for speed and developer experience:
+
+- **Core**: React 18, TypeScript, Vite
+- **State**: Zustand (Client), TanStack Query (Server)
+- **Styling**: Tailwind CSS, Lucide React
+- **Web3**: Wagmi, Viem, ConnectKit, Ethers.js
+- **Realtime**: Socket.io-client, Supabase
+
+## 🚀 Key Features
+
+- **Live Vulnerability Feed**: Watch AI agents find bugs in real-time via WebSocket streams.
+- **Web3 Authentication**: Seamless login with SIWE (Sign-In with Ethereum).
+- **Interactive Graphs**: Visualize attack vectors and finding statistics.
+- **Dark Mode Native**: Because security professionals don't like glare.
+
+## 🏁 Getting Started
+
+### 1. Prerequisites
+- Node.js 18+
+- pnpm or npm
+
+### 2. Installation
 
 ```bash
+cd frontend
 npm install
 ```
 
-### Development
+### 3. Environment Setup
+Create a `.env` file in the frontend root:
+
+```env
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_supabase_key
+VITE_WALLETCONNECT_PROJECT_ID=your_wc_id
+VITE_API_URL=http://localhost:3000
+```
+
+### 4. Lift Off 🚀
 
 ```bash
-# Start dev server
 npm run dev
+```
 
-# Run tests
-npm test
+The console will launch at `http://localhost:5173`. Prepare for liftoff.
 
-# Run tests with UI
+## 🧪 Testing
+
+Run our blazing fast test suite powered by Vitest:
+
+```bash
+npm run test
+# OR for a UI visualizer
 npm run test:ui
-
-# Generate coverage report
-npm run test:coverage
-
-# Type check
-npm run type-check
-
-# Lint
-npm run lint
 ```
-
-### Environment Variables
-
-Copy `.env.example` to `.env` and configure:
-
-```bash
-cp .env.example .env
-```
-
-## Project Structure
-
-```
-src/
-├── components/
-│   ├── Dashboard/      # Dashboard-specific components
-│   ├── Sidebar/        # Sidebar navigation components
-│   └── shared/         # Reusable components
-├── layouts/            # Layout components
-├── pages/              # Page components
-├── lib/                # Utility functions
-├── types/              # TypeScript type definitions
-└── __tests__/          # Test setup and utilities
-```
-
-## Testing Strategy
-
-This project follows **Test-Driven Development (TDD)**:
-
-1. Write tests first
-2. Implement component to pass tests
-3. Refactor if needed
-4. All tests must pass before committing
-
-### Running Tests
-
-```bash
-# Watch mode (default)
-npm test
-
-# Run once
-npm test -- --run
-
-# With coverage
-npm run test:coverage
-```
-
-## OpenSpec Implementation
-
-This implementation follows the OpenSpec change: `openspec/changes/dashboard-ui/`
-
-### Phase 1: Layout & Navigation ✓
-- Base layout structure
-- Sidebar navigation
-- React Router setup
-- Supabase Auth integration
-
-### Phase 2: Dashboard Components ✓
-- StatCard component
-- ProtocolOverview
-- StatisticsPanel
-- AgentStatusGrid
-- VulnerabilitiesTable
-- CriticalAlertBanner
-
-## Build
-
-```bash
-npm run build
-```
-
-Build output will be in the `dist/` directory.
-
-## License
-
-See the root LICENSE file.

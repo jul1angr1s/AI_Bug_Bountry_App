@@ -7,7 +7,7 @@ import { contractAddresses, provider, usdcConfig } from '../blockchain/config.js
 import BountyPoolABI from '../blockchain/abis/BountyPool.json' with { type: 'json' };
 
 const prisma = getPrismaClient();
-const redisClient = getRedisClient();
+const redisClient = await getRedisClient();
 
 /**
  * Reconciliation Status Types

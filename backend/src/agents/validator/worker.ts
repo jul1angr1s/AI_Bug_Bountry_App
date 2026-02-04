@@ -15,7 +15,7 @@ import type { ChildProcess } from 'child_process';
 import { ValidationRegistryClient, ValidationOutcome, Severity as OnChainSeverity } from '../../blockchain/index.js';
 import { ethers } from 'ethers';
 
-const redis = getRedisClient();
+const redis = await getRedisClient();
 const prisma = getPrismaClient();
 
 let isRunning = false;
@@ -36,8 +36,8 @@ export async function startValidatorAgent(): Promise<void> {
   console.log('[Validator Agent] Starting...');
 
   // Create Redis subscriber
+  // Note: duplicate() creates a new connection, no need to call connect() manually
   subscriber = redis.duplicate();
-  await subscriber.connect();
 
   // Subscribe to proof submission channel
   await subscriber.subscribe('PROOF_SUBMISSION', async (message: string) => {
