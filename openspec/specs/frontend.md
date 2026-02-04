@@ -57,6 +57,7 @@ interface AppStore {
 
 ### Real-time Sync
 - WebSocket event handlers update Zustand store
+- SSE for protocol registration progress (useProtocolRegistrationProgress); connection must be established and closed correctly on mount/unmount
 - Optimistic updates with rollback on failure
 - Connection recovery with missed event sync
 

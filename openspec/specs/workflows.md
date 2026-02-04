@@ -119,3 +119,17 @@ The system MUST allow cancellation of queued or running scans and SHALL notify t
 #### Scenario: User cancels a scan
 - **WHEN** a cancellation request is accepted
 - **THEN** the scan state becomes canceled and the agent stops processing the job
+
+### Requirement: Finding-to-Vulnerability-to-Payment mapping (payment workflow)
+The system SHALL create a Vulnerability record from a validated Finding before creating a Payment, and SHALL associate the Payment with the Vulnerability (not the Finding).
+
+#### Scenario: Validation triggers payment
+- **WHEN** ValidationService marks a finding as VALIDATED and triggers payment
+- **THEN** the system SHALL ensure a Vulnerability record exists for that finding (create with protocolId, vulnerabilityHash, severity, bounty)
+- **THEN** the system SHALL create a Payment record with vulnerabilityId set to that Vulnerability.id
+
+### Requirement: On-chain protocol ID for BountyPool
+The payment worker SHALL call BountyPool.releaseBounty() with the protocol’s on-chain bytes32 identifier (Protocol.onChainProtocolId or derived), not the database UUID.
+
+### Requirement: Payment workflow demo modes
+The system SHALL support demo configuration via PAYMENT_OFFCHAIN_VALIDATION (skip on-chain validation check) and SKIP_ONCHAIN_PAYMENT (simulate payment completion without on-chain call), documented in .env.example.
