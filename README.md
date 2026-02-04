@@ -53,29 +53,64 @@
 
 ### Real-Time Agent Coordination
 
-```
-🛡️ Protocol Agent          🔬 Researcher Agent       ✅ Validator Agent
-      ↓                            ↓                         ↓
-  Validates Repo    →    Discovers 6 Vulns    →    Confirms Exploits
-      ↓                            ↓                         ↓
-  Registers On-Chain  →  Generates Proofs     →    Records Validation
-      ↓                            ↓                         ↓
-  ✅ REGISTERED         ✅ VULNERABILITIES      💰 USDC RELEASED
-     (Block 12345)        FOUND IN 2m 15s         (500 USDC)
+```mermaid
+graph LR
+    subgraph Protocol["🛡️ Protocol Agent"]
+        P1[Validates Repo]
+        P2[Registers On-Chain]
+        P3[✅ REGISTERED<br/>Block 12345]
+    end
+
+    subgraph Researcher["🔬 Researcher Agent"]
+        R1[Discovers 6 Vulns]
+        R2[Generates Proofs]
+        R3[✅ VULNERABILITIES<br/>FOUND IN 2m 15s]
+    end
+
+    subgraph Validator["✅ Validator Agent"]
+        V1[Confirms Exploits]
+        V2[Records Validation]
+        V3[💰 USDC RELEASED<br/>500 USDC]
+    end
+
+    P1 --> P2 --> P3
+    P3 --> R1
+    R1 --> R2 --> R3
+    R3 --> V1
+    V1 --> V2 --> V3
+
+    style Protocol fill:#3B82F6,stroke:#1E40AF,stroke-width:3px,color:#fff
+    style Researcher fill:#8B5CF6,stroke:#7C3AED,stroke-width:3px,color:#fff
+    style Validator fill:#10B981,stroke:#059669,stroke-width:3px,color:#fff
+
+    style P3 fill:#10B981,stroke:#059669,stroke-width:2px,color:#fff
+    style R3 fill:#F59E0B,stroke:#D97706,stroke-width:2px,color:#fff
+    style V3 fill:#FFD700,stroke:#FFA500,stroke-width:2px,color:#000
 ```
 
 ### 7-Step Real-Time Progress Tracking
 
 Every protocol registration shows live progress:
 
-```
-1. CLONE        ✅ Repository cloned and verified
-2. COMPILE      ✅ Foundry compilation successful
-3. DEPLOY       ✅ Deployed to local Anvil (0x742d...)
-4. ANALYZE      ✅ Slither found 1 vulnerability
-5. AI_ANALYSIS  ✅ Kimi 2.5 discovered 5 additional vulnerabilities
-6. PROOF        ✅ Generated 6 exploit proofs
-7. SUBMIT       ✅ Submitted to Validator Agent
+```mermaid
+graph LR
+    S1[1️⃣ CLONE<br/>✅ Repository cloned<br/>and verified]
+    S2[2️⃣ COMPILE<br/>✅ Foundry compilation<br/>successful]
+    S3[3️⃣ DEPLOY<br/>✅ Deployed to Anvil<br/>0x742d...]
+    S4[4️⃣ ANALYZE<br/>✅ Slither found<br/>1 vulnerability]
+    S5[5️⃣ AI_ANALYSIS<br/>✅ Kimi 2.5 discovered<br/>5 additional vulns]
+    S6[6️⃣ PROOF<br/>✅ Generated<br/>6 exploit proofs]
+    S7[7️⃣ SUBMIT<br/>✅ Submitted to<br/>Validator Agent]
+
+    S1 --> S2 --> S3 --> S4 --> S5 --> S6 --> S7
+
+    style S1 fill:#3B82F6,stroke:#1E40AF,stroke-width:2px,color:#fff
+    style S2 fill:#8B5CF6,stroke:#7C3AED,stroke-width:2px,color:#fff
+    style S3 fill:#EC4899,stroke:#BE185D,stroke-width:2px,color:#fff
+    style S4 fill:#F59E0B,stroke:#D97706,stroke-width:2px,color:#fff
+    style S5 fill:#FF5500,stroke:#CC4400,stroke-width:3px,color:#fff
+    style S6 fill:#06B6D4,stroke:#0891B2,stroke-width:2px,color:#fff
+    style S7 fill:#10B981,stroke:#059669,stroke-width:2px,color:#fff
 ```
 
 **Dashboard Features**:
@@ -177,10 +212,17 @@ Spawns isolated sandboxes, executes exploit proofs, records validation on-chain
 
 ### 🔄 Automated Payment Pipeline
 
-```
-Vulnerability Confirmed → USDC Released → Researcher Paid
-        ↓
-    < 1 Second
+```mermaid
+graph LR
+    A[✅ Vulnerability<br/>Confirmed]
+    B[💰 USDC<br/>Released]
+    C[🎉 Researcher<br/>Paid]
+
+    A -->|< 1 Second| B -->|Instant| C
+
+    style A fill:#10B981,stroke:#059669,stroke-width:2px,color:#fff
+    style B fill:#FFD700,stroke:#FFA500,stroke-width:3px,color:#000
+    style C fill:#EC4899,stroke:#BE185D,stroke-width:2px,color:#fff
 ```
 
 **Smart Contracts**: ProtocolRegistry • ValidationRegistry • BountyPool
