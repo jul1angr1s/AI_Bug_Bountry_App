@@ -219,7 +219,7 @@ export async function emitProtocolRegistrationProgress(
 
   // Also publish to Redis for SSE subscribers
   const { getRedisClient } = await import('../lib/redis.js');
-  const redis = getRedisClient();
+  const redis = await getRedisClient();
   await redis.publish(`protocol:${protocolId}:registration`, JSON.stringify(event));
 }
 
@@ -414,7 +414,7 @@ export async function emitScanProgress(
   
   // Also publish to Redis for SSE subscribers
   const { getRedisClient } = await import('../lib/redis.js');
-  const redis = getRedisClient();
+  const redis = await getRedisClient();
   await redis.publish(`scan:${scanId}:progress`, JSON.stringify(event));
 }
 
