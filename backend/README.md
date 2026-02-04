@@ -149,52 +149,108 @@ Listens for validation events, releases USDC with severity multipliers
 
 ### System Flow Architecture
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                    Frontend (React)                      │
-│              WebSocket + HTTP Connections                │
-└────────────────┬────────────────────────────────────────┘
-                 │
-                 ▼
-┌─────────────────────────────────────────────────────────┐
-│              Express API Server (Port 3000)              │
-│  ┌──────────────────┐         ┌──────────────────────┐ │
-│  │   REST Routes    │         │   WebSocket Server   │ │
-│  │  /api/v1/...    │         │   Socket.IO Hub      │ │
-│  └────────┬─────────┘         └──────────┬───────────┘ │
-└───────────┼────────────────────────────────┼─────────────┘
-            │                                │
-            ▼                                ▼
-     ┌─────────────┐                 ┌─────────────┐
-     │   BullMQ    │                 │ Event Stream│
-     │   Queues    │                 │  (Real-time)│
-     └──────┬──────┘                 └─────────────┘
-            │
-     ┌──────┴───────────────────────────────┐
-     │                                       │
-     ▼                                       ▼
-┌─────────────┐  ┌──────────────┐  ┌────────────────┐
-│  Protocol   │  │  Researcher  │  │   Validator    │
-│   Queue     │  │    Queue     │  │     Queue      │
-└──────┬──────┘  └──────┬───────┘  └────────┬───────┘
-       │                │                    │
-       ▼                ▼                    ▼
-┌─────────────┐  ┌──────────────┐  ┌────────────────┐
-│  Protocol   │  │  Researcher  │  │   Validator    │
-│   Agent     │  │    Agent     │  │     Agent      │
-│             │  │ (7-step AI)  │  │   (Sandbox)    │
-└──────┬──────┘  └──────┬───────┘  └────────┬───────┘
-       │                │                    │
-       └────────────────┼────────────────────┘
-                        │
-                        ▼
-        ┌────────────────────────────────────┐
-        │   Smart Contracts (Base Sepolia)   │
-        │  - ProtocolRegistry (0xc7DF...)    │
-        │  - ValidationRegistry (0x8fBE...)  │
-        │  - BountyPool (0x6D0b...)          │
-        │  - USDC Token (0x036C...)          │
-        └────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph Frontend["🎨 Frontend Layer"]
+        UI[📱 React Dashboard<br/>Real-time UI]
+        WS_Client[🔌 WebSocket Client<br/>Socket.io]
+    end
+
+    subgraph Backend["⚙️ Backend Core (Express)"]
+        API[🚀 REST API<br/>/api/v1/...]
+        WS_Server[📡 WebSocket Server<br/>Socket.IO Hub]
+
+        subgraph Queues["📋 Job Orchestration (BullMQ)"]
+            Q_Protocol[🛡️ Protocol Queue]
+            Q_Researcher[🔬 Researcher Queue]
+            Q_Validator[✅ Validator Queue]
+            Q_Payment[💰 Payment Queue]
+        end
+    end
+
+    subgraph Agents["🤖 Autonomous Agent Swarm"]
+        Agent_Protocol[🛡️ Protocol Agent<br/>GitHub + Foundry]
+        Agent_Researcher[🔬 Researcher Agent<br/>7-Step AI Pipeline]
+        Agent_Validator[✅ Validator Agent<br/>Sandbox Execution]
+        Agent_Payment[💰 Payment Agent<br/>USDC Automation]
+    end
+
+    subgraph Tools["🛠️ Analysis & Execution"]
+        Git[📂 GitHub Cloning]
+        Foundry[🔨 Foundry<br/>Compilation]
+        Anvil[🧪 Anvil<br/>Test Networks]
+        Slither[🔍 Slither<br/>Static Analysis]
+        AI[🧠 Kimi 2.5 AI<br/>Deep Analysis]
+    end
+
+    subgraph Blockchain["⛓️ Smart Contracts (Base Sepolia)"]
+        Registry[📝 Protocol Registry<br/>0xc7DF...3235]
+        Validation[✅ Validation Registry<br/>0x8fBE...44d]
+        Bounty[🏦 Bounty Pool<br/>0x6D0b...7b0]
+        USDC[💵 USDC Token<br/>0x036C...CF7e]
+    end
+
+    subgraph Storage["💾 Data Layer"]
+        DB[(🐘 PostgreSQL<br/>Prisma ORM)]
+        Redis[(🔴 Redis<br/>Cache + Queues)]
+    end
+
+    %% Frontend connections
+    UI <-->|HTTP| API
+    UI <-->|WebSocket| WS_Client
+    WS_Client <-->|Real-time| WS_Server
+
+    %% API to Queues
+    API --> Q_Protocol
+    API --> Q_Researcher
+    API --> Q_Validator
+
+    %% Queues to Agents
+    Q_Protocol --> Agent_Protocol
+    Q_Researcher --> Agent_Researcher
+    Q_Validator --> Agent_Validator
+    Q_Payment --> Agent_Payment
+
+    %% Agents to Tools
+    Agent_Protocol --> Git
+    Agent_Protocol --> Foundry
+    Agent_Researcher --> Git
+    Agent_Researcher --> Foundry
+    Agent_Researcher --> Anvil
+    Agent_Researcher --> Slither
+    Agent_Researcher --> AI
+    Agent_Validator --> Git
+    Agent_Validator --> Foundry
+    Agent_Validator --> Anvil
+
+    %% Agents to Blockchain
+    Agent_Protocol -->|Register| Registry
+    Agent_Validator -->|Attest| Validation
+    Agent_Payment -->|Release| Bounty
+    Bounty <-->|Transfer| USDC
+
+    %% Blockchain Events
+    Registry -.->|Events| WS_Server
+    Validation -.->|Events| WS_Server
+    Validation -.->|Trigger| Q_Payment
+    Bounty -.->|Events| WS_Server
+
+    %% Storage connections
+    API <--> DB
+    Queues <--> Redis
+    Agents <--> DB
+
+    %% Styling
+    style Frontend fill:#3B82F6,stroke:#1E40AF,stroke-width:3px,color:#fff
+    style Backend fill:#8B5CF6,stroke:#7C3AED,stroke-width:3px,color:#fff
+    style Agents fill:#EC4899,stroke:#BE185D,stroke-width:3px,color:#fff
+    style Tools fill:#F59E0B,stroke:#D97706,stroke-width:3px,color:#fff
+    style Blockchain fill:#10B981,stroke:#059669,stroke-width:3px,color:#fff
+    style Storage fill:#6366F1,stroke:#4F46E5,stroke-width:3px,color:#fff
+
+    style AI fill:#FF5500,stroke:#CC4400,stroke-width:2px,color:#fff
+    style USDC fill:#FFD700,stroke:#FFA500,stroke-width:2px,color:#000
+    style WS_Server fill:#EC4899,stroke:#BE185D,stroke-width:2px,color:#fff
 ```
 
 ### Database Schema Strategy
@@ -229,91 +285,133 @@ Traditional static analysis (Slither) finds **pattern-based vulnerabilities**. O
 
 ### 7-Step Research Pipeline
 
-```
-┌────────────────────────────────────────────────────────────┐
-│           Researcher Agent: Full Workflow                   │
-└────────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    Start([🎯 Scan Triggered]) --> Step1
 
-1. 📂 CLONE              → Clone GitHub repository
-                            ├─ Verify .git structure
-                            ├─ Checkout target branch
-                            └─ Extract commit hash
+    Step1[📂 STEP 1: CLONE<br/>Clone GitHub Repository]
+    Step1 --> S1_1[Verify .git structure]
+    S1_1 --> S1_2[Checkout target branch]
+    S1_2 --> S1_3[Extract commit hash]
+    S1_3 --> Step2
 
-2. 🔨 COMPILE            → Compile Solidity contracts
-                            ├─ Run `forge build`
-                            ├─ Extract ABI + bytecode
-                            └─ Verify compilation success
+    Step2[🔨 STEP 2: COMPILE<br/>Compile Solidity Contracts]
+    Step2 --> S2_1[Run forge build]
+    S2_1 --> S2_2[Extract ABI + bytecode]
+    S2_2 --> S2_3[Verify compilation success]
+    S2_3 --> Step3
 
-3. 🚀 DEPLOY             → Deploy to local Anvil testnet
-                            ├─ Spawn Anvil on free port
-                            ├─ Deploy compiled bytecode
-                            └─ Get contract address
+    Step3[🚀 STEP 3: DEPLOY<br/>Deploy to Local Anvil]
+    Step3 --> S3_1[Spawn Anvil on free port]
+    S3_1 --> S3_2[Deploy compiled bytecode]
+    S3_2 --> S3_3[Get contract address]
+    S3_3 --> Step4
 
-4. 🔍 ANALYZE            → Run Slither static analysis
-                            ├─ Execute slither-analyzer
-                            ├─ Parse JSON output
-                            └─ Extract vulnerability patterns
+    Step4[🔍 STEP 4: ANALYZE<br/>Run Slither Static Analysis]
+    Step4 --> S4_1[Execute slither-analyzer]
+    S4_1 --> S4_2[Parse JSON output]
+    S4_2 --> S4_3[Extract vulnerability patterns]
+    S4_3 --> Step5
 
-5. 🧠 AI_DEEP_ANALYSIS   → ⭐ AI-Powered Enhancement
-                            ├─ Parse contract functions
-                            ├─ Search knowledge base (RAG)
-                            ├─ Call Kimi 2.5 LLM
-                            ├─ Discover NEW vulnerabilities
-                            ├─ Enhance existing findings
-                            └─ Generate remediation advice
+    Step5[🧠 STEP 5: AI_DEEP_ANALYSIS<br/>⭐ AI-Powered Enhancement]
+    Step5 --> S5_1[Parse contract functions]
+    S5_1 --> S5_2[Search knowledge base RAG]
+    S5_2 --> S5_3[Call Kimi 2.5 LLM]
+    S5_3 --> S5_4[Discover NEW vulnerabilities]
+    S5_4 --> S5_5[Enhance existing findings]
+    S5_5 --> S5_6[Generate remediation advice]
+    S5_6 --> Step6
 
-6. 📝 PROOF_GENERATION   → Generate exploit proofs
-                            ├─ For each vulnerability
-                            ├─ Create PoC transaction
-                            └─ Package for validator
+    Step6[📝 STEP 6: PROOF_GENERATION<br/>Generate Exploit Proofs]
+    Step6 --> S6_1[For each vulnerability]
+    S6_1 --> S6_2[Create PoC transaction]
+    S6_2 --> S6_3[Package for validator]
+    S6_3 --> Step7
 
-7. ✅ SUBMIT             → Submit to Validator Agent
-                            ├─ Queue validation job
-                            ├─ Emit WebSocket event
-                            └─ Update scan status
+    Step7[✅ STEP 7: SUBMIT<br/>Submit to Validator Agent]
+    Step7 --> S7_1[Queue validation job]
+    S7_1 --> S7_2[Emit WebSocket event]
+    S7_2 --> S7_3[Update scan status]
+    S7_3 --> Complete([✨ Scan Complete])
+
+    %% Styling
+    style Start fill:#10B981,stroke:#059669,stroke-width:3px,color:#fff
+    style Complete fill:#10B981,stroke:#059669,stroke-width:3px,color:#fff
+
+    style Step1 fill:#3B82F6,stroke:#1E40AF,stroke-width:2px,color:#fff
+    style Step2 fill:#8B5CF6,stroke:#7C3AED,stroke-width:2px,color:#fff
+    style Step3 fill:#EC4899,stroke:#BE185D,stroke-width:2px,color:#fff
+    style Step4 fill:#F59E0B,stroke:#D97706,stroke-width:2px,color:#fff
+    style Step5 fill:#FF5500,stroke:#CC4400,stroke-width:3px,color:#fff
+    style Step6 fill:#06B6D4,stroke:#0891B2,stroke-width:2px,color:#fff
+    style Step7 fill:#10B981,stroke:#059669,stroke-width:2px,color:#fff
 ```
 
 ### AI Enhancement Process Deep Dive
 
-```
-Slither Findings (Pattern-Based)
-        │
-        ├─► 1 Reentrancy found
-        │
-        ▼
-┌────────────────────┐
-│  Function Parser   │ ← Extract all contract functions
-│  AST Analysis      │    with full source code context
-└─────────┬──────────┘
-          │
-          ▼
-┌────────────────────┐
-│  Knowledge Base    │ ← Semantic search for similar exploits
-│  RAG System        │    using vector embeddings
-│  (150+ exploits)   │
-└─────────┬──────────┘
-          │
-          ├─► Found: DAO Hack (2016)
-          ├─► Found: Parity Wallet Bug
-          └─► Found: Flash Loan Attacks
-          │
-          ▼
-┌────────────────────┐
-│  Kimi 2.5 LLM      │ ← AI semantic analysis
-│  Moonshot AI       │    - Business logic review
-│  (via NVIDIA API)  │    - Access control audit
-└─────────┬──────────┘    - DoS vector detection
-          │                - Front-running analysis
-          ▼
-┌────────────────────┐
-│  Enhanced Findings │
-│  ─────────────────
-│  Original: 1 vuln  │
-│  Enhanced: 1 vuln  │ ← Detailed remediation added
-│  NEW: 5 vulns      │ ← AI discovered!
-│  ─────────────────
-│  Total: 6 findings │ ← 6x improvement!
-└────────────────────┘
+```mermaid
+graph TB
+    Input[🔍 Slither Findings<br/>Pattern-Based Analysis]
+    Input -->|1 Reentrancy found| Parser
+
+    Parser[📋 Function Parser<br/>AST Analysis]
+    Parser -->|Extract all contract<br/>functions with context| KB
+
+    KB[🗄️ Knowledge Base<br/>RAG System<br/>150+ Exploits]
+    KB -->|Semantic search<br/>vector embeddings| Examples
+
+    Examples{📚 Similar Exploits Found}
+    Examples -->|✓| Ex1[DAO Hack 2016]
+    Examples -->|✓| Ex2[Parity Wallet Bug]
+    Examples -->|✓| Ex3[Flash Loan Attacks]
+
+    Ex1 --> LLM
+    Ex2 --> LLM
+    Ex3 --> LLM
+
+    LLM[🧠 Kimi 2.5 LLM<br/>Moonshot AI<br/>via NVIDIA API]
+    LLM -->|AI Semantic Analysis| Analysis
+
+    Analysis{🔬 Deep Analysis}
+    Analysis -->|✓| A1[Business logic review]
+    Analysis -->|✓| A2[Access control audit]
+    Analysis -->|✓| A3[DoS vector detection]
+    Analysis -->|✓| A4[Front-running analysis]
+
+    A1 --> Results
+    A2 --> Results
+    A3 --> Results
+    A4 --> Results
+
+    Results[✨ Enhanced Findings]
+    Results --> Original[📊 Original: 1 vuln]
+    Results --> Enhanced[⬆️ Enhanced: 1 vuln<br/>Detailed remediation]
+    Results --> New[🆕 NEW: 5 vulns<br/>AI discovered!]
+
+    Original --> Total
+    Enhanced --> Total
+    New --> Total
+
+    Total[🎯 Total: 6 findings<br/>6x Improvement!]
+
+    %% Styling
+    style Input fill:#3B82F6,stroke:#1E40AF,stroke-width:2px,color:#fff
+    style Parser fill:#8B5CF6,stroke:#7C3AED,stroke-width:2px,color:#fff
+    style KB fill:#F59E0B,stroke:#D97706,stroke-width:2px,color:#fff
+    style Examples fill:#06B6D4,stroke:#0891B2,stroke-width:2px,color:#fff
+    style LLM fill:#FF5500,stroke:#CC4400,stroke-width:3px,color:#fff
+    style Analysis fill:#EC4899,stroke:#BE185D,stroke-width:2px,color:#fff
+    style Results fill:#10B981,stroke:#059669,stroke-width:2px,color:#fff
+    style Total fill:#FFD700,stroke:#FFA500,stroke-width:3px,color:#000
+
+    style Ex1 fill:#6366F1,stroke:#4F46E5,stroke-width:1px,color:#fff
+    style Ex2 fill:#6366F1,stroke:#4F46E5,stroke-width:1px,color:#fff
+    style Ex3 fill:#6366F1,stroke:#4F46E5,stroke-width:1px,color:#fff
+
+    style A1 fill:#EC4899,stroke:#BE185D,stroke-width:1px,color:#fff
+    style A2 fill:#EC4899,stroke:#BE185D,stroke-width:1px,color:#fff
+    style A3 fill:#EC4899,stroke:#BE185D,stroke-width:1px,color:#fff
+    style A4 fill:#EC4899,stroke:#BE185D,stroke-width:1px,color:#fff
 ```
 
 ### Real Results: VulnerableBank.sol
