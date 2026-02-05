@@ -7,6 +7,31 @@ import { StatusFilterChips } from '../components/protocols/StatusFilterChips';
 import { ProtocolSearchBar } from '../components/protocols/ProtocolSearchBar';
 import { LoadingSkeleton } from '../components/shared/LoadingSkeleton';
 import { useProtocols, useProtocolsRealtime } from '../hooks/useProtocols';
+import type { ProtocolListItem } from '../lib/api';
+import type { Protocol } from '../types/dashboard';
+
+// Adapter function to convert ProtocolListItem to Protocol
+const adaptProtocolListItem = (item: ProtocolListItem): Protocol => {
+  return {
+    id: item.id,
+    contractName: item.name,
+    githubUrl: item.githubUrl,
+    branch: 'main', // Default value - not available in ProtocolListItem
+    contractPath: '', // Default value - not available in ProtocolListItem
+    status: item.status,
+    registrationState: '', // Default value - not available in ProtocolListItem
+    ownerAddress: '', // Default value - not available in ProtocolListItem
+    totalBountyPool: '0', // Default value - not available in ProtocolListItem
+    availableBounty: '0', // Default value - not available in ProtocolListItem
+    paidBounty: '0', // Default value - not available in ProtocolListItem
+    riskScore: item.riskScore,
+    createdAt: item.createdAt,
+    updatedAt: item.createdAt, // Use createdAt as fallback
+    scansCount: item.scansCount,
+    vulnerabilitiesCount: item.vulnerabilitiesCount,
+    lastScanAt: null, // Default value - not available in ProtocolListItem
+  };
+};
 
 export default function Protocols() {
   const navigate = useNavigate();
@@ -37,13 +62,9 @@ export default function Protocols() {
     }
 
     return {
-      totalValueSecured: data.protocols.reduce((sum, p) => {
-        return sum + parseFloat(p.totalBountyPool || '0');
-      }, 0),
+      totalValueSecured: 0, // Not available in ProtocolListItem
       activeBounties: data.protocols.filter(p => p.status === 'ACTIVE').length,
-      bountiesPaid: data.protocols.reduce((sum, p) => {
-        return sum + parseFloat(p.paidBounty || '0');
-      }, 0),
+      bountiesPaid: 0, // Not available in ProtocolListItem
       findingsFixed: data.protocols.reduce((sum, p) => {
         return sum + (p.vulnerabilitiesCount || 0);
       }, 0),
@@ -57,8 +78,8 @@ export default function Protocols() {
 
     const query = searchQuery.toLowerCase();
     return data.protocols.filter(protocol =>
-      protocol.contractName.toLowerCase().includes(query) ||
-      protocol.ownerAddress.toLowerCase().includes(query)
+      protocol.name.toLowerCase().includes(query) ||
+      protocol.githubUrl.toLowerCase().includes(query)
     );
   }, [data?.protocols, searchQuery]);
 
@@ -237,7 +258,7 @@ export default function Protocols() {
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
               {filteredProtocols.map((protocol) => (
-                <ModernProtocolCard key={protocol.id} protocol={protocol} />
+                <ModernProtocolCard key={protocol.id} protocol={adaptProtocolListItem(protocol)} />
               ))}
             </div>
 
