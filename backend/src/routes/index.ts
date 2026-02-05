@@ -4,6 +4,7 @@ import dashboardRouter from './dashboard.routes.js';
 import protocolRouter from './protocol.routes.js';
 import fundingRouter from './funding.routes.js';
 import agentRouter from './agent.routes.js';
+import agentIdentityRouter from './agent-identity.routes.js';
 import scansRouter from './scans.js';
 import paymentRouter from './payment.routes.js';
 import validationRouter from './validation.routes.js';
@@ -25,6 +26,9 @@ router.use(dashboardRouter);
 router.use('/protocols', protocolRouter);
 router.use('/protocols', fundingRouter); // Funding gate routes (verify-funding, request-scan)
 router.use('/agents', agentRouter);
+
+// ERC-8004 Agent Identity & x.402 Escrow endpoints
+router.use('/agent-identities', agentIdentityRouter);
 
 // Researcher Agent - Scan endpoints
 router.use('/scans', scansRouter);

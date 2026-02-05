@@ -4,6 +4,7 @@ import { requireAdmin } from '../middleware/admin.js';
 import { sseAuthenticate } from '../middleware/sse-auth.js';
 import { validateRequest } from '../middleware/validation.js';
 import { dashboardRateLimits } from '../middleware/rate-limit.js';
+import { x402ProtocolRegistrationGate } from '../middleware/x402-payment-gate.middleware.js';
 import {
   protocolRegistrationSchema,
   protocolFundingSchema,
@@ -90,10 +91,12 @@ router.get(
 );
 
 // POST /api/v1/protocols - Register new protocol
+// x.402 payment gate: Requires 1 USDC payment before registration (can be skipped via SKIP_X402_PAYMENT_GATE=true)
 router.post(
   '/',
   requireAuth,
   dashboardRateLimits.protocols,
+  x402ProtocolRegistrationGate(),
   validateRequest({ body: protocolRegistrationSchema }),
   async (req: Request, res: Response) => {
     try {
