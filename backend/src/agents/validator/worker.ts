@@ -14,6 +14,8 @@ import { compileContract } from '../protocol/steps/compile.js';
 import type { ChildProcess } from 'child_process';
 import { ValidationRegistryClient, ValidationOutcome, Severity as OnChainSeverity } from '../../blockchain/index.js';
 import { ethers } from 'ethers';
+import { reputationService } from '../../services/reputation.service.js';
+import type { FeedbackType } from '@prisma/client';
 
 const redis = getRedisClient();
 const prisma = getPrismaClient();
@@ -326,6 +328,48 @@ async function processValidation(submission: ProofSubmissionMessage): Promise<vo
           });
 
           console.log('[Validator] Database updated with on-chain validation IDs');
+
+          // =================
+          // STEP 10: Record reputation feedback (ERC-8004)
+          // =================
+          try {
+            // Get researcher wallet from scan
+            const scan = await prisma.scan.findUnique({
+              where: { id: proof.scanId },
+              include: { agent: true },
+            });
+
+            // Map severity + outcome to FeedbackType
+            const feedbackType: FeedbackType = executionResult.validated
+              ? (`CONFIRMED_${finding.severity}` as FeedbackType)
+              : 'REJECTED';
+
+            // Get researcher and validator agent identities
+            // For now, use placeholder wallets - in production these would come from agent registration
+            const researcherWallet = process.env.RESEARCHER_WALLET_ADDRESS || '';
+            const validatorWallet = process.env.VALIDATOR_WALLET_ADDRESS || process.env.PLATFORM_WALLET_ADDRESS || '';
+
+            if (researcherWallet && validatorWallet) {
+              console.log('[Validator] Recording reputation feedback...');
+              console.log(`  Researcher: ${researcherWallet}`);
+              console.log(`  Feedback Type: ${feedbackType}`);
+
+              await reputationService.recordFeedback(
+                researcherWallet,
+                validatorWallet,
+                onChainResult.validationId,
+                finding.id,
+                feedbackType
+              );
+
+              console.log('[Validator] Reputation feedback recorded successfully');
+            } else {
+              console.log('[Validator] Skipping reputation feedback - agent wallets not configured');
+            }
+          } catch (reputationError) {
+            // Don't fail validation if reputation recording fails
+            console.error('[Validator] Failed to record reputation feedback:', reputationError);
+          }
         }
       }
     } catch (onChainError) {

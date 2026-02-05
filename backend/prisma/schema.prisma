@@ -424,3 +424,148 @@ model KnowledgeDocument {
   @@index([source, version])
   @@index([tags])
 }
+
+// ERC-8004 Agent Identity & Reputation Models
+
+enum AgentIdentityType {
+  RESEARCHER
+  VALIDATOR
+}
+
+model AgentIdentity {
+  id            String            @id @default(uuid())
+  walletAddress String            @unique
+  agentNftId    BigInt?           // On-chain NFT ID from AgentIdentityRegistry
+  agentType     AgentIdentityType
+  isActive      Boolean           @default(true)
+  registeredAt  DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  // On-chain fields
+  onChainTxHash String? // Registration transaction hash
+
+  // Relations
+  reputation      AgentReputation?
+  escrowBalance   AgentEscrow?
+  feedbacksGiven  AgentFeedback[]  @relation("ValidatorFeedbacks")
+  feedbacksReceived AgentFeedback[] @relation("ResearcherFeedbacks")
+
+  @@index([walletAddress])
+  @@index([agentType])
+  @@index([agentNftId])
+}
+
+model AgentReputation {
+  id               String   @id @default(uuid())
+  agentIdentityId  String   @unique
+  confirmedCount   Int      @default(0)
+  rejectedCount    Int      @default(0)
+  inconclusiveCount Int     @default(0)
+  totalSubmissions Int      @default(0)
+  reputationScore  Int      @default(0) // 0-100 scale
+  lastUpdated      DateTime @default(now())
+
+  agentIdentity AgentIdentity @relation(fields: [agentIdentityId], references: [id], onDelete: Cascade)
+
+  @@index([reputationScore])
+  @@index([totalSubmissions])
+}
+
+model AgentFeedback {
+  id                  String            @id @default(uuid())
+  researcherAgentId   String
+  validatorAgentId    String
+  validationId        String?           // Reference to on-chain validation
+  findingId           String?           // Reference to Finding
+  feedbackType        FeedbackType
+  onChainFeedbackId   String?           // bytes32 from AgentReputationRegistry
+  createdAt           DateTime          @default(now())
+
+  researcherAgent AgentIdentity @relation("ResearcherFeedbacks", fields: [researcherAgentId], references: [id], onDelete: Cascade)
+  validatorAgent  AgentIdentity @relation("ValidatorFeedbacks", fields: [validatorAgentId], references: [id], onDelete: Cascade)
+
+  @@index([researcherAgentId])
+  @@index([validatorAgentId])
+  @@index([feedbackType])
+}
+
+enum FeedbackType {
+  CONFIRMED_CRITICAL
+  CONFIRMED_HIGH
+  CONFIRMED_MEDIUM
+  CONFIRMED_LOW
+  CONFIRMED_INFORMATIONAL
+  REJECTED
+}
+
+// x.402 Payment Escrow Model
+
+model AgentEscrow {
+  id              String   @id @default(uuid())
+  agentIdentityId String   @unique
+  balance         BigInt   @default(0) // USDC balance in 6 decimals
+  totalDeposited  BigInt   @default(0)
+  totalDeducted   BigInt   @default(0)
+  updatedAt       DateTime @updatedAt
+
+  agentIdentity AgentIdentity       @relation(fields: [agentIdentityId], references: [id], onDelete: Cascade)
+  transactions  EscrowTransaction[]
+
+  @@index([balance])
+}
+
+model EscrowTransaction {
+  id              String              @id @default(uuid())
+  agentEscrowId   String
+  transactionType EscrowTransactionType
+  amount          BigInt
+  txHash          String?
+  findingId       String?             // For SUBMISSION_FEE deductions
+  protocolId      String?             // For PROTOCOL_FEE payments
+  createdAt       DateTime            @default(now())
+
+  agentEscrow AgentEscrow @relation(fields: [agentEscrowId], references: [id], onDelete: Cascade)
+
+  @@index([agentEscrowId])
+  @@index([transactionType])
+  @@index([createdAt])
+}
+
+enum EscrowTransactionType {
+  DEPOSIT
+  WITHDRAWAL
+  SUBMISSION_FEE
+  PROTOCOL_FEE
+}
+
+// x.402 Payment Request Tracking
+
+model X402PaymentRequest {
+  id            String              @id @default(uuid())
+  requestType   X402RequestType
+  requesterAddress String
+  amount        BigInt              // USDC amount in 6 decimals
+  status        X402PaymentStatus   @default(PENDING)
+  protocolId    String?             // For protocol registration
+  paymentReceipt String?            // x.402 receipt data
+  txHash        String?
+  expiresAt     DateTime
+  createdAt     DateTime            @default(now())
+  completedAt   DateTime?
+
+  @@index([requesterAddress])
+  @@index([status])
+  @@index([protocolId])
+}
+
+enum X402RequestType {
+  PROTOCOL_REGISTRATION
+  FINDING_SUBMISSION
+}
+
+enum X402PaymentStatus {
+  PENDING
+  COMPLETED
+  EXPIRED
+  FAILED
+}
