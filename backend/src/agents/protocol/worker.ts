@@ -1,4 +1,5 @@
 import type { Job } from 'bullmq';
+import { ethers } from 'ethers';
 import { getPrismaClient } from '../../lib/prisma.js';
 import { updateProtocolRegistrationState } from '../../services/protocol.service.js';
 import {
@@ -205,6 +206,17 @@ export async function processProtocolRegistration(
 
     if (skipOnChainRegistration) {
       console.log('[Protocol Agent] Skipping on-chain registration (SKIP_ONCHAIN_REGISTRATION=true)');
+
+      // Still derive and store onChainProtocolId for real payments
+      // This uses the same formula as setup-real-onchain.ts: keccak256(protocolId)
+      const derivedOnChainProtocolId = ethers.id(protocolId);
+      console.log(`[Protocol Agent] Derived onChainProtocolId: ${derivedOnChainProtocolId}`);
+
+      await prisma.protocol.update({
+        where: { id: protocolId },
+        data: { onChainProtocolId: derivedOnChainProtocolId },
+      });
+
       await emitAgentTaskUpdate('protocol-agent', 'Skipping on-chain registration', 85);
       await emitProtocolRegistrationProgress(
         protocolId,
