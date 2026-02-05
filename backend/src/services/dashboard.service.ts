@@ -107,8 +107,8 @@ export async function getDashboardStats(protocolId?: string, userId?: string): P
     let scanCount = 0;
 
     for (const protocol of protocols) {
-      totalBountyPool += 0;
-      availableBounty += 0;
+      totalBountyPool += protocol.totalBountyPool || 0;
+      availableBounty += protocol.availableBounty || 0;
 
       // Count findings from scans instead of vulnerabilities table
       for (const scan of protocol.scans) {
@@ -159,7 +159,7 @@ export async function getDashboardStats(protocolId?: string, userId?: string): P
         total: totalBountyPool,
         available: availableBounty,
         paid: paidBounty,
-        currency: 'ETH',
+        currency: 'USDC',
       },
       vulnerabilities: {
         total: Object.values(vulnerabilityCounts).reduce((a, b) => a + b, 0),
