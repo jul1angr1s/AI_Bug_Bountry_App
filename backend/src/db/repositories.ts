@@ -295,6 +295,23 @@ export class FindingRepository {
       },
     });
   }
+
+  /**
+   * Get finding by ID with scan and protocol
+   */
+  async getFindingById(findingId: string): Promise<FindingWithProofs | null> {
+    return this.prisma.finding.findUnique({
+      where: { id: findingId },
+      include: {
+        proofs: true,
+        scan: {
+          include: {
+            protocol: true,
+          },
+        },
+      },
+    });
+  }
 }
 
 export class ProofRepository {
@@ -352,6 +369,18 @@ export class ProofRepository {
     return this.prisma.proof.findMany({
       where: { scanId },
       orderBy: { submittedAt: 'desc' },
+    });
+  }
+
+  /**
+   * Get proof by ID with finding details
+   */
+  async getProofById(proofId: string): Promise<Proof | null> {
+    return this.prisma.proof.findUnique({
+      where: { id: proofId },
+      include: {
+        finding: true,
+      },
     });
   }
 }
