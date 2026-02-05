@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { GradientButton } from '../shared/GradientButton';
+import { MaterialIcon } from '../shared/MaterialIcon';
 import type { CreateProtocolRequest } from '../../lib/api';
 
 interface ProtocolFormProps {
@@ -95,7 +97,8 @@ export default function ProtocolForm({ onSubmit, isSubmitting = false }: Protoco
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* GitHub URL */}
       <div>
-        <label htmlFor="githubUrl" className="block text-sm font-medium text-gray-300 mb-2">
+        <label htmlFor="githubUrl" className="flex items-center gap-2 text-sm font-semibold text-gray-200 mb-2">
+          <MaterialIcon name="link" className="text-base text-purple-400" />
           GitHub Repository URL *
         </label>
         <input
@@ -103,18 +106,24 @@ export default function ProtocolForm({ onSubmit, isSubmitting = false }: Protoco
           id="githubUrl"
           value={formData.githubUrl}
           onChange={(e) => handleChange('githubUrl', e.target.value)}
-          className={`w-full px-4 py-2 bg-[#1a1f2e] border ${
-            errors.githubUrl ? 'border-red-500' : 'border-gray-700'
-          } rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent`}
+          className={`w-full px-4 py-3 bg-[#0f1723] border ${
+            errors.githubUrl ? 'border-red-500' : 'border-[#2f466a]'
+          } rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all`}
           placeholder="https://github.com/Cyfrin/2023-11-Thunder-Loan"
           disabled={isSubmitting}
         />
-        {errors.githubUrl && <p className="mt-1 text-sm text-red-500">{errors.githubUrl}</p>}
+        {errors.githubUrl && (
+          <div className="flex items-center gap-2 mt-2">
+            <MaterialIcon name="error" className="text-sm text-red-400" />
+            <p className="text-sm text-red-400">{errors.githubUrl}</p>
+          </div>
+        )}
       </div>
 
       {/* Branch */}
       <div>
-        <label htmlFor="branch" className="block text-sm font-medium text-gray-300 mb-2">
+        <label htmlFor="branch" className="flex items-center gap-2 text-sm font-semibold text-gray-200 mb-2">
+          <MaterialIcon name="account_tree" className="text-base text-cyan-400" />
           Branch
         </label>
         <input
@@ -122,7 +131,7 @@ export default function ProtocolForm({ onSubmit, isSubmitting = false }: Protoco
           id="branch"
           value={formData.branch}
           onChange={(e) => handleChange('branch', e.target.value)}
-          className="w-full px-4 py-2 bg-[#1a1f2e] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+          className="w-full px-4 py-3 bg-[#0f1723] border border-[#2f466a] rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
           placeholder="main"
           disabled={isSubmitting}
         />
@@ -130,7 +139,8 @@ export default function ProtocolForm({ onSubmit, isSubmitting = false }: Protoco
 
       {/* Contract Path */}
       <div>
-        <label htmlFor="contractPath" className="block text-sm font-medium text-gray-300 mb-2">
+        <label htmlFor="contractPath" className="flex items-center gap-2 text-sm font-semibold text-gray-200 mb-2">
+          <MaterialIcon name="folder_open" className="text-base text-purple-400" />
           Contract Path *
         </label>
         <input
@@ -138,18 +148,24 @@ export default function ProtocolForm({ onSubmit, isSubmitting = false }: Protoco
           id="contractPath"
           value={formData.contractPath}
           onChange={(e) => handleChange('contractPath', e.target.value)}
-          className={`w-full px-4 py-2 bg-[#1a1f2e] border ${
-            errors.contractPath ? 'border-red-500' : 'border-gray-700'
-          } rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent`}
+          className={`w-full px-4 py-3 bg-[#0f1723] border ${
+            errors.contractPath ? 'border-red-500' : 'border-[#2f466a]'
+          } rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all`}
           placeholder="src/protocol/ThunderLoan.sol"
           disabled={isSubmitting}
         />
-        {errors.contractPath && <p className="mt-1 text-sm text-red-500">{errors.contractPath}</p>}
+        {errors.contractPath && (
+          <div className="flex items-center gap-2 mt-2">
+            <MaterialIcon name="error" className="text-sm text-red-400" />
+            <p className="text-sm text-red-400">{errors.contractPath}</p>
+          </div>
+        )}
       </div>
 
       {/* Contract Name */}
       <div>
-        <label htmlFor="contractName" className="block text-sm font-medium text-gray-300 mb-2">
+        <label htmlFor="contractName" className="flex items-center gap-2 text-sm font-semibold text-gray-200 mb-2">
+          <MaterialIcon name="code" className="text-base text-cyan-400" />
           Contract Name *
         </label>
         <input
@@ -157,18 +173,24 @@ export default function ProtocolForm({ onSubmit, isSubmitting = false }: Protoco
           id="contractName"
           value={formData.contractName}
           onChange={(e) => handleChange('contractName', e.target.value)}
-          className={`w-full px-4 py-2 bg-[#1a1f2e] border ${
-            errors.contractName ? 'border-red-500' : 'border-gray-700'
-          } rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent`}
+          className={`w-full px-4 py-3 bg-[#0f1723] border ${
+            errors.contractName ? 'border-red-500' : 'border-[#2f466a]'
+          } rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all`}
           placeholder="ThunderLoan"
           disabled={isSubmitting}
         />
-        {errors.contractName && <p className="mt-1 text-sm text-red-500">{errors.contractName}</p>}
+        {errors.contractName && (
+          <div className="flex items-center gap-2 mt-2">
+            <MaterialIcon name="error" className="text-sm text-red-400" />
+            <p className="text-sm text-red-400">{errors.contractName}</p>
+          </div>
+        )}
       </div>
 
       {/* Owner Address */}
       <div>
-        <label htmlFor="ownerAddress" className="block text-sm font-medium text-gray-300 mb-2">
+        <label htmlFor="ownerAddress" className="flex items-center gap-2 text-sm font-semibold text-gray-200 mb-2">
+          <MaterialIcon name="account_balance_wallet" className="text-base text-purple-400" />
           Owner Address *
         </label>
         <input
@@ -176,16 +198,19 @@ export default function ProtocolForm({ onSubmit, isSubmitting = false }: Protoco
           id="ownerAddress"
           value={formData.ownerAddress}
           onChange={(e) => handleChange('ownerAddress', e.target.value)}
-          className={`w-full px-4 py-2 bg-[#1a1f2e] border ${
-            errors.ownerAddress ? 'border-red-500' : 'border-gray-700'
-          } rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent`}
+          className={`w-full px-4 py-3 bg-[#0f1723] border ${
+            errors.ownerAddress ? 'border-red-500' : 'border-[#2f466a]'
+          } rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all`}
           placeholder="0x..."
           disabled={isSubmitting}
         />
         {errors.ownerAddress && (
-          <p className="mt-1 text-sm text-red-500">{errors.ownerAddress}</p>
+          <div className="flex items-center gap-2 mt-2">
+            <MaterialIcon name="error" className="text-sm text-red-400" />
+            <p className="text-sm text-red-400">{errors.ownerAddress}</p>
+          </div>
         )}
-        <p className="mt-1 text-sm text-gray-500">
+        <p className="mt-2 text-sm text-gray-500">
           Your wallet address that owns this protocol
         </p>
       </div>
@@ -194,43 +219,27 @@ export default function ProtocolForm({ onSubmit, isSubmitting = false }: Protoco
       <input type="hidden" name="bountyTerms" value={formData.bountyTerms} />
 
       {/* Submit Button */}
-      <div className="flex gap-4">
-        <button
-          type="submit"
+      <div className="pt-4">
+        <GradientButton
+          variant="primary"
           disabled={isSubmitting}
-          className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold rounded-lg hover:from-purple-600 hover:to-pink-600 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-[#0f1419] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+          className="w-full py-3 text-base"
         >
           {isSubmitting ? (
-            <span className="flex items-center justify-center">
-              <svg
-                className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                ></circle>
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                ></path>
-              </svg>
+            <span className="flex items-center justify-center gap-3">
+              <MaterialIcon name="progress_activity" className="text-xl animate-spin" />
               Registering Protocol...
             </span>
           ) : (
-            'Register Protocol'
+            <span className="flex items-center justify-center gap-2">
+              <MaterialIcon name="add_circle" className="text-xl" />
+              Register Protocol
+            </span>
           )}
-        </button>
+        </GradientButton>
       </div>
 
-      <p className="text-sm text-gray-500 text-center">
+      <p className="text-sm text-gray-500 text-center pt-2">
         * Required fields
       </p>
     </form>
