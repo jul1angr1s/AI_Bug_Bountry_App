@@ -1,0 +1,21 @@
+schema: change
+version: 1.0
+status: pending
+started: 2026-02-05
+completed: null
+component:
+  - Frontend
+layer:
+  - UI
+chain: null
+artifacts:
+  - name: proposal
+    completed: false
+  - name: design
+    completed: false
+  - name: tasks
+    completed: false
+notes: |
+  Modern redesign of the Protocols page to match dashboard facelift standards.
+  Transforms table view into card-based grid with stats section, search, and filters.
+  Uses existing design system (Space Grotesk, Material Symbols, navy/cyan/purple palette).
