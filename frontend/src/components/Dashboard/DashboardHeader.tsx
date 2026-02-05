@@ -54,11 +54,6 @@ export const DashboardHeader: React.FC = () => {
             <button className="p-2 hover:bg-navy-800 rounded-lg transition-colors">
               <MaterialIcon name="account_circle" className="text-xl text-gray-400" />
             </button>
-
-            {/* Connect Wallet */}
-            <GradientButton variant="primary" className="hidden sm:block">
-              Connect Wallet
-            </GradientButton>
           </div>
         </div>
 

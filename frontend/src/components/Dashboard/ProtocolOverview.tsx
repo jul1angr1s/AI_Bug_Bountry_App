@@ -1,5 +1,6 @@
 import { Shield, Copy, Check } from 'lucide-react';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import StatusBadge from '@/components/shared/StatusBadge';
 import type { Protocol } from '@/types/dashboard';
 
@@ -9,6 +10,7 @@ interface ProtocolOverviewProps {
 
 export default function ProtocolOverview({ protocol }: ProtocolOverviewProps) {
   const [copied, setCopied] = useState(false);
+  const navigate = useNavigate();
 
   const truncateAddress = (address: string) => {
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
@@ -21,7 +23,8 @@ export default function ProtocolOverview({ protocol }: ProtocolOverviewProps) {
     DEPRECATED: 'OFFLINE',
   } as const;
 
-  const handleCopyAddress = async () => {
+  const handleCopyAddress = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card click when copying
     try {
       await navigator.clipboard.writeText(protocol.ownerAddress);
       setCopied(true);
@@ -31,9 +34,14 @@ export default function ProtocolOverview({ protocol }: ProtocolOverviewProps) {
     }
   };
 
+  const handleCardClick = () => {
+    navigate('/protocols');
+  };
+
   return (
     <div
-      className="bg-navy-800 rounded-lg p-4 sm:p-6 border border-navy-900"
+      onClick={handleCardClick}
+      className="bg-navy-800 rounded-lg p-4 sm:p-6 border border-navy-900 cursor-pointer hover:bg-navy-700 transition-colors"
       role="region"
       aria-label="Protocol overview"
     >
