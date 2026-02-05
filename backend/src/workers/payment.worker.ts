@@ -199,10 +199,37 @@ async function processPayment(job: Job<PaymentJobData>): Promise<void> {
     // Step 6: Execute payment - either on-chain or demo mode
     let releaseResult: { txHash: string; blockNumber: number; amount: bigint; bountyId: string } | null = null;
 
-    // Check if protocol has on-chain registration
-    if (!protocol?.onChainProtocolId) {
-      // DEMO MODE: Protocol not registered on-chain, simulate payment
-      console.log('[PaymentWorker] DEMO MODE: Protocol not registered on-chain, simulating payment...');
+    // Check if protocol has on-chain registration and pool has funds
+    let useRealPayment = false;
+    let poolBalance = 0;
+    const onChainProtocolId = protocol?.onChainProtocolId;
+
+    if (onChainProtocolId) {
+      // Check if the BountyPool has funds for this protocol
+      try {
+        const bountyClient = new BountyPoolClient();
+        poolBalance = await bountyClient.getProtocolBalance(onChainProtocolId);
+        console.log(`[PaymentWorker] Protocol pool balance: ${poolBalance} USDC`);
+
+        // Only use real payment if pool has sufficient funds (at least the payment amount)
+        if (poolBalance >= payment.amount) {
+          useRealPayment = true;
+        } else {
+          console.log(`[PaymentWorker] Pool balance (${poolBalance}) < payment amount (${payment.amount})`);
+          console.log('[PaymentWorker] Falling back to demo mode due to insufficient pool funds');
+        }
+      } catch (error: any) {
+        console.log(`[PaymentWorker] Could not check pool balance: ${error.message}`);
+        console.log('[PaymentWorker] Falling back to demo mode');
+      }
+    }
+
+    if (!useRealPayment) {
+      // DEMO MODE: Protocol not registered on-chain or pool has insufficient funds
+      const reason = !onChainProtocolId
+        ? 'Protocol not registered on-chain'
+        : `Pool balance (${poolBalance} USDC) insufficient for payment (${payment.amount} USDC)`;
+      console.log(`[PaymentWorker] DEMO MODE: ${reason}, simulating payment...`);
 
       const demoTxHash = `demo_tx_${Date.now()}_${paymentId.substring(0, 8)}`;
       const demoBountyId = `demo_bounty_${Date.now()}`;
@@ -219,16 +246,18 @@ async function processPayment(job: Job<PaymentJobData>): Promise<void> {
       console.log(`  Amount: ${payment.amount} USDC`);
     } else {
       // PRODUCTION MODE: Execute real on-chain payment
-      const onChainProtocolId = protocol.onChainProtocolId;
+      console.log(`[PaymentWorker] PRODUCTION MODE: Executing real on-chain payment`);
       console.log(`  On-chain Protocol ID: ${onChainProtocolId}`);
+      console.log(`  Pool balance: ${poolBalance} USDC`);
 
       const bountyClient = new BountyPoolClient();
 
       console.log('[PaymentWorker] Calling BountyPool.releaseBounty()...');
 
       try {
+        // onChainProtocolId is guaranteed to be set here since useRealPayment=true
         releaseResult = await bountyClient.releaseBounty(
-          onChainProtocolId,
+          onChainProtocolId!,
           validationId,
           researcherAddress,
           severity
