@@ -14,6 +14,7 @@ export default function ProtocolRegistration() {
   const { user, loading: authLoading } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [initialValues, setInitialValues] = useState<Partial<CreateProtocolRequest> | undefined>(undefined);
 
   // Run diagnostics on mount to help debug issues
   useEffect(() => {
