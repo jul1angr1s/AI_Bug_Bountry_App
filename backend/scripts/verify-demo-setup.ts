@@ -8,12 +8,17 @@
  * - Environment configuration (demo mode disabled)
  */
 
+import 'dotenv/config';
 import { ethers } from 'ethers';
 import { contractAddresses, payerWallet, researcherWallet, provider } from '../src/blockchain/config.js';
 import BountyPoolABI from '../src/blockchain/abis/BountyPool.json' with { type: 'json' };
-import USDCAbi from '../src/blockchain/abis/IERC20.json' with { type: 'json' };
 
 const USDC_ADDRESS = '0x036CbD53842c5426634e7929541eC2318f3dCF7e'; // Base Sepolia
+
+// Minimal ERC20 ABI for balanceOf
+const USDCAbi = [
+  'function balanceOf(address account) view returns (uint256)'
+];
 
 async function verify() {
   console.log('🔍 Verifying demo setup...\n');

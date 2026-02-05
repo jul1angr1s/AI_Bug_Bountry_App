@@ -10,6 +10,7 @@
  * This allows efficient use of the 50 USDC pool for demonstrations.
  */
 
+import 'dotenv/config';
 import { ethers } from 'ethers';
 import { contractAddresses, payerWallet, provider } from '../src/blockchain/config.js';
 import BountyPoolABI from '../src/blockchain/abis/BountyPool.json' with { type: 'json' };
