@@ -211,20 +211,58 @@ function mapSlitherImpactToSeverity(impact: string): Severity {
 function mapSlitherCheckToType(check: string): string {
   // Common Slither checks mapped to vulnerability types
   const checkMapping: Record<string, string> = {
+    // Reentrancy variants
     'reentrancy-eth': 'REENTRANCY',
     'reentrancy-no-eth': 'REENTRANCY',
     'reentrancy-benign': 'REENTRANCY',
     'reentrancy-events': 'REENTRANCY',
+    'reentrancy-unlimited-gas': 'REENTRANCY',
+    // Storage issues
     'uninitialized-state': 'UNINITIALIZED_STORAGE',
     'uninitialized-local': 'UNINITIALIZED_VARIABLE',
+    'uninitialized-storage': 'UNINITIALIZED_STORAGE',
+    // Access control
     'arbitrary-send': 'ARBITRARY_SEND',
+    'arbitrary-send-eth': 'ARBITRARY_SEND',
+    'arbitrary-send-erc20': 'ARBITRARY_SEND',
     'controlled-delegatecall': 'DELEGATECALL',
     'suicidal': 'SELFDESTRUCT',
     'unprotected-upgrade': 'ACCESS_CONTROL',
-    'timestamp': 'TIMESTAMP_DEPENDENCE',
-    'tx-origin': 'TX_ORIGIN',
+    'missing-zero-check': 'ACCESS_CONTROL',
+    'protected-vars': 'ACCESS_CONTROL',
+    // Oracle & Price manipulation
+    'oracle-price': 'ORACLE_MANIPULATION',
+    'divide-before-multiply': 'ORACLE_MANIPULATION',
+    'incorrect-equality': 'BUSINESS_LOGIC',
+    'tautology': 'BUSINESS_LOGIC',
+    // Integer issues
+    'integer-overflow': 'INTEGER_OVERFLOW',
+    'integer-underflow': 'INTEGER_OVERFLOW',
+    'divide-by-zero': 'INTEGER_OVERFLOW',
+    // External calls
+    'low-level-calls': 'UNCHECKED_RETURN_VALUE',
+    'unchecked-lowlevel': 'UNCHECKED_RETURN_VALUE',
+    'unchecked-send': 'UNCHECKED_RETURN_VALUE',
     'unchecked-transfer': 'UNCHECKED_RETURN_VALUE',
+    'calls-loop': 'DOS_ATTACK',
+    'msg-value-loop': 'DOS_ATTACK',
+    // Time and randomness
+    'timestamp': 'TIMESTAMP_DEPENDENCE',
+    'block-timestamp': 'TIMESTAMP_DEPENDENCE',
     'weak-prng': 'WEAK_RANDOMNESS',
+    'tx-origin': 'TX_ORIGIN',
+    // Flash loan related
+    'flash-loan': 'FLASH_LOAN_ATTACK',
+    'price-manipulation': 'ORACLE_MANIPULATION',
+    // Storage collision
+    'shadowing-state': 'STORAGE_COLLISION',
+    'shadowing-local': 'STORAGE_COLLISION',
+    'variable-scope': 'STORAGE_COLLISION',
+    // Locked ether
+    'locked-ether': 'LOCKED_ETHER',
+    // Deprecated
+    'deprecated-standards': 'DEPRECATED_FUNCTION',
+    'solc-version': 'DEPRECATED_FUNCTION',
   };
 
   return checkMapping[check] || check.toUpperCase().replace(/-/g, '_');

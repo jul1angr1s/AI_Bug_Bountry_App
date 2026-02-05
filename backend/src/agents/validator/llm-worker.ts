@@ -145,24 +145,49 @@ async function processValidationLLM(submission: ProofSubmissionMessage): Promise
     // =================
     // STEP 3: Read contract code for context
     // =================
-    // In production, we would clone the repo and read the contract
-    // For now, we'll use a placeholder or read from a cached location
+    // Read from researcher agent's cloned repository
     let contractCode = '';
 
     try {
-      // Try to read from researcher agent's cache if available
-      const cacheDir = `/tmp/researcher-${proof.scanId}`;
+      // Researcher clones to /tmp/thunder-repos/{protocolId}/{scanId}
+      const sanitizedProtocolId = protocol.id.replace(/[^a-zA-Z0-9-_]/g, '_');
+      const sanitizedScanId = proof.scanId.replace(/[^a-zA-Z0-9-_]/g, '_');
+      const cacheDir = `/tmp/thunder-repos/${sanitizedProtocolId}/${sanitizedScanId}`;
       const contractPath = join(cacheDir, protocol.contractPath);
 
       contractCode = readFileSync(contractPath, 'utf-8');
       console.log(
-        `[Validator LLM] Read contract code (${contractCode.length} chars)`
+        `[Validator LLM] Read contract code from ${contractPath} (${contractCode.length} chars)`
       );
     } catch (error) {
-      console.warn(
-        '[Validator LLM] Could not read cached contract code, using proof only'
-      );
-      contractCode = '// Contract code not available - analyzing proof standalone';
+      // Try alternative path with just the vulnerable file from the finding
+      try {
+        const sanitizedProtocolId = protocol.id.replace(/[^a-zA-Z0-9-_]/g, '_');
+        const sanitizedScanId = proof.scanId.replace(/[^a-zA-Z0-9-_]/g, '_');
+        const cacheDir = `/tmp/thunder-repos/${sanitizedProtocolId}/${sanitizedScanId}`;
+        const findingPath = join(cacheDir, proof.location?.filePath || '');
+
+        contractCode = readFileSync(findingPath, 'utf-8');
+        console.log(
+          `[Validator LLM] Read contract code from finding location ${findingPath} (${contractCode.length} chars)`
+        );
+      } catch (findingError) {
+        console.warn(
+          '[Validator LLM] Could not read cached contract code, providing context from proof description'
+        );
+        // Provide useful context instead of placeholder
+        contractCode = `// Contract: ${protocol.contractName || 'Unknown'}
+// GitHub: ${protocol.githubUrl}
+// Vulnerable File: ${proof.location?.filePath || 'Unknown'}
+// Line: ${proof.location?.lineNumber || 'Unknown'}
+// Function: ${proof.location?.functionSelector || 'Unknown'}
+//
+// Description from scan:
+// ${proof.description}
+//
+// This vulnerability was detected by automated scanning tools (Slither/AI).
+// Contract code not available in cache - validating based on proof details.`;
+      }
     }
 
     await emitAgentTaskUpdate('validator-agent', 'Analyzing proof with Kimi 2.5 LLM', 50);
