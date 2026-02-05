@@ -32,13 +32,19 @@ export default function ProtocolRegistration() {
       return;
     }
 
-    setInitialValues({
+    console.log('User wallet:', user.wallet);
+    console.log('User object:', user);
+
+    const autofillData = {
       githubUrl: 'https://github.com/Cyfrin/2023-11-Thunder-Loan',
       branch: 'main',
       contractPath: 'src/protocol/ThunderLoan.sol',
       contractName: 'ThunderLoan',
       ownerAddress: user.wallet,
-    });
+    };
+
+    console.log('Autofill data:', autofillData);
+    setInitialValues(autofillData);
 
     toast.success('Form autofilled', {
       description: 'ThunderLoan example data has been loaded into the form.',
