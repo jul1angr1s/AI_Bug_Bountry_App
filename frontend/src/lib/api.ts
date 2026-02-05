@@ -364,7 +364,8 @@ export function subscribeToScanProgress(
   onError?: (error: Event) => void
 ): () => void {
   const eventSource = new EventSource(
-    `${API_BASE_URL}/api/v1/scans/${scanId}/progress`
+    `${API_BASE_URL}/api/v1/scans/${scanId}/progress`,
+    { withCredentials: true }
   );
 
   eventSource.onmessage = (event) => {

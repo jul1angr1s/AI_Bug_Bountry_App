@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { ScanState, AnalysisMethod } from '@prisma/client';
 import { scanRepository, findingRepository } from '../db/repositories.js';
 import { requireAuth } from '../middleware/auth.js';
+import { sseAuthenticate } from '../middleware/sse-auth.js';
 import { ValidationError, NotFoundError } from '../errors/CustomError.js';
 import { getRedisClient } from '../lib/redis.js';
 import { enqueueScan } from '../queues/scanQueue.js';
@@ -157,7 +158,8 @@ router.get('/:id/findings', requireAuth, async (req, res, next) => {
 });
 
 // Task 2.3: GET /api/v1/scans/:id/progress - SSE stream for progress
-router.get('/:id/progress', requireAuth, async (req, res, next) => {
+// Uses sseAuthenticate middleware because EventSource API cannot send custom headers (only cookies)
+router.get('/:id/progress', sseAuthenticate, async (req, res, next) => {
   try {
     const { id } = req.params;
     
@@ -171,12 +173,18 @@ router.get('/:id/progress', requireAuth, async (req, res, next) => {
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
 
-    // Send initial state
+    // Send initial state (matching ScanProgressEvent format)
     res.write(`data: ${JSON.stringify({
-      scanId: scan.id,
-      step: scan.currentStep,
-      state: scan.state,
+      eventType: 'scan:progress',
       timestamp: new Date().toISOString(),
+      scanId: scan.id,
+      protocolId: scan.protocolId,
+      data: {
+        currentStep: scan.currentStep,
+        state: scan.state,
+        progress: 0,
+        message: 'Connected to scan progress stream',
+      },
     })}\n\n`);
 
     // Subscribe to Redis for real-time updates
