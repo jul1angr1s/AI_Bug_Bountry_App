@@ -138,51 +138,67 @@ export class KimiLLMClient {
     severity?: string;
     exploitability?: string;
   }> {
-    const systemPrompt = `You are an expert Solidity security auditor and vulnerability validator. Your task is to analyze exploit proofs for smart contracts and determine if they demonstrate valid vulnerabilities.
+    const systemPrompt = `You are an expert Solidity security auditor validating vulnerability reports from automated scanning tools (Slither, AI analysis).
 
-Analyze the proof objectively and provide:
-1. Whether the proof demonstrates a real, exploitable vulnerability
-2. Confidence level (0-100)
-3. Technical reasoning explaining your assessment
-4. Severity classification if valid
-5. Exploitability assessment
+Your role is to determine if reported vulnerabilities are REAL and EXPLOITABLE based on:
+1. The vulnerability type and its known attack patterns
+2. The description from the scanning tool
+3. The reproduction steps provided
+4. Available contract code (if any)
 
-Be thorough but concise. Focus on technical correctness.`;
+IMPORTANT VALIDATION RULES:
+- ORACLE_MANIPULATION: If a protocol uses a DEX (like TSwap, Uniswap) for price feeds, this is a VALID HIGH/CRITICAL vulnerability. Flash loan + swap attacks are well-documented.
+- REENTRANCY: If external calls happen before state updates, this is VALID. Check for CEI pattern violations.
+- ACCESS_CONTROL: Missing modifiers on sensitive functions are VALID vulnerabilities.
+- INTEGER_OVERFLOW: In Solidity <0.8.0 without SafeMath, these are VALID. In >=0.8.0, check for unchecked blocks.
+- BUSINESS_LOGIC: Validate based on the specific description - if the logic flaw is clearly explained, it's likely VALID.
 
-    const userPrompt = `Analyze this exploit proof for a Solidity smart contract vulnerability.
+You are validating AUTOMATED SCAN RESULTS, not manually written exploit code. Be generous with validation if:
+- The vulnerability type matches known attack patterns
+- The description clearly explains the issue
+- The location is specified in the code
+
+Reject only if:
+- The vulnerability type is clearly misidentified
+- The description doesn't match the vulnerability type
+- It's obviously a false positive (e.g., in test files, mock contracts)`;
+
+    const userPrompt = `Validate this vulnerability report from an automated security scan.
 
 **Vulnerability Type:** ${vulnerabilityType}
 
-**Description:** ${description}
+**Tool Description:** ${description}
 
-**Exploit Proof Code:**
-\`\`\`solidity
+**Reproduction Steps:**
 ${proofCode}
-\`\`\`
 
-**Target Contract (excerpt):**
-\`\`\`solidity
-${contractCode.slice(0, 3000)}
-${contractCode.length > 3000 ? '... (truncated)' : ''}
-\`\`\`
+**Contract Code Context:**
+${contractCode.slice(0, 4000)}
+${contractCode.length > 4000 ? '\n... (truncated)' : ''}
 
-**Instructions:**
-1. Analyze if the proof correctly demonstrates the vulnerability
-2. Check if the exploit is technically sound and executable
-3. Verify the attack vector is realistic
-4. Assess the severity and impact
-5. Provide a confidence score (0-100)
+**Validation Checklist:**
+1. Is ${vulnerabilityType} a real vulnerability class? (Yes for all common types)
+2. Does the description match the vulnerability type?
+3. Are the reproduction steps plausible for this vulnerability?
+4. Would this be exploitable in a real deployment?
 
-**Response Format (JSON):**
+**Known High-Risk Patterns to VALIDATE:**
+- DEX price oracles (TSwap, Uniswap spot prices) = ORACLE_MANIPULATION = VALID
+- External calls before state updates = REENTRANCY = VALID
+- Missing access control on withdraw/admin functions = ACCESS_CONTROL = VALID
+- Flash loan attack vectors = VALID for DeFi protocols
+- Fee calculations using spot prices = ORACLE_MANIPULATION = VALID
+
+**Response Format (JSON only):**
 {
-  "isValid": true/false,
-  "confidence": 0-100,
-  "reasoning": "Technical explanation...",
+  "isValid": true,
+  "confidence": 85,
+  "reasoning": "Brief technical explanation of why this is valid/invalid",
   "severity": "CRITICAL/HIGH/MEDIUM/LOW",
   "exploitability": "Easy/Moderate/Hard"
 }
 
-Respond with ONLY the JSON object, no additional text.`;
+Respond with ONLY valid JSON, no markdown or extra text.`;
 
     try {
       const response = await this.chat(
