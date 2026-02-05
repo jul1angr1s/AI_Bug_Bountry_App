@@ -8,6 +8,7 @@ import ProtocolDetail from './pages/ProtocolDetail';
 import Scans from './pages/Scans';
 import { ScanDetailRouter } from './components/scans/ScanDetailRouter';
 import PaymentDashboard from './pages/PaymentDashboard';
+import Payments from './pages/Payments';
 import Login from './pages/Login';
 import ProtectedRoute from './components/ProtectedRoute';
 import { Toaster } from './components/Toaster';
@@ -36,11 +37,11 @@ function App() {
           <Route path="/scans" element={<Scans />} />
           <Route path="/scans/:id" element={<ScanDetailRouter />} />
           <Route path="/validations" element={<Validations />} />
+          <Route path="/payments" element={<Payments />} />
           <Route path="/protocols/:id/payments" element={<PaymentDashboard />} />
         </Route>
 
         {/* REDIRECTS */}
-        <Route path="/payments" element={<Navigate to="/protocols" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <Toaster />
