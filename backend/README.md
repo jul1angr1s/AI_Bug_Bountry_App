@@ -578,6 +578,33 @@ interface AIEnhancedFinding {
 
 ---
 
+### 💵 Funding Service: The Gate
+
+**Purpose**: Ensure protocols are funded before vulnerability scanning begins
+
+**Workflow**:
+1. **Set AWAITING_FUNDING** - After protocol registration completes
+2. **Verify Funding** - Check on-chain BountyPool balance
+3. **Record Transaction** - Store deposit tx hash in database
+4. **Request Scan** - Only allowed after funding verified
+
+**Key Functions**:
+```typescript
+// Set protocol to awaiting funding state
+await setAwaitingFunding(protocolId);
+
+// Verify on-chain funding matches requested amount
+const result = await verifyProtocolFunding(protocolId);
+// Returns: { fundingState, onChainBalance, canRequestScan }
+
+// Request vulnerability scan (gated behind funding)
+await requestScan(protocolId, userId, branch);
+```
+
+**Tech Stack**: ethers.js, BountyPoolClient, Prisma
+
+---
+
 ### 💰 Payment Agent: The Banker
 
 **Purpose**: Automate USDC bounty releases based on validations
@@ -797,6 +824,59 @@ GET /api/v1/scans/:scanId/findings?analysisMethod=AI
 
 # Get scan steps (detailed logs)
 GET /api/v1/scans/:scanId/steps
+```
+
+### Funding Management
+
+```bash
+# Verify protocol funding on-chain
+POST /api/v1/protocols/:id/verify-funding
+Authorization: Bearer <token>
+
+# Response:
+{
+  "success": true,
+  "fundingState": "FUNDED",
+  "onChainBalance": 100,
+  "requestedAmount": 100,
+  "canRequestScan": true,
+  "message": "Protocol is fully funded"
+}
+
+# Request vulnerability scan (requires FUNDED state)
+POST /api/v1/protocols/:id/request-scan
+Content-Type: application/json
+Authorization: Bearer <token>
+
+{
+  "branch": "main"
+}
+
+# Record funding transaction
+POST /api/v1/protocols/:id/record-funding
+Content-Type: application/json
+Authorization: Bearer <token>
+
+{
+  "txHash": "0x1234..."
+}
+
+# Get funding status
+GET /api/v1/protocols/:id/funding-status
+Authorization: Bearer <token>
+
+# Response:
+{
+  "success": true,
+  "data": {
+    "fundingState": "AWAITING_FUNDING",
+    "bountyPoolAmount": 100,
+    "minimumBountyRequired": 25,
+    "fundingTxHash": null,
+    "fundingVerifiedAt": null,
+    "canRequestScan": false
+  }
+}
 ```
 
 ### Admin Endpoints

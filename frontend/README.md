@@ -35,6 +35,10 @@ This isn't just another React dashboard. It's a **real-time mission control** fo
 - **🔴 Live Agent Visualization** - Watch Protocol, Researcher, and Validator agents work in real-time
 - **⚡ WebSocket Streaming** - Sub-second updates for every vulnerability discovered
 - **🎯 7-Step Progress Tracking** - Visual pipeline showing CLONE → COMPILE → DEPLOY → ANALYZE → AI → PROOF → SUBMIT
+- **💰 Funding Gate Wizard** - 3-step flow: Approve USDC → Fund Protocol → Verify On-Chain
+- **🔐 Scan Confirmation** - Modal confirmation before triggering vulnerability scans
+- **💵 Editable Deposits** - Customize bounty pool amounts with minimum validation (25 USDC)
+- **🌐 Network Validation** - Automatic Base Sepolia detection with user warnings
 - **💰 Payment Dashboard** - Real-time USDC bounty tracking with earnings leaderboard
 - **🔐 Web3 Authentication** - SIWE (Sign-In with Ethereum) + wallet connection
 - **📊 Interactive Analytics** - Protocol security scores, vulnerability trends, agent performance
@@ -108,10 +112,12 @@ VITE_ENABLE_NOTIFICATIONS=true
 1. **Login** - Visit the app and you'll be redirected to the login page
 2. **Connect Wallet** - Click "Connect Wallet" and approve MetaMask connection
 3. **Sign Message** - Sign the SIWE message to authenticate
-4. **Register Protocol** - Navigate to `/protocols/register` and submit a GitHub URL
-5. **Watch Magic Happen** - Real-time dashboard shows agent progress
-6. **View Results** - See vulnerabilities appear live as AI discovers them
-7. **Track Payments** - Watch USDC bounties release automatically
+4. **Register Protocol** - Navigate to `/protocols/register` and submit a GitHub URL with bounty pool amount
+5. **Fund Protocol** - Complete 3-step funding wizard (Approve → Fund → Verify)
+6. **Request Scan** - Confirm and start vulnerability scanning
+7. **Watch Magic Happen** - Real-time dashboard shows agent progress
+8. **View Results** - See vulnerabilities appear live as AI discovers them
+9. **Track Payments** - Watch USDC bounties release automatically
 
 ---
 
@@ -329,23 +335,53 @@ Located in `src/components/`:
 ```
 components/
 ├── protocols/
-│   ├── ProtocolCard.tsx        # Protocol overview card
-│   ├── ProtocolForm.tsx        # Registration form
-│   └── ProtocolList.tsx        # Filterable list
+│   ├── ProtocolCard.tsx           # Protocol overview card
+│   ├── ProtocolForm.tsx           # Registration form (+ bountyPoolAmount field)
+│   ├── ProtocolList.tsx           # Filterable list
+│   ├── FundingGate.tsx            # 3-step funding wizard ⭐ NEW
+│   └── ScanConfirmationModal.tsx  # Scan confirmation dialog ⭐ NEW
+├── Payment/
+│   └── USDCApprovalFlow.tsx       # USDC token approval component
 ├── scans/
-│   ├── ScanProgress.tsx        # 7-step progress bar
-│   ├── FindingCard.tsx         # Vulnerability display
-│   └── AgentActivityLog.tsx    # Real-time agent logs
+│   ├── ScanProgress.tsx           # 7-step progress bar
+│   ├── FindingCard.tsx            # Vulnerability display
+│   └── AgentActivityLog.tsx       # Real-time agent logs
 ├── payments/
-│   ├── PaymentHistory.tsx      # Transaction table
-│   └── EarningsChart.tsx       # Visual earnings
+│   ├── PaymentHistory.tsx         # Transaction table
+│   └── EarningsChart.tsx          # Visual earnings
 └── shared/
-    ├── StatCard.tsx            # Metric cards
-    ├── Badge.tsx               # Severity badges
-    ├── Button.tsx              # Custom buttons
-    ├── Modal.tsx               # Modal dialogs
-    └── LoadingSpinner.tsx      # Loading states
+    ├── StatCard.tsx               # Metric cards
+    ├── Badge.tsx                  # Severity badges
+    ├── Button.tsx                 # Custom buttons
+    ├── Modal.tsx                  # Modal dialogs
+    └── LoadingSpinner.tsx         # Loading states
 ```
+
+### 💰 Funding Gate Component
+
+The `FundingGate.tsx` component implements a 3-step wizard for protocol funding:
+
+```typescript
+<FundingGate
+  protocolId={protocol.id}
+  onChainProtocolId={protocol.onChainProtocolId}
+  bountyPoolAmount={protocol.bountyPoolAmount}
+  minimumBountyRequired={protocol.minimumBountyRequired}
+  currentFundingState={protocol.fundingState}
+  onFundingComplete={handleFundingComplete}
+/>
+```
+
+**Steps**:
+1. **Approve USDC** - Uses `USDCApprovalFlow` to get token allowance
+2. **Fund Protocol** - Calls `depositBounty()` on BountyPool contract via wagmi
+3. **Verify Funding** - Checks on-chain balance matches requested amount
+
+**Features**:
+- Editable deposit amount with minimum validation (25 USDC)
+- Network check (warns if not on Base Sepolia)
+- Transaction progress tracking with Basescan links
+- Auto-reset approval when amount changes
 
 ---
 
@@ -386,6 +422,8 @@ wsManager.on('payment:released', (data) => {
 | Event | Trigger | UI Update |
 |-------|---------|-----------|
 | `protocol:registered` | Protocol added to registry | Dashboard count, protocol list |
+| `protocol:funding_state_changed` | Funding state updated | FundingGate step progression |
+| `protocol:scan_requested` | Scan triggered after funding | Scan progress begins |
 | `scan:started` | Scan job queued | Progress bar appears |
 | `scan:step:started` | Agent begins step | Progress indicator |
 | `scan:step:completed` | Step finished | Progress ✓, logs |

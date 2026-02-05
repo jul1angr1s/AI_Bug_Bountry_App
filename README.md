@@ -159,10 +159,14 @@ This platform has completed all development phases including comprehensive testi
 
 ### Recent Achievements (February 2026)
 
+- ✨ **Funding Gate**: 3-step funding wizard (Approve USDC → Fund Protocol → Verify On-Chain) gates scanning
+- ✨ **Editable Deposits**: Users can customize bounty pool amounts with minimum validation (25 USDC)
+- ✨ **Network Validation**: Automatic Base Sepolia network detection with user warnings
+- ✨ **Scan Confirmation**: Modal confirmation before triggering vulnerability scans
 - ✨ **Complete Test Coverage**: 49+ E2E tests + 36 integration tests + 87 contract tests (85%+ coverage)
 - ✨ **Comprehensive Documentation**: API reference (50+ endpoints), architecture (8 diagrams), deployment, security, operations
 - ✨ **Production Hardening**: Security checklist (21/21 ✓), monitoring, backup/recovery, troubleshooting guides
-- ✨ **OpenSpec Archived**: All 10 development changes properly documented and archived
+- ✨ **OpenSpec Archived**: All 11 development changes properly documented and archived
 - ✨ **E2E Validation**: Thunder Loan demonstration workflow validated end-to-end (<4 minutes)
 - ✨ **Smart Contracts**: 3 verified contracts deployed on Base Sepolia with full integration
 - ✨ **AI Integration**: Kimi 2.5 (Moonshot AI) achieving 6x vulnerability detection improvement
@@ -228,6 +232,32 @@ graph LR
 **Smart Contracts**: ProtocolRegistry • ValidationRegistry • BountyPool
 **Network**: Base Sepolia (testnet) → Base Mainnet (soon)
 **Token**: USDC with severity-based multipliers (0.25x - 5x)
+
+### 💰 Funding Gate Flow
+
+Protocols must be funded before vulnerability scanning begins:
+
+```mermaid
+graph LR
+    R[📝 Register<br/>Protocol]
+    F1[1️⃣ Approve<br/>USDC]
+    F2[2️⃣ Fund<br/>Protocol]
+    F3[3️⃣ Verify<br/>On-Chain]
+    S[🔍 Request<br/>Scanning]
+
+    R -->|AWAITING_FUNDING| F1
+    F1 -->|MetaMask| F2
+    F2 -->|depositBounty()| F3
+    F3 -->|FUNDED| S
+
+    style R fill:#3B82F6,stroke:#1E40AF,stroke-width:2px,color:#fff
+    style F1 fill:#F59E0B,stroke:#D97706,stroke-width:2px,color:#fff
+    style F2 fill:#8B5CF6,stroke:#7C3AED,stroke-width:2px,color:#fff
+    style F3 fill:#10B981,stroke:#059669,stroke-width:2px,color:#fff
+    style S fill:#EC4899,stroke:#BE185D,stroke-width:2px,color:#fff
+```
+
+**Why Funding Gate?** Prevents payment failures by ensuring bounty pool has USDC before researchers find vulnerabilities.
 
 ### 🔥 Tech Stack
 
@@ -302,6 +332,7 @@ graph LR
 <td width="50%">
 
 #### 💰 **Payments & Blockchain**
+- ✅ **Funding Gate** - 3-step wizard ensures pool funding before scans
 - ✅ **On-Chain Registry** - Immutable records on Base Sepolia
 - ✅ **Automated USDC Payments** - Event-driven releases
 - ✅ **Severity Multipliers** - 5x CRITICAL → 0.25x INFORMATIONAL
@@ -525,17 +556,15 @@ graph TB
 
 ```mermaid
 graph LR
-    Protocol[(🏢 Protocol)]
+    Protocol[(🏢 Protocol<br/>+ fundingState<br/>+ bountyPoolAmount)]
     Scan[(🔍 Scan)]
     Finding[(🐛 Finding)]
     Proof[(📝 Proof)]
     Validation[(✅ Validation)]
     Payment[(💰 Payment)]
     ScanStep[(📊 ScanStep)]
-    Funding[(💵 Funding)]
 
     Protocol -->|1:N| Scan
-    Protocol -->|1:N| Funding
     Scan -->|1:N| Finding
     Scan -->|1:N| ScanStep
     Finding -->|1:1| Proof
@@ -549,6 +578,13 @@ graph LR
     style Validation fill:#F59E0B,stroke:#D97706,stroke-width:2px,color:#fff
     style Payment fill:#FFD700,stroke:#FFA500,stroke-width:2px,color:#000
 ```
+
+**Protocol Funding Fields**:
+- `bountyPoolAmount` - Requested USDC amount for bounty pool
+- `fundingState` - AWAITING_FUNDING | FUNDED | UNDERFUNDED
+- `fundingTxHash` - Deposit transaction hash
+- `fundingVerifiedAt` - On-chain verification timestamp
+- `minimumBountyRequired` - Minimum 25 USDC for prototype
 
 ---
 
