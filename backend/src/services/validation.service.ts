@@ -180,20 +180,18 @@ export class ValidationService {
 
   /**
    * Calculate bounty amount based on severity
+   * Production bounty amounts: HIGH=5 USDC, MEDIUM=3 USDC, LOW=1 USDC
    */
   private calculateBountyAmount(severity: Severity): number {
-    // DEMO MODE: Using small amounts for testing ($0.5 for HIGH severity)
-    const baseReward = 0.1; // $0.10 base (for testing)
-
-    const multipliers: Record<Severity, number> = {
-      CRITICAL: 10,  // $1.00
-      HIGH: 5,       // $0.50
-      MEDIUM: 2,     // $0.20
-      LOW: 1,        // $0.10
-      INFO: 0.5,     // $0.05
+    const bountyAmounts: Record<Severity, number> = {
+      CRITICAL: 10,  // $10 USDC
+      HIGH: 5,       // $5 USDC
+      MEDIUM: 3,     // $3 USDC
+      LOW: 1,        // $1 USDC
+      INFO: 0.5,     // $0.50 USDC
     };
 
-    return baseReward * (multipliers[severity] || 1);
+    return bountyAmounts[severity] || 1;
   }
 
   private async resolveResearcherAddress(): Promise<string> {

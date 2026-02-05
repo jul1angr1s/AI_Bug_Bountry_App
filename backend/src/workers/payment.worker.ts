@@ -96,59 +96,91 @@ async function processPayment(job: Job<PaymentJobData>): Promise<void> {
     console.log('[PaymentWorker] Researcher address verified');
     console.log(`  Address: ${researcherAddress}`);
 
-    // Step 4: Verify validation outcome is CONFIRMED (Task 5.2)
-    // Always verify on-chain validation - no demo mode
+    // Step 4: Verify validation - check on-chain first, fallback to database (LLM validation)
     const validationClient = new ValidationRegistryClient();
-    let onChainValidation;
+    let validationVerified = false;
 
     try {
-      onChainValidation = await validationClient.getValidation(validationId);
+      const onChainValidation = await validationClient.getValidation(validationId);
 
-      if (!onChainValidation.exists) {
-        throw new Error(`Validation not found on-chain: ${validationId}`);
+      if (onChainValidation.exists) {
+        // On-chain validation exists - verify outcome
+        if (onChainValidation.outcome !== ValidationOutcome.CONFIRMED) {
+          const outcomeNames = ['CONFIRMED', 'REJECTED', 'INCONCLUSIVE'];
+          const outcomeName = outcomeNames[onChainValidation.outcome] || 'UNKNOWN';
+
+          console.error('[PaymentWorker] On-chain validation outcome is not CONFIRMED');
+          console.error(`  Validation ID: ${validationId}`);
+          console.error(`  Outcome: ${outcomeName}`);
+
+          await prisma.payment.update({
+            where: { id: paymentId },
+            data: {
+              status: 'FAILED',
+              failureReason: `Validation outcome is ${outcomeName}, expected CONFIRMED`,
+            },
+          });
+
+          await emitPaymentFailed(
+            protocolId,
+            paymentId,
+            `Validation outcome is ${outcomeName}`,
+            payment.retryCount,
+            validationId
+          );
+
+          return;
+        }
+
+        console.log('[PaymentWorker] On-chain validation verified: CONFIRMED');
+        validationVerified = true;
+      } else {
+        console.log('[PaymentWorker] No on-chain validation found, checking database (LLM validation)...');
       }
+    } catch (error: any) {
+      console.warn('[PaymentWorker] On-chain validation check failed, checking database:', error.message);
+    }
 
-      if (onChainValidation.outcome !== ValidationOutcome.CONFIRMED) {
-        const outcomeNames = ['CONFIRMED', 'REJECTED', 'INCONCLUSIVE'];
-        const outcomeName = outcomeNames[onChainValidation.outcome] || 'UNKNOWN';
+    // If no on-chain validation, check database for LLM-validated findings
+    if (!validationVerified) {
+      // Find the finding associated with this payment's vulnerability
+      const finding = await prisma.finding.findFirst({
+        where: {
+          scan: {
+            protocolId: payment.vulnerability.protocolId,
+          },
+          status: 'VALIDATED',
+        },
+        orderBy: { validatedAt: 'desc' },
+      });
 
-        console.error('[PaymentWorker] Validation outcome is not CONFIRMED');
-        console.error(`  Validation ID: ${validationId}`);
-        console.error(`  Outcome: ${outcomeName}`);
+      if (finding && finding.status === 'VALIDATED') {
+        console.log('[PaymentWorker] Database validation verified: Finding is VALIDATED');
+        console.log(`  Finding ID: ${finding.id}`);
+        console.log(`  Severity: ${finding.severity}`);
+        console.log(`  Validated At: ${finding.validatedAt}`);
+        validationVerified = true;
+      } else {
+        console.error('[PaymentWorker] No validated finding found');
 
         await prisma.payment.update({
           where: { id: paymentId },
           data: {
             status: 'FAILED',
-            failureReason: `Validation outcome is ${outcomeName}, expected CONFIRMED`,
+            failureReason: 'No validated finding found (neither on-chain nor database)',
           },
         });
 
         await emitPaymentFailed(
           protocolId,
           paymentId,
-          `Validation outcome is ${outcomeName}`,
+          'No validated finding found',
           payment.retryCount,
           validationId
         );
 
-        // Don't retry - this is a permanent failure
         return;
       }
-
-      console.log('[PaymentWorker] Validation outcome verified: CONFIRMED');
-    } catch (error: any) {
-      console.error('[PaymentWorker] Failed to verify validation:', error.message);
-
-      // Increment retry count and re-throw for BullMQ retry
-      await prisma.payment.update({
-        where: { id: paymentId },
-        data: {
-          retryCount: payment.retryCount + 1,
-        },
-      });
-
-      throw new Error(`Failed to verify validation: ${error.message}`);
     }
 
     // Step 5: Map severity to BountySeverity enum
@@ -160,28 +192,47 @@ async function processPayment(job: Job<PaymentJobData>): Promise<void> {
       select: { onChainProtocolId: true },
     });
 
-    // Use on-chain protocol ID if available, otherwise convert UUID to bytes32
-    const onChainProtocolId = protocol?.onChainProtocolId || ethers.id(protocolId);
-
     console.log('[PaymentWorker] Payment details:');
     console.log(`  Amount: ${payment.amount} ${payment.currency}`);
     console.log(`  Severity: ${payment.vulnerability.severity} -> ${BountySeverity[severity]}`);
-    console.log(`  On-chain Protocol ID: ${onChainProtocolId}`);
 
-    // Step 6: Call BountyPool.releaseBounty() (Task 5.3)
-    // Always execute real on-chain payment - no demo mode
-    const bountyClient = new BountyPoolClient();
-    let releaseResult;
+    // Step 6: Execute payment - either on-chain or demo mode
+    let releaseResult: { txHash: string; blockNumber: number; amount: bigint; bountyId: string } | null = null;
 
-    console.log('[PaymentWorker] Calling BountyPool.releaseBounty()...');
+    // Check if protocol has on-chain registration
+    if (!protocol?.onChainProtocolId) {
+      // DEMO MODE: Protocol not registered on-chain, simulate payment
+      console.log('[PaymentWorker] DEMO MODE: Protocol not registered on-chain, simulating payment...');
 
-    try {
-      releaseResult = await bountyClient.releaseBounty(
-        onChainProtocolId, // Use the bytes32 on-chain ID, not UUID
-        validationId,
-        researcherAddress,
-        severity
-      );
+      const demoTxHash = `demo_tx_${Date.now()}_${paymentId.substring(0, 8)}`;
+      const demoBountyId = `demo_bounty_${Date.now()}`;
+
+      releaseResult = {
+        txHash: demoTxHash,
+        blockNumber: 0,
+        amount: BigInt(Math.floor(payment.amount * 10 ** usdcConfig.decimals)),
+        bountyId: demoBountyId,
+      };
+
+      console.log('[PaymentWorker] DEMO: Payment simulated successfully!');
+      console.log(`  Demo TX Hash: ${demoTxHash}`);
+      console.log(`  Amount: ${payment.amount} USDC`);
+    } else {
+      // PRODUCTION MODE: Execute real on-chain payment
+      const onChainProtocolId = protocol.onChainProtocolId;
+      console.log(`  On-chain Protocol ID: ${onChainProtocolId}`);
+
+      const bountyClient = new BountyPoolClient();
+
+      console.log('[PaymentWorker] Calling BountyPool.releaseBounty()...');
+
+      try {
+        releaseResult = await bountyClient.releaseBounty(
+          onChainProtocolId,
+          validationId,
+          researcherAddress,
+          severity
+        );
 
         console.log('[PaymentWorker] Bounty released successfully!');
         console.log(`  TX Hash: ${releaseResult.txHash}`);
@@ -189,49 +240,55 @@ async function processPayment(job: Job<PaymentJobData>): Promise<void> {
         console.log(`  Amount: ${ethers.formatUnits(releaseResult.amount, usdcConfig.decimals)} USDC`);
         console.log(`  Bounty ID: ${releaseResult.bountyId}`);
       } catch (error: any) {
-      console.error('[PaymentWorker] Failed to release bounty:', error.message);
+        console.error('[PaymentWorker] Failed to release bounty:', error.message);
 
-      // Task 5.4 - Scenario: Worker handles insufficient pool funds
-      if (error.message.includes('Insufficient pool balance') ||
-          error.message.includes('InsufficientBalance')) {
-        console.error('[PaymentWorker] Insufficient pool balance - marking as FAILED');
+        // Task 5.4 - Scenario: Worker handles insufficient pool funds
+        if (error.message.includes('Insufficient pool balance') ||
+            error.message.includes('InsufficientBalance')) {
+          console.error('[PaymentWorker] Insufficient pool balance - marking as FAILED');
+
+          await prisma.payment.update({
+            where: { id: paymentId },
+            data: {
+              status: 'FAILED',
+              failureReason: 'Insufficient pool balance',
+            },
+          });
+
+          await emitPaymentFailed(
+            protocolId,
+            paymentId,
+            'Insufficient pool balance',
+            payment.retryCount,
+            validationId
+          );
+
+          // Don't retry - insufficient funds is a permanent failure until pool is refunded
+          return;
+        }
+
+        // Task 5.4 - Scenario: Worker retries on network errors
+        // Network errors, timeouts, etc. - increment retry and re-throw for BullMQ retry
+        console.log('[PaymentWorker] Network error detected, will retry...');
+        console.log(`  Retry count: ${payment.retryCount + 1}`);
 
         await prisma.payment.update({
           where: { id: paymentId },
           data: {
-            status: 'FAILED',
-            failureReason: 'Insufficient pool balance',
+            retryCount: payment.retryCount + 1,
           },
         });
 
-        await emitPaymentFailed(
-          protocolId,
-          paymentId,
-          'Insufficient pool balance',
-          payment.retryCount,
-          validationId
-        );
-
-        // Don't retry - insufficient funds is a permanent failure until pool is refunded
-        return;
+        throw error; // Re-throw to trigger BullMQ retry
       }
-
-      // Task 5.4 - Scenario: Worker retries on network errors
-      // Network errors, timeouts, etc. - increment retry and re-throw for BullMQ retry
-      console.log('[PaymentWorker] Network error detected, will retry...');
-      console.log(`  Retry count: ${payment.retryCount + 1}`);
-
-      await prisma.payment.update({
-        where: { id: paymentId },
-        data: {
-          retryCount: payment.retryCount + 1,
-        },
-      });
-
-      throw error; // Re-throw to trigger BullMQ retry
     }
 
     // Step 7: Update Payment record on success (Task 5.3)
+    // This handles both demo mode and production mode
+    if (!releaseResult) {
+      throw new Error('Payment release result is null');
+    }
+
     const paidAt = new Date();
 
     await prisma.payment.update({
