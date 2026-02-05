@@ -1,2 +1,47 @@
-schema: spec-driven
-created: 2026-02-05
+schema:
+  type: spec-driven
+  version: 1.0
+
+status: in_progress
+
+dates:
+  created: 2026-02-04
+  started: 2026-02-04
+  completed: null
+
+artifacts:
+  proposal: true
+  design: true
+  specs: true
+  tasks: true
+
+components:
+  - Frontend
+
+layers:
+  - UI/UX
+  - Components
+  - Pages
+  - Routing
+
+tech_stack:
+  - React 18
+  - TypeScript 5.x
+  - TailwindCSS
+  - Vite 5.x
+  - TanStack Query
+  - WebSocket
+
+chains: []
+
+summary: |
+  Modernize the /scans dashboard page with a sophisticated dark-theme UI featuring:
+  - Vertical 7-stage scan progress timeline
+  - Live terminal output with color-coded agent logs
+  - SVG vulnerability detection rate chart
+  - Real-time findings display with AI confidence meters
+  - Responsive design for mobile, tablet, and desktop
+  - Reuses existing backend endpoints and WebSocket connections
+  - Comprehensive testing (unit, integration, visual regression, E2E)
+
+pr: null
