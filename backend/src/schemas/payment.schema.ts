@@ -17,7 +17,7 @@ export const usdcApprovalSchema = z.object({
 
 // Payment list schemas
 export const paymentListQuerySchema = z.object({
-  protocolId: z.string().uuid(),
+  protocolId: z.string().uuid().optional(),
   status: z.enum(['PENDING', 'COMPLETED', 'FAILED']).optional(),
   severity: z.enum(['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO']).optional(),
   page: z.coerce.number().int().positive().default(1),
