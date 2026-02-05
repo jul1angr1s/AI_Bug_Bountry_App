@@ -94,8 +94,9 @@ export const USDCApprovalFlow: React.FC<USDCApprovalFlowProps> = ({
       const allowanceData = await fetchUSDCAllowance(userAddress, bountyPoolAddress);
       setAllowance(allowanceData);
 
-      // Check if allowance is sufficient
-      const allowanceBigInt = BigInt(allowanceData.allowance);
+      // Check if allowance is sufficient (handle undefined/null allowance)
+      const allowanceValue = allowanceData?.allowance || '0';
+      const allowanceBigInt = BigInt(allowanceValue);
       const depositBigInt = parseUnits(depositAmount, USDC_CONFIG.decimals);
 
       if (allowanceBigInt >= depositBigInt) {

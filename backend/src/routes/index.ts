@@ -2,6 +2,7 @@ import { Router } from 'express';
 import healthRouter from './health.js';
 import dashboardRouter from './dashboard.routes.js';
 import protocolRouter from './protocol.routes.js';
+import fundingRouter from './funding.routes.js';
 import agentRouter from './agent.routes.js';
 import scansRouter from './scans.js';
 import paymentRouter from './payment.routes.js';
@@ -22,6 +23,7 @@ router.use(dashboardRouter);
 
 // Protocol Agent endpoints
 router.use('/protocols', protocolRouter);
+router.use('/protocols', fundingRouter); // Funding gate routes (verify-funding, request-scan)
 router.use('/agents', agentRouter);
 
 // Researcher Agent - Scan endpoints
