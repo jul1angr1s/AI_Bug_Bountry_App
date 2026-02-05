@@ -23,6 +23,29 @@ export default function ProtocolRegistration() {
     }
   }, []);
 
+  const handleAutofill = () => {
+    if (!user?.address) {
+      toast.error('Wallet Required', {
+        description: 'Please connect your wallet first to use the autofill feature.',
+        duration: 3000,
+      });
+      return;
+    }
+
+    setInitialValues({
+      githubUrl: 'https://github.com/Cyfrin/2023-11-Thunder-Loan',
+      branch: 'main',
+      contractPath: 'src/protocol/ThunderLoan.sol',
+      contractName: 'ThunderLoan',
+      ownerAddress: user.address,
+    });
+
+    toast.success('Form autofilled', {
+      description: 'ThunderLoan example data has been loaded into the form.',
+      duration: 2000,
+    });
+  };
+
   const handleSubmit = async (data: CreateProtocolRequest) => {
     // Check authentication before submitting
     if (!user) {
@@ -142,11 +165,24 @@ export default function ProtocolRegistration() {
 
         {/* Form Card */}
         <GlowCard glowColor="purple" className="bg-[#162030] border-[#2f466a] p-8">
-          <div className="flex items-center gap-3 mb-6">
-            <MaterialIcon name="description" className="text-2xl text-purple-400" />
-            <h2 className="text-2xl font-bold text-white font-['Space_Grotesk']">Protocol Details</h2>
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <MaterialIcon name="description" className="text-2xl text-purple-400" />
+              <h2 className="text-2xl font-bold text-white font-['Space_Grotesk']">Protocol Details</h2>
+            </div>
+            <GradientButton
+              variant="secondary"
+              onClick={handleAutofill}
+              disabled={isSubmitting || !user}
+              className="px-4 py-2"
+            >
+              <span className="flex items-center gap-2">
+                <MaterialIcon name="bolt" className="text-base" />
+                Try with ThunderLoan Example
+              </span>
+            </GradientButton>
           </div>
-          <ProtocolForm onSubmit={handleSubmit} isSubmitting={isSubmitting} />
+          <ProtocolForm onSubmit={handleSubmit} isSubmitting={isSubmitting} initialValues={initialValues} />
         </GlowCard>
 
         {/* Help Section */}
