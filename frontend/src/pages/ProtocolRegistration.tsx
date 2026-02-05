@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { MaterialIcon } from '../components/shared/MaterialIcon';
+import { GradientButton } from '../components/shared/GradientButton';
 import { GlowCard } from '../components/shared/GlowCard';
 import ProtocolForm from '../components/protocols/ProtocolForm';
 import { createProtocol, type CreateProtocolRequest } from '../lib/api';
