@@ -18,13 +18,26 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('=== Setup Real On-Chain Protocol ID ===\n');
 
+  // Check for protocol ID argument
+  const protocolIdArg = process.argv[2];
+
   // Get the protocol
-  const protocol = await prisma.protocol.findFirst({
-    where: { status: 'ACTIVE' }
-  });
+  let protocol;
+  if (protocolIdArg) {
+    console.log(`Looking for specific protocol: ${protocolIdArg}\n`);
+    protocol = await prisma.protocol.findUnique({
+      where: { id: protocolIdArg }
+    });
+  } else {
+    console.log('No protocol ID provided, finding first active protocol...\n');
+    protocol = await prisma.protocol.findFirst({
+      where: { status: 'ACTIVE' }
+    });
+  }
 
   if (!protocol) {
-    console.log('❌ No active protocol found');
+    console.log('❌ No protocol found');
+    console.log('Usage: npx tsx scripts/setup-real-onchain.ts [protocol-id]');
     await prisma.$disconnect();
     process.exit(1);
   }
