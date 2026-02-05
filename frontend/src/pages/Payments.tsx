@@ -14,9 +14,8 @@ export default function Payments() {
 
   const { data: statsData, isLoading: statsLoading } = usePaymentStats();
   const { data: leaderboardData, isLoading: leaderboardLoading } = usePaymentLeaderboard({ limit: 10 });
-  const { data: paymentsData, isLoading: paymentsLoading } = usePayments({ 
-    status: 'COMPLETED'
-  });
+  // Show all payments (not just COMPLETED) to see PENDING and FAILED too
+  const { data: paymentsData, isLoading: paymentsLoading } = usePayments({});
 
   const handleProposePayment = async (proposal: PaymentProposal) => {
     try {
