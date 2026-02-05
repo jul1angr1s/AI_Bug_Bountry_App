@@ -292,7 +292,7 @@ export class BountyPoolClient {
   }
 
   /**
-   * Get base bounty amount
+   * Get base bounty amount (formatted)
    */
   async getBaseBountyAmount(): Promise<number> {
     try {
@@ -300,6 +300,76 @@ export class BountyPoolClient {
       return Number(ethers.formatUnits(amount, usdcConfig.decimals));
     } catch (error: any) {
       throw new Error(`Failed to get base bounty amount: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get base bounty amount as raw bigint (for tests)
+   */
+  async getBaseBountyAmountRaw(): Promise<bigint> {
+    try {
+      return await this.contract.baseBountyAmount();
+    } catch (error: any) {
+      throw new Error(`Failed to get base bounty amount: ${error.message}`);
+    }
+  }
+
+  /**
+   * Calculate bounty amount as raw bigint (for tests)
+   */
+  async calculateBountyAmountRaw(severity: BountySeverity): Promise<bigint> {
+    try {
+      return await this.contract.calculateBountyAmount(severity);
+    } catch (error: any) {
+      throw new Error(`Failed to calculate bounty amount: ${error.message}`);
+    }
+  }
+
+  /**
+   * Update base bounty amount (admin only)
+   * @param amountUsdc New base amount in USDC (e.g., 1 for 1 USDC)
+   */
+  async updateBaseBountyAmount(amountUsdc: number): Promise<ContractTransactionResponse> {
+    try {
+      const amount = BigInt(Math.floor(amountUsdc * 10 ** usdcConfig.decimals));
+      
+      console.log('[BountyPool] Updating base bounty amount...');
+      console.log(`  New amount: ${amountUsdc} USDC (${amount} wei)`);
+
+      const tx: ContractTransactionResponse = await this.contract.updateBaseBountyAmount(amount);
+      console.log(`  Transaction sent: ${tx.hash}`);
+
+      return tx;
+    } catch (error: any) {
+      console.error('[BountyPool] Update base amount failed:', error);
+      throw new Error(`Failed to update base bounty amount: ${error.message}`);
+    }
+  }
+
+  /**
+   * Update severity multiplier (admin only)
+   * @param severity Severity level (0=CRITICAL, 1=HIGH, 2=MEDIUM, 3=LOW, 4=INFO)
+   * @param multiplier Multiplier in basis points (e.g., 50000 = 5x)
+   */
+  async updateSeverityMultiplier(
+    severity: BountySeverity,
+    multiplier: number
+  ): Promise<ContractTransactionResponse> {
+    try {
+      console.log('[BountyPool] Updating severity multiplier...');
+      console.log(`  Severity: ${BountySeverity[severity]} (${severity})`);
+      console.log(`  Multiplier: ${multiplier} basis points (${multiplier / 10000}x)`);
+
+      const tx: ContractTransactionResponse = await this.contract.updateSeverityMultiplier(
+        severity,
+        multiplier
+      );
+      console.log(`  Transaction sent: ${tx.hash}`);
+
+      return tx;
+    } catch (error: any) {
+      console.error('[BountyPool] Update multiplier failed:', error);
+      throw new Error(`Failed to update severity multiplier: ${error.message}`);
     }
   }
 

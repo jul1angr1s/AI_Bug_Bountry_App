@@ -67,7 +67,7 @@ contract BountyPoolTest is Test {
         bountyPool = new BountyPool(address(usdc));
 
         // Grant PAYOUT_ROLE to payout agent
-        bountyPool.grantPayoutRole(payoutAgent);
+        bountyPool.addPayer(payoutAgent);
 
         // Distribute USDC to test addresses
         usdc.transfer(protocolOwner, 100_000 * 10 ** 6); // 100k USDC
@@ -81,19 +81,19 @@ contract BountyPoolTest is Test {
     function test_GrantPayoutRole_Success() public {
         address newPayoutAgent = makeAddr("newPayoutAgent");
 
-        assertFalse(bountyPool.hasPayoutRole(newPayoutAgent), "Should not have payout role initially");
+        assertFalse(bountyPool.isPayer(newPayoutAgent), "Should not have payout role initially");
 
-        bountyPool.grantPayoutRole(newPayoutAgent);
+        bountyPool.addPayer(newPayoutAgent);
 
-        assertTrue(bountyPool.hasPayoutRole(newPayoutAgent), "Should have payout role after grant");
+        assertTrue(bountyPool.isPayer(newPayoutAgent), "Should have payout role after grant");
     }
 
     function test_RevokePayoutRole_Success() public {
-        assertTrue(bountyPool.hasPayoutRole(payoutAgent), "Should have payout role initially");
+        assertTrue(bountyPool.isPayer(payoutAgent), "Should have payout role initially");
 
-        bountyPool.revokePayoutRole(payoutAgent);
+        bountyPool.removePayer(payoutAgent);
 
-        assertFalse(bountyPool.hasPayoutRole(payoutAgent), "Should not have payout role after revoke");
+        assertFalse(bountyPool.isPayer(payoutAgent), "Should not have payout role after revoke");
     }
 
     function test_GrantPayoutRole_OnlyAdminCanGrant() public {
@@ -101,7 +101,7 @@ contract BountyPoolTest is Test {
 
         vm.prank(user);
         vm.expectRevert();
-        bountyPool.grantPayoutRole(newPayoutAgent);
+        bountyPool.addPayer(newPayoutAgent);
     }
 
     // =================
