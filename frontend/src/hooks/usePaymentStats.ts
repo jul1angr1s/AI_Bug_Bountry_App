@@ -31,9 +31,10 @@ export function usePaymentStats(filters?: UsePaymentStatsOptions) {
       if (filters?.protocolId) params.append('protocolId', filters.protocolId);
       if (filters?.groupBy) params.append('groupBy', filters.groupBy);
       if (filters?.days) params.append('days', filters.days.toString());
-      
+
       const response = await api.get(`/payments/stats?${params}`);
-      return response.data;
+      // Backend returns { data: stats, cached }, extract the nested data
+      return response.data?.data || response.data;
     },
     refetchInterval: 60000, // Refresh every 60s
     staleTime: 30000, // Consider fresh for 30s

@@ -22,9 +22,10 @@ export function usePaymentLeaderboard(options?: UsePaymentLeaderboardOptions) {
       if (options?.limit) params.append('limit', options.limit.toString());
       if (options?.startDate) params.append('startDate', options.startDate);
       if (options?.endDate) params.append('endDate', options.endDate);
-      
+
       const response = await api.get(`/payments/leaderboard?${params}`);
-      return response.data;
+      // Backend returns { data: leaderboard, cached }, extract the nested data
+      return response.data?.data || response.data;
     },
     refetchInterval: 60000, // Refresh every 60s
     staleTime: 30000, // Consider fresh for 30s
