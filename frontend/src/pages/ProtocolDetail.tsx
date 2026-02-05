@@ -83,9 +83,43 @@ export default function ProtocolDetail() {
     navigate('/protocols');
   };
 
-  const handleTriggerScan = () => {
-    // TODO: Implement scan triggering
-    console.log('Trigger scan for protocol:', id);
+  const handleTriggerScan = async () => {
+    if (!id) return;
+
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      const token = localStorage.getItem('token');
+
+      console.log('[ProtocolDetail] Triggering scan for protocol:', id);
+
+      const response = await fetch(`${apiUrl}/api/v1/scans`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          protocolId: id,
+          branch: 'main',
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log('[ProtocolDetail] Scan triggered successfully:', result);
+
+      // Show success message (you can add a toast notification here)
+      alert(`Scan triggered successfully! Scan ID: ${result.scanId}`);
+
+      // Refresh the page or invalidate queries to show the new scan
+      window.location.reload();
+    } catch (error) {
+      console.error('[ProtocolDetail] Failed to trigger scan:', error);
+      alert(`Failed to trigger scan: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   };
 
   // Loading state
