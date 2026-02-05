@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Github, ExternalLink, Play, FileText, Shield, AlertCircle, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { useProtocol, useProtocolRealtime } from '../hooks/useProtocol';
@@ -10,6 +10,10 @@ import StatusBadge from '../components/shared/StatusBadge';
 import RegistrationProgress from '../components/protocols/RegistrationProgress';
 import ScanProgressLive from '../components/protocols/ScanProgressLive';
 import { useLatestScan } from '../hooks/useLatestScan';
+import { useScanProgressLive } from '../hooks/useScanProgressLive';
+import { LiveTerminalOutput, LogMessage } from '../components/scans/modern/LiveTerminalOutput';
+import { MaterialIcon } from '../components/shared/MaterialIcon';
+import { mapScanProgressToLogs } from '../lib/scanProgressMapper';
 
 type TabType = 'overview' | 'scans' | 'findings' | 'payments';
 
@@ -17,10 +21,40 @@ export default function ProtocolDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabType>('overview');
+  const [showTerminal, setShowTerminal] = useState(false);
+  const [scanLogs, setScanLogs] = useState<LogMessage[]>([]);
 
   const { data: protocol, isLoading, isError, error } = useProtocol(id || '');
   useProtocolRealtime(id || '');
   const { data: latestScan } = useLatestScan(id || '');
+  const progressState = useScanProgressLive(latestScan?.id || null);
+
+  // Convert scan progress messages to terminal logs
+  useEffect(() => {
+    if (latestScan?.state === 'RUNNING' && progressState.message && progressState.currentStep) {
+      const log = mapScanProgressToLogs(
+        progressState.currentStep,
+        progressState.message,
+        new Date().toISOString()
+      );
+      
+      // Avoid duplicate logs
+      setScanLogs((prev) => {
+        const lastLog = prev[prev.length - 1];
+        if (lastLog && lastLog.message === log.message) {
+          return prev;
+        }
+        return [...prev, log];
+      });
+    }
+  }, [latestScan?.state, progressState.message, progressState.currentStep]);
+
+  // Clear logs when scan completes or changes
+  useEffect(() => {
+    if (!latestScan || latestScan.state !== 'RUNNING') {
+      setScanLogs([]);
+    }
+  }, [latestScan?.id, latestScan?.state]);
 
   // Fetch scans when scans tab is active
   const { data: scansData, isLoading: scansLoading } = useQuery({
@@ -235,6 +269,38 @@ export default function ProtocolDetail() {
                   <div className="bg-blue-500/5 border border-blue-500/20 rounded-lg p-6 mb-6">
                     <h4 className="text-base font-semibold text-white mb-4">Scan in Progress</h4>
                     <ScanProgressLive scanId={latestScan.id} />
+                  </div>
+                )}
+
+                {/* Live Terminal Output */}
+                {latestScan && latestScan.state === 'RUNNING' && scanLogs.length > 0 && (
+                  <div className="bg-[#0f1723] border border-gray-800 rounded-lg p-6 mb-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <MaterialIcon name="terminal" className="text-xl text-green-400" />
+                        <h4 className="text-base font-semibold text-white">Live Scan Output</h4>
+                        {progressState.isConnected && (
+                          <span className="flex items-center gap-1.5 text-xs text-green-400">
+                            <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                            Live
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => setShowTerminal(!showTerminal)}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg text-sm text-gray-300 hover:text-white transition-colors"
+                      >
+                        <MaterialIcon name={showTerminal ? 'expand_less' : 'expand_more'} className="text-lg" />
+                        <span>{showTerminal ? 'Hide' : 'Show'} Terminal</span>
+                      </button>
+                    </div>
+                    
+                    {showTerminal && (
+                      <LiveTerminalOutput
+                        logs={scanLogs}
+                        scanState={latestScan.state as 'RUNNING' | 'COMPLETED' | 'FAILED' | 'ABORTED'}
+                      />
+                    )}
                   </div>
                 )}
 

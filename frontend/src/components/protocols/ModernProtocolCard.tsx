@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Protocol } from '@/types/dashboard';
 import { GlowCard } from '../shared/GlowCard';
 import { MaterialIcon } from '../shared/MaterialIcon';
 import { PulseIndicator } from '../shared/PulseIndicator';
+import { ScanProgressModal } from './ScanProgressModal';
 
 interface ModernProtocolCardProps {
   protocol: Protocol;
@@ -10,6 +12,7 @@ interface ModernProtocolCardProps {
 
 export default function ModernProtocolCard({ protocol }: ModernProtocolCardProps) {
   const navigate = useNavigate();
+  const [showProgressModal, setShowProgressModal] = useState(false);
 
   const handleClick = () => {
     navigate(`/protocols/${protocol.id}`);
@@ -214,22 +217,54 @@ export default function ModernProtocolCard({ protocol }: ModernProtocolCardProps
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2">
-          <button
-            onClick={handleCodeClick}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-navy-900 border border-navy-700 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:border-gray-600 transition-all"
-          >
-            <MaterialIcon name="code" className="text-lg" />
-            <span>Code</span>
-          </button>
-          <button
-            onClick={handleDetailsClick}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg text-sm font-medium text-white hover:shadow-glow-purple transition-all"
-          >
-            <span>Details</span>
-            <MaterialIcon name="arrow_forward" className="text-lg" />
-          </button>
+          {protocol.status === 'PENDING' ? (
+            <>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowProgressModal(true);
+                }}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-sm font-medium text-blue-400 hover:bg-blue-500/30 transition-all"
+              >
+                <MaterialIcon name="terminal" className="text-lg animate-pulse" />
+                <span>View Progress</span>
+              </button>
+              <button
+                onClick={handleDetailsClick}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg text-sm font-medium text-white hover:shadow-glow-purple transition-all"
+              >
+                <span>Details</span>
+                <MaterialIcon name="arrow_forward" className="text-lg" />
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={handleCodeClick}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-navy-900 border border-navy-700 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:border-gray-600 transition-all"
+              >
+                <MaterialIcon name="code" className="text-lg" />
+                <span>Code</span>
+              </button>
+              <button
+                onClick={handleDetailsClick}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg text-sm font-medium text-white hover:shadow-glow-purple transition-all"
+              >
+                <span>Details</span>
+                <MaterialIcon name="arrow_forward" className="text-lg" />
+              </button>
+            </>
+          )}
         </div>
       </div>
+
+      {/* Scan Progress Modal */}
+      {showProgressModal && (
+        <ScanProgressModal
+          protocolId={protocol.id}
+          onClose={() => setShowProgressModal(false)}
+        />
+      )}
     </GlowCard>
   );
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { GradientButton } from '../shared/GradientButton';
 import { MaterialIcon } from '../shared/MaterialIcon';
 import type { CreateProtocolRequest } from '../../lib/api';
@@ -6,6 +6,7 @@ import type { CreateProtocolRequest } from '../../lib/api';
 interface ProtocolFormProps {
   onSubmit: (data: CreateProtocolRequest) => Promise<void>;
   isSubmitting?: boolean;
+  initialValues?: Partial<CreateProtocolRequest>;
 }
 
 interface FormErrors {
@@ -16,7 +17,7 @@ interface FormErrors {
   ownerAddress?: string;
 }
 
-export default function ProtocolForm({ onSubmit, isSubmitting = false }: ProtocolFormProps) {
+export default function ProtocolForm({ onSubmit, isSubmitting = false, initialValues }: ProtocolFormProps) {
   const [formData, setFormData] = useState<CreateProtocolRequest>({
     githubUrl: '',
     branch: 'main',
@@ -27,6 +28,16 @@ export default function ProtocolForm({ onSubmit, isSubmitting = false }: Protoco
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
+
+  // Update form data when initialValues prop changes
+  useEffect(() => {
+    if (initialValues) {
+      setFormData(prev => ({
+        ...prev,
+        ...initialValues
+      }));
+    }
+  }, [initialValues]);
 
   const validateGitHubUrl = (url: string): boolean => {
     const githubPattern = /^https:\/\/github\.com\/[\w-]+\/[\w.-]+$/;
