@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { MaterialIcon } from '../components/shared/MaterialIcon';
 import { GlowCard } from '../components/shared/GlowCard';
+import { GradientButton } from '../components/shared/GradientButton';
 import ProtocolForm from '../components/protocols/ProtocolForm';
 import { createProtocol, type CreateProtocolRequest } from '../lib/api';
 import { logDiagnostics } from '../lib/diagnostics';
@@ -13,6 +14,7 @@ export default function ProtocolRegistration() {
   const { user, loading: authLoading } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [initialValues, setInitialValues] = useState<Partial<CreateProtocolRequest> | undefined>(undefined);
 
   // Run diagnostics on mount to help debug issues
   useEffect(() => {
