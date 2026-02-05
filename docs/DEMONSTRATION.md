@@ -12,6 +12,9 @@ This guide walks you through the complete demonstration workflow using the Thund
 - Kimi 2.5 API key (Moonshot AI)
 - Base Sepolia testnet access
 - BountyPool contract deployed on Base Sepolia
+- Foundry installed (for `cast` verification commands)
+- Payer wallet funded with ETH (≥0.01 ETH for gas)
+- BountyPool funded with USDC (≥50 USDC for demo)
 
 ## Environment Setup
 
@@ -205,6 +208,192 @@ Navigate to `/payments` to see:
 - Researcher addresses
 - Transaction hashes (click to view on Basescan)
 - Amount and currency
+
+## Section 7: On-Chain USDC Payment Verification
+
+This section demonstrates real USDC payments on Base Sepolia blockchain for stakeholder verification.
+
+### 7.1 Pre-Flight Verification
+
+Before running the payment demonstration, verify all prerequisites:
+
+```bash
+cd backend
+npx tsx scripts/verify-demo-setup.ts
+```
+
+This checks:
+- ✅ Contract parameters (HIGH=5 USDC, MEDIUM=3 USDC, LOW=1 USDC)
+- ✅ BountyPool has ≥50 USDC
+- ✅ Payer wallet has ETH for gas (≥0.001 ETH)
+- ✅ Environment flags are correctly set
+- ✅ Contract addresses match deployed contracts
+
+**Expected output:**
+```
+🎉 Demo setup verification PASSED!
+
+Ready to run end-to-end demo:
+   1. Start backend: npm run dev
+   2. Register protocol
+   3. Trigger scan and validation
+   4. Verify payments on Basescan
+```
+
+### 7.2 Wallet Configuration
+
+The system uses two wallets (configured in `backend/.env`):
+
+| Wallet | Environment Variable | Role |
+|--------|---------------------|------|
+| Payer | `PRIVATE_KEY` | Executes payments (has PAYOUT_ROLE on BountyPool) |
+| Researcher | `PRIVATE_KEY2` | Receives USDC bounty payments |
+
+**Derive wallet addresses:**
+```bash
+# Payer wallet address
+cast wallet address --private-key $PRIVATE_KEY
+
+# Researcher wallet address
+cast wallet address --private-key $PRIVATE_KEY2
+```
+
+### 7.3 Triggering an On-Chain Payment
+
+**Method A: Full Flow (Recommended for Demo)**
+
+1. Register a protocol (creates scan automatically)
+2. Wait for scan completion (findings discovered)
+3. Wait for validation (findings validated by AI)
+4. Payment is automatically queued and executed on-chain
+
+**Method B: Manual Trigger (Quick Test)**
+
+```bash
+cd backend
+npx tsx scripts/force-validate-finding.ts
+```
+
+This validates a pending finding and triggers the payment queue immediately.
+
+### 7.4 Monitoring Payment Execution
+
+Watch the backend console for payment processing:
+
+```
+[Payment Worker] Processing payment abc-123
+  Validation ID: 0x...
+  Protocol ID: 0x...
+[BountyPool] Releasing bounty...
+  Protocol ID: 0x...
+  Researcher: 0x6b26...166
+  Severity: HIGH
+[BountyPool] Transaction sent: 0x1234...abcd
+  Waiting for confirmation...
+[BountyPool] Transaction confirmed in block 12345678
+[BountyPool] Bounty released successfully!
+  Bounty ID: 0x...
+  Amount: 5.0 USDC
+  TX Hash: 0x1234...abcd
+[Payment Worker] Payment abc-123 completed successfully
+```
+
+### 7.5 On-Chain Verification
+
+#### View Transaction on Basescan
+
+After payment completes, verify on Basescan:
+
+```
+https://sepolia.basescan.org/tx/<TX_HASH>
+```
+
+The transaction shows:
+- From: BountyPool contract (`0x6D0bA6dA342c4ce75281Ea90c71017BC94A397b0`)
+- USDC transfer to researcher wallet
+- Exact amount based on severity
+
+#### Verify Using Cast (CLI)
+
+```bash
+# Check researcher USDC balance
+cast call 0x036CbD53842c5426634e7929541eC2318f3dCF7e \
+  "balanceOf(address)(uint256)" \
+  <RESEARCHER_ADDRESS> \
+  --rpc-url https://sepolia.base.org
+
+# Check BountyPool remaining USDC balance
+cast call 0x036CbD53842c5426634e7929541eC2318f3dCF7e \
+  "balanceOf(address)(uint256)" \
+  0x6D0bA6dA342c4ce75281Ea90c71017BC94A397b0 \
+  --rpc-url https://sepolia.base.org
+
+# Check payer has PAYOUT_ROLE
+cast call 0x6D0bA6dA342c4ce75281Ea90c71017BC94A397b0 \
+  "isPayer(address)(bool)" \
+  <PAYER_ADDRESS> \
+  --rpc-url https://sepolia.base.org
+```
+
+#### Monitor BountyPool Events
+
+View all bounty release events:
+```
+https://sepolia.basescan.org/address/0x6D0bA6dA342c4ce75281Ea90c71017BC94A397b0#events
+```
+
+### 7.6 Frontend Verification
+
+Navigate to `http://localhost:5173/payments`:
+
+1. **Total Bounty Pool** - Shows pool balance (e.g., $50.00 USDC)
+2. **Total Paid** - Cumulative payments made
+3. **Recent Payouts Table** - Shows all completed payments
+4. **TX Column** - Click the external link icon to open Basescan transaction
+5. **Amount** - Displays USDC value based on severity
+6. **Researcher** - Shows truncated wallet address (e.g., `0x6b26...166`)
+
+### 7.7 Payment Amounts by Severity
+
+| Severity | USDC Amount | Multiplier |
+|----------|-------------|------------|
+| CRITICAL | 10 USDC | 10x |
+| HIGH | 5 USDC | 5x |
+| MEDIUM | 3 USDC | 3x |
+| LOW | 1 USDC | 1x |
+| INFO | 0.25 USDC | 0.25x |
+
+### 7.8 Fund BountyPool (If Needed)
+
+If the pool balance is low, fund it:
+
+```bash
+cd backend
+npx tsx scripts/fund-bounty-pool.ts 50
+```
+
+This deposits 50 USDC from the payer wallet to the BountyPool.
+
+### 7.9 Stakeholder Verification Checklist
+
+For stakeholders to verify real transactions:
+
+1. **Basescan Transaction**: Open TX link from payments page
+   - Confirms USDC was transferred
+   - Shows exact amount and recipient
+
+2. **Researcher Wallet History**:
+   `https://sepolia.basescan.org/address/<RESEARCHER_ADDRESS>#tokentxns`
+   - Shows incoming USDC transfers
+
+3. **BountyPool Activity**:
+   `https://sepolia.basescan.org/address/0x6D0bA6dA342c4ce75281Ea90c71017BC94A397b0#events`
+   - Shows `BountyReleased` events with bountyId, researcher, severity, amount
+
+4. **Database Reconciliation**:
+   - Payment status = COMPLETED
+   - `txHash` field populated
+   - `paidAt` timestamp set
 
 ## API Endpoints
 
@@ -524,6 +713,65 @@ grep "FRONTEND_URL" backend/.env
 cd backend
 npm run dev | grep -i cors
 ```
+
+#### "AccessControlUnauthorizedAccount" in Payment
+
+**Cause**: Payer wallet doesn't have PAYOUT_ROLE on BountyPool contract
+
+**Diagnosis**:
+```bash
+# Check if payer has PAYOUT_ROLE
+cast call 0x6D0bA6dA342c4ce75281Ea90c71017BC94A397b0 \
+  "isPayer(address)(bool)" \
+  <PAYER_ADDRESS> \
+  --rpc-url https://sepolia.base.org
+```
+
+**Solution**: If returns `false`, the contract owner must grant the PAYOUT_ROLE to the payer wallet address.
+
+#### Payment Stuck in PENDING Status
+
+**Cause**: Payment worker not processing jobs
+
+**Checks**:
+1. Redis is running: `redis-cli ping` → PONG
+2. Backend shows `[Payment Worker] Running...` in logs
+3. No errors in backend console
+
+**Solution**:
+```bash
+# Restart backend to reinitialize workers
+cd backend
+npm run dev
+
+# Check queue status
+npx tsx scripts/check-queue-status.ts
+```
+
+#### "Protocol not registered on-chain" Error
+
+**Cause**: Protocol missing `onChainProtocolId`
+
+**Note**: With `SKIP_ONCHAIN_REGISTRATION=true` in `.env`, protocols use a derived ID:
+```javascript
+onChainProtocolId = ethers.id(protocol.id)
+```
+
+This is fine for demo purposes. The payment system will derive the ID automatically.
+
+#### Transaction Stuck / Gas Issues
+
+**Cause**: Payer wallet has insufficient ETH for gas
+
+**Diagnosis**:
+```bash
+# Check ETH balance
+cast balance <PAYER_ADDRESS> --rpc-url https://sepolia.base.org
+```
+
+**Solution**:
+- Get testnet ETH from faucet: https://www.alchemy.com/faucets/base-sepolia
+- Or: https://www.coinbase.com/faucets/base-ethereum-sepolia-faucet
 
 ### Tips for Successful Demonstration
 
