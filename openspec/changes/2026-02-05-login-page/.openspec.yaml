@@ -1,0 +1,15 @@
+name: login-page-implementation
+schema: spec-driven
+version: 1.0.0
+status: in_progress
+created: 2026-02-05
+component: Frontend
+layers:
+  - UI
+  - Routing
+  - Authentication
+artifacts:
+  proposal: true
+  design: true
+  tasks: true
+  spec: false
