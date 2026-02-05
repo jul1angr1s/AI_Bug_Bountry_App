@@ -5,6 +5,7 @@ import { GlowCard } from '../shared/GlowCard';
 import { MaterialIcon } from '../shared/MaterialIcon';
 import { PulseIndicator } from '../shared/PulseIndicator';
 import { ScanProgressModal } from './ScanProgressModal';
+import { useLatestScan } from '@/hooks/useLatestScan';
 
 interface ModernProtocolCardProps {
   protocol: Protocol;
@@ -13,6 +14,7 @@ interface ModernProtocolCardProps {
 export default function ModernProtocolCard({ protocol }: ModernProtocolCardProps) {
   const navigate = useNavigate();
   const [showProgressModal, setShowProgressModal] = useState(false);
+  const { data: latestScan } = useLatestScan(protocol.id);
 
   const handleClick = () => {
     navigate(`/protocols/${protocol.id}`);
@@ -118,6 +120,16 @@ export default function ModernProtocolCard({ protocol }: ModernProtocolCardProps
 
   const statusConfig = getStatusConfig(protocol.status);
 
+  // Check if there's an active scan running
+  const hasActiveScan = latestScan && (
+    latestScan.state === 'RUNNING' || 
+    latestScan.state === 'QUEUED' || 
+    latestScan.state === 'PENDING'
+  );
+
+  // Show progress view if protocol is pending registration OR has an active scan
+  const showProgressView = protocol.status === 'PENDING' || hasActiveScan;
+
   return (
     <GlowCard
       glowColor="purple"
@@ -217,7 +229,7 @@ export default function ModernProtocolCard({ protocol }: ModernProtocolCardProps
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2">
-          {protocol.status === 'PENDING' ? (
+          {showProgressView ? (
             <>
               <button
                 onClick={(e) => {
