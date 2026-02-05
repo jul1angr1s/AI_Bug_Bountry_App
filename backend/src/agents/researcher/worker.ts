@@ -56,10 +56,16 @@ export function createResearcherWorker(): Worker<ScanJobData> {
       
       // Get agent ID (in production, this would be the current worker's agent)
       const prisma = getPrismaClient();
+      // Find an available researcher agent - accept ONLINE or SCANNING status
+      // The worker concurrency (set to 2) already controls parallel job capacity
+      // so this check should not block jobs when the agent is busy
       const agent = await prisma.agent.findFirst({
-        where: { type: 'RESEARCHER', status: 'ONLINE' },
+        where: {
+          type: 'RESEARCHER',
+          status: { in: ['ONLINE', 'SCANNING'] },
+        },
       });
-      
+
       if (!agent) {
         throw new Error('No available Researcher Agent found');
       }

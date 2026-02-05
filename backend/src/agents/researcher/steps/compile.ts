@@ -51,7 +51,7 @@ export async function executeCompileStep(params: CompileStepParams): Promise<Com
     if (!hasFoundryConfig) {
       console.log('[Compile] Initializing Foundry project...');
       try {
-        await execAsync('forge init --force --no-commit', { cwd: clonedPath });
+        await execAsync('forge init --force --no-git', { cwd: clonedPath });
       } catch (initError) {
         console.log('[Compile] Init failed, continuing anyway:', initError);
       }
@@ -60,7 +60,7 @@ export async function executeCompileStep(params: CompileStepParams): Promise<Com
     // Install dependencies
     try {
       console.log('[Compile] Installing dependencies...');
-      await execAsync('forge install --no-commit', {
+      await execAsync('forge install --no-git', {
         cwd: clonedPath,
         timeout: 60000, // 60 second timeout
       });
