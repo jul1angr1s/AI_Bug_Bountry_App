@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { fetchScans, type Scan } from '../lib/api';
+import { fetchScans, fetchScan, fetchScanFindings, type Scan, type Finding } from '../lib/api';
 import { useEffect } from 'react';
 
 interface UseScanOptions {
@@ -88,4 +88,31 @@ export function usePrefetchScans(options: UseScanOptions = {}) {
   };
 
   return { prefetchNextPage };
+}
+
+/**
+ * Hook to fetch a single scan by ID
+ */
+export function useScan(scanId: string) {
+  return useQuery<Scan>({
+    queryKey: ['scan', scanId],
+    queryFn: () => fetchScan(scanId),
+    staleTime: 10000, // Consider data fresh for 10 seconds
+    refetchInterval: (scan) => {
+      // Refetch every 10s if scan is running, otherwise don't auto-refetch
+      return scan?.state === 'RUNNING' ? 10000 : false;
+    },
+  });
+}
+
+/**
+ * Hook to fetch findings for a scan
+ */
+export function useScanFindings(scanId: string) {
+  return useQuery<{ scanId: string; findings: Finding[]; total: number }>({
+    queryKey: ['scan-findings', scanId],
+    queryFn: () => fetchScanFindings(scanId),
+    staleTime: 30000, // Consider data fresh for 30 seconds
+    refetchInterval: 30000, // Refetch every 30 seconds
+  });
 }
