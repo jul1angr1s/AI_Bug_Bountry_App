@@ -1255,3 +1255,87 @@ export async function getPoolStatus(protocolId: string): Promise<PoolStatusResul
     };
   }
 }
+
+/**
+ * Propose manual payment for a researcher
+ * This creates a payment proposal that can be reviewed by admins
+ */
+export async function proposeManualPayment(data: {
+  protocolId: string;
+  recipientAddress: string;
+  severity: 'HIGH' | 'MEDIUM' | 'LOW';
+  justification: string;
+  proposedBy: string;
+}): Promise<{
+  success: boolean;
+  proposal?: any;
+  error?: { code: string; message: string };
+}> {
+  try {
+    // Validate protocol exists
+    const protocol = await prisma.protocol.findUnique({
+      where: { id: data.protocolId },
+    });
+
+    if (!protocol) {
+      return {
+        success: false,
+        error: {
+          code: 'PROTOCOL_NOT_FOUND',
+          message: `Protocol ${data.protocolId} not found`,
+        },
+      };
+    }
+
+    // Calculate amount based on severity
+    const severityMap: Record<string, number> = {
+      HIGH: 5,
+      MEDIUM: 3,
+      LOW: 1,
+    };
+    const amount = severityMap[data.severity];
+
+    // Check if protocol has sufficient balance
+    const availableBounty = protocol.availableBounty || protocol.totalBountyPool;
+    if (availableBounty < amount) {
+      return {
+        success: false,
+        error: {
+          code: 'INSUFFICIENT_BALANCE',
+          message: `Insufficient pool balance. Required: ${amount} USDC, Available: ${availableBounty} USDC`,
+        },
+      };
+    }
+
+    // Create payment proposal
+    // Note: This is a simplified version. In production, you'd want a PaymentProposal table
+    // For now, we'll return the proposal data without storing it
+    const proposal = {
+      id: `proposal-${Date.now()}`,
+      protocolId: data.protocolId,
+      recipientAddress: data.recipientAddress,
+      severity: data.severity,
+      amount,
+      justification: data.justification,
+      proposedBy: data.proposedBy,
+      status: 'PENDING_REVIEW',
+      createdAt: new Date().toISOString(),
+    };
+
+    console.log('[PaymentService] Manual payment proposed:', proposal);
+
+    return {
+      success: true,
+      proposal,
+    };
+  } catch (error: any) {
+    console.error('[PaymentService] Error proposing manual payment:', error);
+    return {
+      success: false,
+      error: {
+        code: 'PROPOSAL_ERROR',
+        message: error.message || 'Failed to create payment proposal',
+      },
+    };
+  }
+}
