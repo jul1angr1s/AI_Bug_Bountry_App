@@ -9,6 +9,9 @@ export default {
       fontFamily: {
         sans: ['"Noto Sans"', 'sans-serif'],
         heading: ['"Space Grotesk"', 'sans-serif'],
+        display: ['"Space Grotesk"', 'sans-serif'],
+        body: ['"Noto Sans"', 'sans-serif'],
+        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', 'monospace'],
       },
       colors: {
         navy: {
@@ -20,6 +23,9 @@ export default {
           DEFAULT: '#0663f9',
           hover: '#0552d6',
         },
+        'background-dark': '#0f1723',
+        'surface-dark': '#1a2432',
+        'surface-border': '#21314a',
         accent: {
           cyan: '#00f0ff',
           purple: '#bd00ff',
