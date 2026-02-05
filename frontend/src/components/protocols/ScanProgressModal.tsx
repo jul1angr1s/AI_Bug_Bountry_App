@@ -16,9 +16,18 @@ export function ScanProgressModal({ protocolId, onClose }: ScanProgressModalProp
   const progressState = useScanProgressLive(latestScan?.id || null);
   const [logs, setLogs] = useState<LogMessage[]>([]);
 
+  // Debug logging
+  useEffect(() => {
+    console.log('[ScanProgressModal] Protocol ID:', protocolId);
+    console.log('[ScanProgressModal] Latest Scan:', latestScan);
+    console.log('[ScanProgressModal] Progress State:', progressState);
+  }, [protocolId, latestScan, progressState]);
+
   // Convert progress messages to terminal logs
   useEffect(() => {
     if (progressState.message && progressState.currentStep) {
+      console.log('[ScanProgressModal] New progress message:', progressState.message);
+      
       const log = mapScanProgressToLogs(
         progressState.currentStep,
         progressState.message,

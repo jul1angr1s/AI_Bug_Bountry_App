@@ -97,63 +97,58 @@ async function processPayment(job: Job<PaymentJobData>): Promise<void> {
     console.log(`  Address: ${researcherAddress}`);
 
     // Step 4: Verify validation outcome is CONFIRMED (Task 5.2)
-    const offchainValidation = process.env.PAYMENT_OFFCHAIN_VALIDATION === 'true';
+    // Always verify on-chain validation - no demo mode
+    const validationClient = new ValidationRegistryClient();
+    let onChainValidation;
 
-    if (!offchainValidation) {
-      const validationClient = new ValidationRegistryClient();
-      let onChainValidation;
+    try {
+      onChainValidation = await validationClient.getValidation(validationId);
 
-      try {
-        onChainValidation = await validationClient.getValidation(validationId);
+      if (!onChainValidation.exists) {
+        throw new Error(`Validation not found on-chain: ${validationId}`);
+      }
 
-        if (!onChainValidation.exists) {
-          throw new Error(`Validation not found on-chain: ${validationId}`);
-        }
+      if (onChainValidation.outcome !== ValidationOutcome.CONFIRMED) {
+        const outcomeNames = ['CONFIRMED', 'REJECTED', 'INCONCLUSIVE'];
+        const outcomeName = outcomeNames[onChainValidation.outcome] || 'UNKNOWN';
 
-        if (onChainValidation.outcome !== ValidationOutcome.CONFIRMED) {
-          const outcomeNames = ['CONFIRMED', 'REJECTED', 'INCONCLUSIVE'];
-          const outcomeName = outcomeNames[onChainValidation.outcome] || 'UNKNOWN';
+        console.error('[PaymentWorker] Validation outcome is not CONFIRMED');
+        console.error(`  Validation ID: ${validationId}`);
+        console.error(`  Outcome: ${outcomeName}`);
 
-          console.error('[PaymentWorker] Validation outcome is not CONFIRMED');
-          console.error(`  Validation ID: ${validationId}`);
-          console.error(`  Outcome: ${outcomeName}`);
-
-          await prisma.payment.update({
-            where: { id: paymentId },
-            data: {
-              status: 'FAILED',
-              failureReason: `Validation outcome is ${outcomeName}, expected CONFIRMED`,
-            },
-          });
-
-          await emitPaymentFailed(
-            protocolId,
-            paymentId,
-            `Validation outcome is ${outcomeName}`,
-            payment.retryCount,
-            validationId
-          );
-
-          // Don't retry - this is a permanent failure
-          return;
-        }
-
-        console.log('[PaymentWorker] Validation outcome verified: CONFIRMED');
-      } catch (error: any) {
-        console.error('[PaymentWorker] Failed to verify validation:', error.message);
-
-        // Increment retry count and re-throw for BullMQ retry
         await prisma.payment.update({
           where: { id: paymentId },
           data: {
-            retryCount: payment.retryCount + 1,
+            status: 'FAILED',
+            failureReason: `Validation outcome is ${outcomeName}, expected CONFIRMED`,
           },
         });
 
-        throw new Error(`Failed to verify validation: ${error.message}`);
+        await emitPaymentFailed(
+          protocolId,
+          paymentId,
+          `Validation outcome is ${outcomeName}`,
+          payment.retryCount,
+          validationId
+        );
+
+        // Don't retry - this is a permanent failure
+        return;
       }
-    } else {
-      console.warn('[PaymentWorker] Off-chain validation enabled - skipping on-chain validation check');
+
+      console.log('[PaymentWorker] Validation outcome verified: CONFIRMED');
+    } catch (error: any) {
+      console.error('[PaymentWorker] Failed to verify validation:', error.message);
+
+      // Increment retry count and re-throw for BullMQ retry
+      await prisma.payment.update({
+        where: { id: paymentId },
+        data: {
+          retryCount: payment.retryCount + 1,
+        },
+      });
+
+      throw new Error(`Failed to verify validation: ${error.message}`);
     }
 
     // Step 5: Map severity to BountySeverity enum
@@ -174,45 +169,19 @@ async function processPayment(job: Job<PaymentJobData>): Promise<void> {
     console.log(`  On-chain Protocol ID: ${onChainProtocolId}`);
 
     // Step 6: Call BountyPool.releaseBounty() (Task 5.3)
-    // Check for demo mode - skip on-chain payment if enabled
-    const skipOnchainPayment = process.env.SKIP_ONCHAIN_PAYMENT === 'true';
-    
+    // Always execute real on-chain payment - no demo mode
+    const bountyClient = new BountyPoolClient();
     let releaseResult;
-    
-    if (skipOnchainPayment) {
-      // Demo mode: Simulate successful payment without on-chain call
-      console.log('[PaymentWorker] DEMO MODE: Skipping on-chain payment');
-      console.log(`  Amount: ${payment.amount} USDC`);
-      console.log(`  Researcher: ${researcherAddress}`);
-      
-      // Create mock release result
-      const mockTxHash = `0xdemo${Date.now().toString(16).padStart(56, '0')}`;
-      const mockBountyId = ethers.id(`${paymentId}:${Date.now()}`);
-      
-      releaseResult = {
-        txHash: mockTxHash,
-        blockNumber: Math.floor(Date.now() / 1000),
-        amount: BigInt(Math.floor(payment.amount * 10 ** usdcConfig.decimals)),
-        bountyId: mockBountyId,
-        timestamp: Math.floor(Date.now() / 1000),
-      };
-      
-      console.log('[PaymentWorker] DEMO MODE: Payment simulated successfully!');
-      console.log(`  Mock TX Hash: ${releaseResult.txHash}`);
-      console.log(`  Amount: ${payment.amount} USDC`);
-    } else {
-      // Production mode: Execute on-chain payment
-      const bountyClient = new BountyPoolClient();
 
-      console.log('[PaymentWorker] Calling BountyPool.releaseBounty()...');
+    console.log('[PaymentWorker] Calling BountyPool.releaseBounty()...');
 
-      try {
-        releaseResult = await bountyClient.releaseBounty(
-          onChainProtocolId, // Use the bytes32 on-chain ID, not UUID
-          validationId,
-          researcherAddress,
-          severity
-        );
+    try {
+      releaseResult = await bountyClient.releaseBounty(
+        onChainProtocolId, // Use the bytes32 on-chain ID, not UUID
+        validationId,
+        researcherAddress,
+        severity
+      );
 
         console.log('[PaymentWorker] Bounty released successfully!');
         console.log(`  TX Hash: ${releaseResult.txHash}`);
@@ -260,7 +229,6 @@ async function processPayment(job: Job<PaymentJobData>): Promise<void> {
       });
 
       throw error; // Re-throw to trigger BullMQ retry
-      }
     }
 
     // Step 7: Update Payment record on success (Task 5.3)

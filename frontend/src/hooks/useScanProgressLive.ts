@@ -39,9 +39,9 @@ export function useScanProgressLive(scanId: string | null) {
   });
 
   const eventSourceRef = useRef<EventSource | null>(null);
-  const useSSE = false; // Prefer WebSocket, set to true for SSE fallback
+  const useSSE = true; // Use SSE for scan progress (WebSocket requires Socket.IO client for room support)
 
-  // WebSocket approach
+  // WebSocket approach (disabled - requires Socket.IO client)
   useEffect(() => {
     if (!scanId || useSSE) {
       return;

@@ -48,6 +48,14 @@ contract IntegrationTest is Test {
 
     uint256 constant INITIAL_DEPOSIT = 10_000 * 10 ** 6; // 10k USDC
 
+    // Struct for test vulnerabilities
+    struct Vulnerability {
+        string vulnType;
+        ValidationRegistry.Severity severity;
+        BountyPool.Severity payoutSeverity;
+        address researcher;
+    }
+
     function setUp() public {
         platformAdmin = address(this);
         protocolOwner = makeAddr("protocolOwner");
@@ -198,13 +206,6 @@ contract IntegrationTest is Test {
         vm.stopPrank();
 
         // Define 3 vulnerabilities with different severities
-        struct Vulnerability {
-            string vulnType;
-            ValidationRegistry.Severity severity;
-            BountyPool.Severity payoutSeverity;
-            address researcher;
-        }
-
         Vulnerability[] memory vulns = new Vulnerability[](3);
         vulns[0] = Vulnerability({
             vulnType: "Flash Loan Reentrancy",
