@@ -430,7 +430,7 @@ export async function emitScanCompleted(
   if (!ioInstance) return;
 
   const duration = Date.now() - startedAt.getTime();
-  
+
   const event: ScanCompletedEvent = {
     eventType: 'scan:completed',
     timestamp: new Date().toISOString(),
@@ -448,9 +448,83 @@ export async function emitScanCompleted(
   // Emit to protocol room and scans room
   ioInstance.to(`protocol:${protocolId}`).emit('scan:completed', event);
   ioInstance.to('scans').emit('scan:completed', event);
-  
+
   // Invalidate caches
   await invalidateCachePattern(`dashboard:stats:*`);
   await invalidateCache(`protocol:scans:${protocolId}`);
   await invalidateCache(`scan:${scanId}`);
+}
+
+// Funding Gate WebSocket Event Types
+export interface ProtocolFundingStateChangedEvent {
+  eventType: 'protocol:funding_state_changed';
+  timestamp: string;
+  protocolId: string;
+  data: {
+    fundingState: string;
+    onChainBalance: number;
+    canRequestScan: boolean;
+  };
+}
+
+export interface ProtocolScanRequestedEvent {
+  eventType: 'protocol:scan_requested';
+  timestamp: string;
+  protocolId: string;
+  data: {
+    scanId: string;
+    branch: string;
+  };
+}
+
+// Funding event emitters
+export async function emitProtocolFundingStateChange(
+  protocolId: string,
+  data: {
+    fundingState: string;
+    onChainBalance: number;
+    canRequestScan: boolean;
+  }
+): Promise<void> {
+  if (!ioInstance) return;
+
+  const event: ProtocolFundingStateChangedEvent = {
+    eventType: 'protocol:funding_state_changed',
+    timestamp: new Date().toISOString(),
+    protocolId,
+    data,
+  };
+
+  // Emit to protocol room
+  ioInstance.to(`protocol:${protocolId}`).emit('protocol:funding_state_changed', event);
+  ioInstance.to('protocols').emit('protocol:funding_state_changed', event);
+
+  // Invalidate caches
+  await invalidateCachePattern(`dashboard:stats:*`);
+  await invalidateCache(`protocol:${protocolId}`);
+}
+
+export async function emitProtocolScanRequested(
+  protocolId: string,
+  data: {
+    scanId: string;
+    branch: string;
+  }
+): Promise<void> {
+  if (!ioInstance) return;
+
+  const event: ProtocolScanRequestedEvent = {
+    eventType: 'protocol:scan_requested',
+    timestamp: new Date().toISOString(),
+    protocolId,
+    data,
+  };
+
+  // Emit to protocol room
+  ioInstance.to(`protocol:${protocolId}`).emit('protocol:scan_requested', event);
+  ioInstance.to('protocols').emit('protocol:scan_requested', event);
+
+  // Invalidate caches
+  await invalidateCachePattern(`dashboard:stats:*`);
+  await invalidateCache(`protocol:scans:${protocolId}`);
 }

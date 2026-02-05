@@ -11,8 +11,7 @@ import { cloneRepository, cleanupRepository } from './steps/clone.js';
 import { verifyContractPath, listSolidityFiles } from './steps/verify.js';
 import { compileContract, calculateRiskScore } from './steps/compile.js';
 import { ProtocolRegistryClient } from '../../blockchain/index.js';
-import { scanRepository } from '../../db/repositories.js';
-import { enqueueScan } from '../../queues/scanQueue.js';
+import { setAwaitingFunding } from '../../services/funding.service.js';
 
 const prisma = getPrismaClient();
 
@@ -302,54 +301,44 @@ export async function processProtocolRegistration(
     );
 
     // =================
-    // STEP 7: Trigger Automatic Scan
+    // STEP 7: Set Funding State to AWAITING_FUNDING
     // =================
-    await emitAgentTaskUpdate('protocol-agent', 'Triggering vulnerability scan', 96);
+    // NOTE: Auto-scan has been removed. Scans are now gated behind funding verification.
+    // Protocol owners must fund their bounty pool before requesting researcher scans.
+    await emitAgentTaskUpdate('protocol-agent', 'Setting up funding gate', 96);
     await emitProtocolRegistrationProgress(
       protocolId,
-      'TRIGGER_SCAN',
+      'FUNDING_GATE',
       'IN_PROGRESS',
       96,
-      'Triggering vulnerability scan'
+      'Setting up funding requirement'
     );
     await job.updateProgress(96);
 
     try {
-      // Create scan job in database
-      const scan = await scanRepository.createScan({
-        protocolId,
-        targetBranch: protocol.branch,
-      });
+      // Set protocol to AWAITING_FUNDING state
+      await setAwaitingFunding(protocolId);
 
-      console.log(`[Protocol Agent] Created scan ${scan.id} for protocol ${protocolId}`);
-
-      // Enqueue scan job for researcher agent
-      await enqueueScan({
-        scanId: scan.id,
-        protocolId,
-        targetBranch: protocol.branch,
-      });
-
-      console.log(`[Protocol Agent] Enqueued scan ${scan.id} for processing`);
+      console.log(`[Protocol Agent] Protocol ${protocolId} set to AWAITING_FUNDING`);
+      console.log(`[Protocol Agent] Owner must fund the bounty pool before requesting scans`);
 
       await emitProtocolRegistrationProgress(
         protocolId,
-        'TRIGGER_SCAN',
+        'FUNDING_GATE',
         'COMPLETED',
         98,
-        'Vulnerability scan started'
+        'Protocol ready for funding - scans gated until funded'
       );
-    } catch (scanError) {
+    } catch (fundingError) {
       // Log error but don't fail the registration
-      console.error(`[Protocol Agent] Failed to trigger automatic scan:`, scanError);
-      console.log(`[Protocol Agent] Protocol registration succeeded, but scan must be triggered manually`);
+      console.error(`[Protocol Agent] Failed to set AWAITING_FUNDING state:`, fundingError);
 
       await emitProtocolRegistrationProgress(
         protocolId,
-        'TRIGGER_SCAN',
+        'FUNDING_GATE',
         'FAILED',
         98,
-        'Failed to trigger scan, must start manually'
+        'Failed to set funding state'
       );
     }
 

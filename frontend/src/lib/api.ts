@@ -145,8 +145,17 @@ export async function fetchProtocol(protocolId: string): Promise<any> {
       totalBountyPool: protocol.totalBountyPool,
       availableBounty: protocol.availableBounty,
       paidBounty: protocol.paidBounty,
+      bountyTerms: protocol.bountyTerms,
       createdAt: protocol.createdAt,
       updatedAt: protocol.updatedAt,
+      // Funding Gate fields
+      onChainProtocolId: protocol.onChainProtocolId,
+      bountyPoolAmount: protocol.bountyPoolAmount,
+      fundingState: protocol.fundingState as FundingState | null,
+      fundingTxHash: protocol.fundingTxHash,
+      fundingVerifiedAt: protocol.fundingVerifiedAt,
+      minimumBountyRequired: protocol.minimumBountyRequired || 25,
+      canRequestScan: protocol.canRequestScan || false,
       // Map stats to root level for easier access
       scansCount: protocol.stats?.scanCount || 0,
       vulnerabilitiesCount: protocol.stats?.vulnerabilityCount || 0,
@@ -392,6 +401,7 @@ export interface CreateProtocolRequest {
   contractName: string;
   bountyTerms: string;
   ownerAddress: string;
+  bountyPoolAmount?: number; // Requested bounty pool in USDC (min 25)
 }
 
 export interface CreateProtocolResponse {
@@ -602,7 +612,9 @@ export async function fetchUSDCAllowance(
     throw new Error(error.message || `Failed to fetch USDC allowance: ${response.statusText}`);
   }
 
-  return response.json();
+  const result = await response.json();
+  // Backend wraps response in { data: { ... } }
+  return result.data;
 }
 
 /**
@@ -782,4 +794,129 @@ export async function fetchBountyPoolStatus(
   }
 
   return response.json();
+}
+
+// ========== Funding Gate API Functions ==========
+
+export type FundingState = 'AWAITING_FUNDING' | 'FUNDED' | 'UNDERFUNDED';
+
+/**
+ * Response from verify-funding API
+ */
+export interface VerifyFundingResponse {
+  fundingState: FundingState;
+  onChainBalance: number;
+  requestedAmount: number;
+  canRequestScan: boolean;
+  message: string;
+}
+
+/**
+ * Response from funding-status API
+ */
+export interface FundingStatusResponse {
+  fundingState: FundingState | null;
+  bountyPoolAmount: number | null;
+  minimumBountyRequired: number;
+  fundingTxHash: string | null;
+  fundingVerifiedAt: string | null;
+  onChainBalance: number;
+  canRequestScan: boolean;
+}
+
+/**
+ * Verify protocol funding by checking on-chain balance
+ */
+export async function verifyProtocolFunding(
+  protocolId: string
+): Promise<VerifyFundingResponse> {
+  const headers = await getAuthHeaders();
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/protocols/${protocolId}/verify-funding`,
+    {
+      method: 'POST',
+      headers,
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: response.statusText }));
+    throw new Error(error.error?.message || `Failed to verify funding: ${response.statusText}`);
+  }
+
+  const result = await response.json();
+  return result.data;
+}
+
+/**
+ * Request a scan for a funded protocol
+ */
+export async function requestProtocolScan(
+  protocolId: string,
+  branch?: string
+): Promise<{ scanId: string; message: string }> {
+  const headers = await getAuthHeaders();
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/protocols/${protocolId}/request-scan`,
+    {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ branch }),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: response.statusText }));
+    throw new Error(error.error?.message || `Failed to request scan: ${response.statusText}`);
+  }
+
+  const result = await response.json();
+  return result.data;
+}
+
+/**
+ * Record a funding transaction hash
+ */
+export async function recordFundingTransaction(
+  protocolId: string,
+  txHash: string
+): Promise<{ message: string; txHash: string }> {
+  const headers = await getAuthHeaders();
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/protocols/${protocolId}/record-funding`,
+    {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ txHash }),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: response.statusText }));
+    throw new Error(error.error?.message || `Failed to record funding: ${response.statusText}`);
+  }
+
+  const result = await response.json();
+  return result.data;
+}
+
+/**
+ * Get current funding status for a protocol
+ */
+export async function fetchFundingStatus(
+  protocolId: string
+): Promise<FundingStatusResponse> {
+  const headers = await getAuthHeaders();
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/protocols/${protocolId}/funding-status`,
+    { headers }
+  );
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: response.statusText }));
+    throw new Error(error.error?.message || `Failed to fetch funding status: ${response.statusText}`);
+  }
+
+  const result = await response.json();
+  return result.data;
 }

@@ -7,6 +7,8 @@ export const protocolRegistrationSchema = z.object({
   contractName: z.string().min(1, { message: 'Contract name is required' }),
   bountyTerms: z.string().min(1, { message: 'Bounty terms are required' }),
   ownerAddress: z.string().min(1, { message: 'Owner address is required' }),
+  // Funding Gate: requested bounty pool amount in USDC
+  bountyPoolAmount: z.number().min(25, { message: 'Minimum bounty pool is 25 USDC' }).optional(),
 });
 
 export const protocolFundingSchema = z.object({
