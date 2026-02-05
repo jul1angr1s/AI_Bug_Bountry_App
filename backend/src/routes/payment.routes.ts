@@ -109,7 +109,7 @@ const leaderboardRateLimit = createPaymentRateLimiter({ points: 20, duration: 60
  */
 router.get(
   '/usdc/allowance',
-  authenticate,
+  requireAuth,
   paymentRateLimit,
   validateRequest({ query: usdcAllowanceQuerySchema }),
   async (req: Request, res: Response) => {
@@ -155,7 +155,7 @@ router.get(
  */
 router.get(
   '/usdc/balance',
-  authenticate,
+  requireAuth,
   paymentRateLimit,
   validateRequest({ query: usdcBalanceQuerySchema }),
   async (req: Request, res: Response) => {
@@ -200,7 +200,7 @@ router.get(
  */
 router.post(
   '/approve',
-  authenticate,
+  requireAuth,
   paymentRateLimit,
   validateRequest({ body: usdcApprovalSchema }),
   async (req: Request, res: Response) => {
@@ -246,7 +246,7 @@ router.post(
  */
 router.get(
   '/',
-  authenticate,
+  requireAuth,
   paymentRateLimit,
   validateRequest({ query: paymentListQuerySchema }),
   async (req: Request, res: Response) => {
@@ -283,46 +283,13 @@ router.get(
 );
 
 /**
- * GET /api/v1/payments/:id
- * Get payment details by ID
- */
-router.get(
-  '/:id',
-  authenticate,
-  paymentRateLimit,
-  validateRequest({ params: paymentIdSchema }),
-  async (req: Request, res: Response) => {
-    try {
-      const { id } = req.params;
-
-      const payment = await getPaymentDetails(id);
-
-      res.status(200).json({
-        data: payment,
-      });
-    } catch (error: any) {
-      console.error('[PaymentRoutes] Error fetching payment:', error);
-
-      const statusCode = error.name === 'NotFoundError' ? 404 : 500;
-
-      res.status(statusCode).json({
-        error: {
-          code: error.name === 'NotFoundError' ? 'PAYMENT_NOT_FOUND' : 'INTERNAL_ERROR',
-          message: error.message || 'Failed to fetch payment',
-          requestId: req.id,
-        },
-      });
-    }
-  }
-);
-
-/**
  * GET /api/v1/payments/researcher/:address
  * Get researcher earnings and payment history
+ * NOTE: Must be before /:id to avoid route conflict
  */
 router.get(
   '/researcher/:address',
-  authenticate,
+  requireAuth,
   paymentRateLimit,
   validateRequest({
     params: researcherAddressSchema,
@@ -371,7 +338,7 @@ router.get(
  */
 router.get(
   '/stats',
-  authenticate,
+  requireAuth,
   paymentRateLimit,
   validateRequest({ query: paymentStatsQuerySchema }),
   async (req: Request, res: Response) => {
@@ -417,7 +384,7 @@ router.get(
  */
 router.get(
   '/leaderboard',
-  authenticate,
+  requireAuth,
   leaderboardRateLimit,
   validateRequest({ query: leaderboardQuerySchema }),
   async (req: Request, res: Response) => {
@@ -473,7 +440,7 @@ router.get(
  */
 router.get(
   '/pool/:protocolId',
-  authenticate,
+  requireAuth,
   paymentRateLimit,
   validateRequest({ params: protocolIdParamSchema }),
   async (req: Request, res: Response) => {
@@ -520,7 +487,7 @@ router.get(
  */
 router.post(
   '/propose',
-  authenticate,
+  requireAuth,
   paymentRateLimit,
   validateRequest({ body: proposePaymentSchema }),
   async (req: Request, res: Response) => {
@@ -571,6 +538,45 @@ router.post(
         error: {
           code: 'INTERNAL_ERROR',
           message: 'Internal server error',
+          requestId: req.id,
+        },
+      });
+    }
+  }
+);
+
+// ========================================
+// Payment by ID (MUST BE LAST to avoid route conflicts)
+// ========================================
+
+/**
+ * GET /api/v1/payments/:id
+ * Get payment details by ID
+ * NOTE: This route MUST be defined last to avoid catching /stats, /leaderboard, etc.
+ */
+router.get(
+  '/:id',
+  requireAuth,
+  paymentRateLimit,
+  validateRequest({ params: paymentIdSchema }),
+  async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+
+      const payment = await getPaymentDetails(id);
+
+      res.status(200).json({
+        data: payment,
+      });
+    } catch (error: any) {
+      console.error('[PaymentRoutes] Error fetching payment:', error);
+
+      const statusCode = error.name === 'NotFoundError' ? 404 : 500;
+
+      res.status(statusCode).json({
+        error: {
+          code: error.name === 'NotFoundError' ? 'PAYMENT_NOT_FOUND' : 'INTERNAL_ERROR',
+          message: error.message || 'Failed to fetch payment',
           requestId: req.id,
         },
       });
