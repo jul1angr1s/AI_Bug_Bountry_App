@@ -384,6 +384,72 @@ We include a vulnerable DeFi protocol (Thunder Loan by Cyfrin) perfect for testi
 # 🟡 MEDIUM: Front-running vulnerability
 ```
 
+### 🎯 Live Demonstration - Real On-Chain Payments
+
+**Verified on Base Sepolia** - This is not a simulation. Real USDC was transferred on-chain.
+
+#### Proof of Real Payment
+
+| Field | Value |
+|-------|-------|
+| **Transaction Hash** | [`0x5159763e0a2ed9ccd848a996f26d0d13eb9e5a15bcc2515194a67f803cfbc1ee`](https://sepolia.basescan.org/tx/0x5159763e0a2ed9ccd848a996f26d0d13eb9e5a15bcc2515194a67f803cfbc1ee) |
+| **Network** | Base Sepolia |
+| **Amount** | 3 USDC |
+| **Researcher** | `0x6b26F796b7C494a65ca42d29EF13E9eF1CeCE166` |
+| **BountyPool Contract** | [`0x6D0bA6dA342c4ce75281Ea90c71017BC94A397b0`](https://sepolia.basescan.org/address/0x6D0bA6dA342c4ce75281Ea90c71017BC94A397b0) |
+
+#### Replicate the Full E2E Flow
+
+```bash
+# 1. Start backend and frontend
+cd backend && npm run dev
+# In new terminal:
+cd frontend && npm run dev
+
+# 2. Register protocol via frontend UI
+#    Navigate to http://localhost:5173
+#    Register: https://github.com/Cyfrin/2023-11-Thunder-Loan
+
+# 3. Fund the bounty pool (50 USDC)
+cd backend
+npx tsx scripts/fund-bounty-pool.ts 50
+
+# 4. Wait for scan to complete or force-validate a finding
+npx tsx scripts/force-validate-finding.ts
+
+# 5. Watch backend logs for PRODUCTION MODE payment:
+#    [PaymentWorker] PRODUCTION MODE: Executing real on-chain payment
+#    [PaymentWorker] Bounty released successfully!
+#    TX Hash: 0x... (real blockchain TX)
+```
+
+#### What Happens Behind the Scenes
+
+```mermaid
+sequenceDiagram
+    participant Script as 📜 Validate Script
+    participant DB as 🗄️ Database
+    participant Queue as 📋 BullMQ
+    participant Worker as ⚙️ PaymentWorker
+    participant Pool as 💰 BountyPool
+    participant USDC as 💵 USDC Token
+
+    Script->>DB: Update Finding → VALIDATED
+    DB->>Queue: Enqueue payment job
+    Queue->>Worker: Dequeue job
+    Worker->>Pool: Check protocol balance
+    Pool-->>Worker: 50 USDC available
+    Note over Worker: PRODUCTION MODE ✅
+    Worker->>Pool: releaseBounty()
+    Pool->>USDC: transfer(researcher, 3 USDC)
+    USDC-->>Pool: Success
+    Pool-->>Worker: TX: 0x5159...bc1ee
+    Worker->>DB: Update Payment → COMPLETED
+    Note over DB: Real TX hash stored!
+```
+
+**Result**: The researcher wallet receives real USDC on Base Sepolia. View the transaction on [Basescan](https://sepolia.basescan.org/tx/0x5159763e0a2ed9ccd848a996f26d0d13eb9e5a15bcc2515194a67f803cfbc1ee).
+
 ---
 
 ## 🏗️ Architecture
