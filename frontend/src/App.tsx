@@ -1,6 +1,6 @@
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import DashboardLayout from './layouts/DashboardLayout';
-import Dashboard from './pages/Dashboard';
+import DashboardModern from './pages/DashboardModern';
 import Validations from './pages/Validations';
 import ProtocolRegistration from './pages/ProtocolRegistration';
 import Protocols from './pages/Protocols';
@@ -29,7 +29,7 @@ function App() {
             </ProtectedRoute>
           }
         >
-          <Route path="/" element={<Dashboard />} />
+          <Route path="/" element={<DashboardModern />} />
           <Route path="/protocols" element={<Protocols />} />
           <Route path="/protocols/register" element={<ProtocolRegistration />} />
           <Route path="/protocols/:id" element={<ProtocolDetail />} />
