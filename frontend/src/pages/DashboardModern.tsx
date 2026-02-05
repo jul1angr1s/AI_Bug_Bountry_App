@@ -79,7 +79,7 @@ export default function DashboardModern() {
 
   useEffect(() => {
     if (vulnerabilities?.length) {
-      const criticalVuln = vulnerabilities.find((v) => v.severity === 'CRITICAL' && v.status === 'CONFIRMED');
+      const criticalVuln = vulnerabilities.find((v) => v.severity === 'CRITICAL' && v.status === 'OPEN');
       if (criticalVuln) {
         setAlert({
           id: `alert-${criticalVuln.id}`,
@@ -113,7 +113,7 @@ export default function DashboardModern() {
   // Mock data for sidebar (replace with real hooks later)
   const sidebarStats = {
     totalProtocols: protocolsData?.protocols?.length || 0,
-    activeAgents: agents?.filter(a => a.status === 'active').length || 0,
+    activeAgents: agents?.filter(a => a.status === 'ONLINE').length || 0,
     avgResponseTime: 250,
   };
 
@@ -145,9 +145,9 @@ export default function DashboardModern() {
   const modernAgents = agents?.map(agent => ({
     id: agent.id,
     type: agent.type as 'Protocol' | 'Researcher' | 'Validator',
-    status: agent.status as 'active' | 'idle' | 'error',
-    scansCompleted: agent.tasksCompleted || 0,
-    uptime: agent.uptime || '99.9%',
+    status: agent.status === 'ONLINE' ? 'active' as const : agent.status === 'ERROR' ? 'error' as const : 'idle' as const,
+    scansCompleted: agent.scansCompleted || 0,
+    uptime: '99.9%',
   })) || [];
 
   // Empty state - no protocols
