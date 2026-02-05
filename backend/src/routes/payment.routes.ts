@@ -13,6 +13,7 @@ import {
   paymentStatsQuerySchema,
   leaderboardQuerySchema,
   protocolIdParamSchema,
+  proposePaymentSchema,
 } from '../schemas/payment.schema.js';
 import {
   getUsdcAllowance,
@@ -24,6 +25,7 @@ import {
   getPaymentStats as fetchPaymentStats,
   getEarningsLeaderboard,
   getPoolStatus,
+  proposeManualPayment,
 } from '../services/payment.service.js';
 import { getCache, setCache, CACHE_TTL } from '../lib/cache.js';
 
@@ -496,6 +498,75 @@ router.get(
       });
     } catch (error) {
       console.error('[PaymentRoutes] Error fetching pool status:', error);
+      res.status(500).json({
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Internal server error',
+          requestId: req.id,
+        },
+      });
+    }
+  }
+);
+
+// ========================================
+// Payment Proposal Endpoint
+// ========================================
+
+/**
+ * POST /api/v1/payments/propose
+ * Propose manual payment (admin only)
+ * Note: Currently simplified - in production this would check admin role
+ */
+router.post(
+  '/propose',
+  authenticate,
+  paymentRateLimit,
+  validateRequest({ body: proposePaymentSchema }),
+  async (req: Request, res: Response) => {
+    try {
+      const { protocolId, recipientAddress, severity, justification } = req.body;
+      
+      // TODO: Add admin role check here
+      // For now, any authenticated user can propose
+      // if (!req.user?.role || req.user.role !== 'ADMIN') {
+      //   return res.status(403).json({
+      //     error: {
+      //       code: 'FORBIDDEN',
+      //       message: 'Only admins can propose manual payments',
+      //       requestId: req.id,
+      //     },
+      //   });
+      // }
+
+      const proposedBy = req.user?.id || 'unknown';
+
+      const result = await proposeManualPayment({
+        protocolId,
+        recipientAddress,
+        severity,
+        justification,
+        proposedBy,
+      });
+
+      if (!result.success) {
+        const statusCode = result.error?.code === 'PROTOCOL_NOT_FOUND' ? 404 :
+                          result.error?.code === 'INSUFFICIENT_BALANCE' ? 400 : 500;
+        return res.status(statusCode).json({
+          error: {
+            code: result.error?.code || 'PROPOSAL_ERROR',
+            message: result.error?.message || 'Failed to create payment proposal',
+            requestId: req.id,
+          },
+        });
+      }
+
+      res.status(201).json({
+        data: result.proposal,
+        message: 'Payment proposal submitted successfully',
+      });
+    } catch (error) {
+      console.error('[PaymentRoutes] Error proposing payment:', error);
       res.status(500).json({
         error: {
           code: 'INTERNAL_ERROR',

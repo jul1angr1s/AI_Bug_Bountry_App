@@ -59,6 +59,17 @@ export const protocolIdParamSchema = z.object({
   protocolId: z.string().uuid('Invalid protocol ID'),
 });
 
+// Payment proposal schemas
+export const proposePaymentSchema = z.object({
+  protocolId: z.string().uuid('Invalid protocol ID'),
+  recipientAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/, 'Invalid Ethereum address'),
+  severity: z.enum(['HIGH', 'MEDIUM', 'LOW'], {
+    required_error: 'Severity is required',
+    invalid_type_error: 'Severity must be HIGH, MEDIUM, or LOW',
+  }),
+  justification: z.string().min(20, 'Justification must be at least 20 characters').max(500, 'Justification must be less than 500 characters'),
+});
+
 // Type exports
 export type UsdcAllowanceQuery = z.infer<typeof usdcAllowanceQuerySchema>;
 export type UsdcBalanceQuery = z.infer<typeof usdcBalanceQuerySchema>;
@@ -70,3 +81,4 @@ export type ResearcherEarningsQuery = z.infer<typeof researcherEarningsQuerySche
 export type PaymentStatsQuery = z.infer<typeof paymentStatsQuerySchema>;
 export type LeaderboardQuery = z.infer<typeof leaderboardQuerySchema>;
 export type ProtocolIdParams = z.infer<typeof protocolIdParamSchema>;
+export type ProposePaymentInput = z.infer<typeof proposePaymentSchema>;
