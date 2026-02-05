@@ -105,11 +105,57 @@ VITE_ENABLE_NOTIFICATIONS=true
 
 ### First Run Experience
 
-1. **Connect Wallet** - Click "Connect Wallet" and approve MetaMask/WalletConnect
-2. **Register Protocol** - Navigate to `/protocols/register` and submit a GitHub URL
-3. **Watch Magic Happen** - Real-time dashboard shows agent progress
-4. **View Results** - See vulnerabilities appear live as AI discovers them
-5. **Track Payments** - Watch USDC bounties release automatically
+1. **Login** - Visit the app and you'll be redirected to the login page
+2. **Connect Wallet** - Click "Connect Wallet" and approve MetaMask connection
+3. **Sign Message** - Sign the SIWE message to authenticate
+4. **Register Protocol** - Navigate to `/protocols/register` and submit a GitHub URL
+5. **Watch Magic Happen** - Real-time dashboard shows agent progress
+6. **View Results** - See vulnerabilities appear live as AI discovers them
+7. **Track Payments** - Watch USDC bounties release automatically
+
+---
+
+## 🔐 Authentication
+
+### SIWE (Sign-In with Ethereum)
+
+The application uses **Web3 wallet authentication** via Sign-In with Ethereum (SIWE) + Supabase:
+
+**Authentication Flow:**
+
+1. **Login Page** (`/login`) - Dedicated authentication entry point with Thunder Security branding
+2. **Wallet Connection** - Connect via MetaMask, WalletConnect, or Coinbase Wallet (powered by Wagmi v3)
+3. **SIWE Message Signing** - Sign a cryptographic message to prove wallet ownership
+4. **Supabase Session** - Backend validates signature and creates authenticated session
+5. **JWT Token** - Session token synced to cookies for SSE authentication
+6. **Automatic Redirect** - After authentication, redirected to intended destination
+
+**Protected Routes:**
+
+All application routes require authentication except `/login`:
+- `/` - Dashboard
+- `/protocols` - Protocol management
+- `/scans` - Scan results
+- `/validations` - Vulnerability validations
+- `/protocols/:id/payments` - Payment dashboard
+
+**ReturnUrl Preservation:**
+
+When unauthenticated users try to access protected routes, they're redirected to `/login?returnUrl=/intended/path`. After successful authentication, they're automatically redirected back to their intended destination.
+
+**Wallet Changes:**
+
+The auth system automatically handles:
+- Account switching in MetaMask → auto logout + redirect to login
+- Wallet disconnection → auto logout + redirect to login
+- Network changes → continues session (only Base Sepolia supported)
+
+**Wagmi Configuration:**
+
+Located in `frontend/src/lib/wagmi.ts`:
+- Configured for Base Sepolia (chain 84532)
+- Supports MetaMask (injected), WalletConnect, and Coinbase Wallet
+- Enables payment components to use wagmi hooks for contract interactions
 
 ---
 
