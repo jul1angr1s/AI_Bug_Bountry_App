@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { ArrowLeft, Shield, AlertCircle, Wallet } from 'lucide-react';
+import { MaterialIcon } from '../components/shared/MaterialIcon';
+import { GlowCard } from '../components/shared/GlowCard';
 import ProtocolForm from '../components/protocols/ProtocolForm';
 import { createProtocol, type CreateProtocolRequest } from '../lib/api';
 import { logDiagnostics } from '../lib/diagnostics';
@@ -61,25 +62,25 @@ export default function ProtocolRegistration() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0f1419] py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#0f1723] py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto">
         {/* Header */}
         <div className="mb-8">
           <button
             onClick={() => navigate(-1)}
-            className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-4"
+            className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-6"
           >
-            <ArrowLeft className="w-4 h-4" />
-            Back
+            <MaterialIcon name="arrow_back" className="text-lg" />
+            <span className="text-sm font-medium">Back</span>
           </button>
 
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-lg border border-purple-500/30">
-              <Shield className="w-8 h-8 text-purple-400" />
+          <div className="flex items-center gap-5">
+            <div className="p-4 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-xl border border-purple-500/30">
+              <MaterialIcon name="shield" className="text-4xl text-purple-400" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-white">Register Protocol</h1>
-              <p className="text-gray-400 mt-1">
+              <h1 className="text-4xl font-bold text-white font-['Space_Grotesk']">Register Protocol</h1>
+              <p className="text-gray-400 mt-2 text-base">
                 Add your smart contract protocol to our automated bug bounty system
               </p>
             </div>
@@ -88,12 +89,12 @@ export default function ProtocolRegistration() {
 
         {/* Authentication Warning */}
         {!authLoading && !user && (
-          <div className="mb-8 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-            <div className="flex gap-3">
-              <Wallet className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
-              <div className="text-sm">
-                <p className="font-medium text-yellow-400 mb-1">Wallet Connection Required</p>
-                <p className="text-gray-300">
+          <div className="mb-6 p-5 bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
+            <div className="flex gap-4">
+              <MaterialIcon name="account_balance_wallet" className="text-2xl text-yellow-400 flex-shrink-0" />
+              <div>
+                <p className="font-semibold text-yellow-400 mb-2 text-base">Wallet Connection Required</p>
+                <p className="text-gray-300 text-sm leading-relaxed">
                   Please connect your wallet using the "Connect Wallet" button at the bottom left
                   to register a protocol. You must be authenticated to submit protocol registrations.
                 </p>
@@ -103,64 +104,82 @@ export default function ProtocolRegistration() {
         )}
 
         {/* Info Banner */}
-        <div className="mb-8 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-          <div className="flex gap-3">
-            <AlertCircle className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
-            <div className="text-sm text-gray-300">
-              <p className="font-medium text-white mb-1">What happens next?</p>
-              <ol className="list-decimal list-inside space-y-1 text-gray-400">
+        <div className="mb-6 p-5 bg-blue-500/10 border border-blue-500/30 rounded-xl">
+          <div className="flex gap-4">
+            <MaterialIcon name="info" className="text-2xl text-blue-400 flex-shrink-0" />
+            <div className="text-gray-300">
+              <p className="font-semibold text-white mb-3 text-base">What happens next?</p>
+              <ol className="list-decimal list-inside space-y-2 text-gray-400 text-sm">
                 <li>Our Protocol Agent will clone and verify your repository</li>
                 <li>Smart contracts will be compiled and analyzed for complexity</li>
                 <li>A risk score will be calculated based on code patterns</li>
                 <li>Automated scanning will begin once analysis is complete</li>
               </ol>
-              <p className="mt-2">
-                Expected time: <span className="text-white font-medium">~60 seconds</span>
-              </p>
+              <div className="mt-3 flex items-center gap-2">
+                <MaterialIcon name="schedule" className="text-lg text-blue-400" />
+                <span className="text-sm text-gray-400">
+                  Expected time: <span className="text-white font-semibold">~60 seconds</span>
+                </span>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Error Banner */}
         {error && (
-          <div className="mb-8 p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
-            <div className="flex gap-3">
-              <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
-              <div className="text-sm">
-                <p className="font-medium text-red-400 mb-1">Registration Error</p>
-                <p className="text-gray-300">{error}</p>
+          <div className="mb-6 p-5 bg-red-500/10 border border-red-500/30 rounded-xl">
+            <div className="flex gap-4">
+              <MaterialIcon name="error" className="text-2xl text-red-400 flex-shrink-0" />
+              <div>
+                <p className="font-semibold text-red-400 mb-2 text-base">Registration Error</p>
+                <p className="text-gray-300 text-sm leading-relaxed">{error}</p>
               </div>
             </div>
           </div>
         )}
 
         {/* Form Card */}
-        <div className="bg-[#1a1f2e] border border-gray-800 rounded-lg p-8 shadow-xl">
-          <h2 className="text-xl font-semibold text-white mb-6">Protocol Details</h2>
+        <GlowCard glowColor="purple" className="bg-[#162030] border-[#2f466a] p-8">
+          <div className="flex items-center gap-3 mb-6">
+            <MaterialIcon name="description" className="text-2xl text-purple-400" />
+            <h2 className="text-2xl font-bold text-white font-['Space_Grotesk']">Protocol Details</h2>
+          </div>
           <ProtocolForm onSubmit={handleSubmit} isSubmitting={isSubmitting} />
-        </div>
+        </GlowCard>
 
         {/* Help Section */}
-        <div className="mt-8 p-6 bg-[#1a1f2e] border border-gray-800 rounded-lg">
-          <h3 className="text-lg font-semibold text-white mb-4">Need Help?</h3>
-          <div className="space-y-3 text-sm text-gray-400">
+        <div className="mt-8 p-6 bg-[#162030] border border-[#2f466a] rounded-xl">
+          <div className="flex items-center gap-3 mb-5">
+            <MaterialIcon name="help" className="text-2xl text-blue-400" />
+            <h3 className="text-xl font-bold text-white font-['Space_Grotesk']">Need Help?</h3>
+          </div>
+          <div className="space-y-5">
             <div>
-              <p className="font-medium text-gray-300">Where do I find my contract path?</p>
-              <p>
+              <div className="flex items-start gap-2 mb-2">
+                <MaterialIcon name="folder_open" className="text-lg text-purple-400 mt-0.5" />
+                <p className="font-semibold text-gray-200 text-sm">Where do I find my contract path?</p>
+              </div>
+              <p className="text-gray-400 text-sm leading-relaxed ml-7">
                 Navigate to your GitHub repository and locate your main Solidity contract file.
-                Copy the path from the repository root (e.g., <code className="text-purple-400">src/MyContract.sol</code>).
+                Copy the path from the repository root (e.g., <code className="px-2 py-0.5 bg-purple-500/20 text-purple-400 rounded">src/MyContract.sol</code>).
               </p>
             </div>
             <div>
-              <p className="font-medium text-gray-300">What is an Owner Address?</p>
-              <p>
+              <div className="flex items-start gap-2 mb-2">
+                <MaterialIcon name="person" className="text-lg text-cyan-400 mt-0.5" />
+                <p className="font-semibold text-gray-200 text-sm">What is an Owner Address?</p>
+              </div>
+              <p className="text-gray-400 text-sm leading-relaxed ml-7">
                 This is your wallet address that owns the protocol. It will be used to manage
                 the protocol and verify on-chain registration.
               </p>
             </div>
             <div>
-              <p className="font-medium text-gray-300">Can I register private repositories?</p>
-              <p>
+              <div className="flex items-start gap-2 mb-2">
+                <MaterialIcon name="lock" className="text-lg text-yellow-400 mt-0.5" />
+                <p className="font-semibold text-gray-200 text-sm">Can I register private repositories?</p>
+              </div>
+              <p className="text-gray-400 text-sm leading-relaxed ml-7">
                 Currently, only public GitHub repositories are supported. Make sure your repository
                 is publicly accessible before registering.
               </p>
