@@ -24,7 +24,7 @@ export default function ProtocolRegistration() {
   }, []);
 
   const handleAutofill = () => {
-    if (!user?.address) {
+    if (!user?.wallet) {
       toast.error('Wallet Required', {
         description: 'Please connect your wallet first to use the autofill feature.',
         duration: 3000,
@@ -37,7 +37,7 @@ export default function ProtocolRegistration() {
       branch: 'main',
       contractPath: 'src/protocol/ThunderLoan.sol',
       contractName: 'ThunderLoan',
-      ownerAddress: user.address,
+      ownerAddress: user.wallet,
     });
 
     toast.success('Form autofilled', {
