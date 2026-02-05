@@ -64,6 +64,28 @@ export function useProtocol(protocolId: string, options: UseProtocolOptions = {}
       }
     });
 
+    // Subscribe to funding state changes
+    const unsubscribeFunding = ws.on('protocol:funding_state_changed', (data: any) => {
+      if (data.protocolId === protocolId) {
+        console.log('[useProtocol] Funding state changed:', data);
+        queryClient.invalidateQueries({ queryKey: ['protocol', protocolId] });
+
+        if (data.data.fundingState === 'FUNDED') {
+          toast.success('Protocol funded successfully! You can now request scans.');
+        }
+      }
+    });
+
+    // Subscribe to scan requested events
+    const unsubscribeScanRequested = ws.on('protocol:scan_requested', (data: any) => {
+      if (data.protocolId === protocolId) {
+        console.log('[useProtocol] Scan requested:', data);
+        queryClient.invalidateQueries({ queryKey: ['protocol', protocolId] });
+        queryClient.invalidateQueries({ queryKey: ['scans', protocolId] });
+        toast.info('Scan request submitted');
+      }
+    });
+
     // Ensure WebSocket is connected
     if (!ws.isConnected()) {
       ws.connect();
@@ -73,6 +95,8 @@ export function useProtocol(protocolId: string, options: UseProtocolOptions = {}
       unsubscribeStatus();
       unsubscribeScanStarted();
       unsubscribeScanCompleted();
+      unsubscribeFunding();
+      unsubscribeScanRequested();
     };
   }, [protocolId, enableRealtime, queryClient]);
 

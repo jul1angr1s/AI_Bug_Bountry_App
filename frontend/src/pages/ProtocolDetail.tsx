@@ -1,14 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Github, ExternalLink, Play, FileText, Shield, AlertCircle, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { useProtocol, useProtocolRealtime } from '../hooks/useProtocol';
-import { useQuery } from '@tanstack/react-query';
-import { fetchScans, fetchScanFindings } from '../lib/api';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { fetchScans, fetchScanFindings, type FundingState } from '../lib/api';
 import ProtocolStats from '../components/protocols/ProtocolStats';
 import { LoadingSkeleton } from '../components/shared/LoadingSkeleton';
 import StatusBadge from '../components/shared/StatusBadge';
 import RegistrationProgress from '../components/protocols/RegistrationProgress';
 import ScanProgressLive from '../components/protocols/ScanProgressLive';
+import FundingGate from '../components/protocols/FundingGate';
+import ScanConfirmationModal from '../components/protocols/ScanConfirmationModal';
 import { useLatestScan } from '../hooks/useLatestScan';
 import { useScanProgressLive } from '../hooks/useScanProgressLive';
 import { LiveTerminalOutput, LogMessage } from '../components/scans/modern/LiveTerminalOutput';
@@ -20,14 +22,37 @@ type TabType = 'overview' | 'scans' | 'findings' | 'payments';
 export default function ProtocolDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [showTerminal, setShowTerminal] = useState(false);
   const [scanLogs, setScanLogs] = useState<LogMessage[]>([]);
+  const [showScanModal, setShowScanModal] = useState(false);
 
   const { data: protocol, isLoading, isError, error } = useProtocol(id || '');
   useProtocolRealtime(id || '');
   const { data: latestScan } = useLatestScan(id || '');
   const progressState = useScanProgressLive(latestScan?.id || null);
+
+  // Derived state for funding
+  const canRequestScan = protocol?.canRequestScan || false;
+  const needsFunding =
+    protocol?.status === 'ACTIVE' &&
+    protocol?.fundingState !== 'FUNDED';
+
+  // Handle funding completion - refresh protocol data and open scan modal
+  const handleFundingComplete = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['protocol', id] });
+    // Open scan confirmation modal after funding is complete
+    setShowScanModal(true);
+  }, [queryClient, id]);
+
+  // Handle scan started - refresh data and navigate
+  const handleScanStarted = useCallback((_scanId: string) => {
+    queryClient.invalidateQueries({ queryKey: ['protocol', id] });
+    queryClient.invalidateQueries({ queryKey: ['scans', id] });
+    // Stay on page and switch to scans tab
+    setActiveTab('scans');
+  }, [queryClient, id]);
 
   // Convert scan progress messages to terminal logs
   useEffect(() => {
@@ -83,42 +108,15 @@ export default function ProtocolDetail() {
     navigate('/protocols');
   };
 
-  const handleTriggerScan = async () => {
+  const handleTriggerScan = () => {
     if (!id) return;
 
-    try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-      const token = localStorage.getItem('token');
-
-      console.log('[ProtocolDetail] Triggering scan for protocol:', id);
-
-      const response = await fetch(`${apiUrl}/api/v1/scans`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          protocolId: id,
-          branch: 'main',
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-      console.log('[ProtocolDetail] Scan triggered successfully:', result);
-
-      // Show success message (you can add a toast notification here)
-      alert(`Scan triggered successfully! Scan ID: ${result.scanId}`);
-
-      // Refresh the page or invalidate queries to show the new scan
-      window.location.reload();
-    } catch (error) {
-      console.error('[ProtocolDetail] Failed to trigger scan:', error);
-      alert(`Failed to trigger scan: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    // If protocol is funded, show confirmation modal
+    if (canRequestScan) {
+      setShowScanModal(true);
+    } else {
+      // Show message that funding is required
+      alert('Please fund your bounty pool before requesting a scan.');
     }
   };
 
@@ -241,13 +239,28 @@ export default function ProtocolDetail() {
 
             {/* Action Buttons */}
             <div className="flex gap-3">
-              <button
-                onClick={handleTriggerScan}
-                className="px-4 py-2 bg-purple-500/20 border border-purple-500/30 text-purple-400 rounded-lg hover:bg-purple-500/30 transition-colors flex items-center gap-2"
-              >
-                <Play className="w-4 h-4" />
-                Trigger Scan
-              </button>
+              {canRequestScan ? (
+                <button
+                  onClick={handleTriggerScan}
+                  className="px-4 py-2 bg-purple-500/20 border border-purple-500/30 text-purple-400 rounded-lg hover:bg-purple-500/30 transition-colors flex items-center gap-2"
+                >
+                  <Play className="w-4 h-4" />
+                  Request Researchers Scanning
+                </button>
+              ) : needsFunding ? (
+                <div className="px-4 py-2 bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 rounded-lg flex items-center gap-2">
+                  <MaterialIcon name="account_balance_wallet" className="text-lg" />
+                  Funding Required
+                </div>
+              ) : (
+                <button
+                  disabled
+                  className="px-4 py-2 bg-gray-700 border border-gray-600 text-gray-500 rounded-lg cursor-not-allowed flex items-center gap-2"
+                >
+                  <Play className="w-4 h-4" />
+                  Request Scan
+                </button>
+              )}
               <button className="px-4 py-2 bg-gray-800 border border-gray-700 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2">
                 <FileText className="w-4 h-4" />
                 View Report
@@ -296,6 +309,20 @@ export default function ProtocolDetail() {
                   <div className="bg-purple-500/5 border border-purple-500/20 rounded-lg p-6 mb-6">
                     <h4 className="text-base font-semibold text-white mb-4">Registration Progress</h4>
                     <RegistrationProgress protocolId={id || ''} />
+                  </div>
+                )}
+
+                {/* Funding Gate - Show when protocol is ACTIVE but not FUNDED */}
+                {needsFunding && (
+                  <div className="mb-6">
+                    <FundingGate
+                      protocolId={protocol.id}
+                      onChainProtocolId={protocol.onChainProtocolId}
+                      bountyPoolAmount={protocol.bountyPoolAmount || protocol.minimumBountyRequired}
+                      minimumBountyRequired={protocol.minimumBountyRequired}
+                      currentFundingState={protocol.fundingState as FundingState | null}
+                      onFundingComplete={handleFundingComplete}
+                    />
                   </div>
                 )}
 
@@ -535,6 +562,19 @@ export default function ProtocolDetail() {
           </div>
         </div>
       </div>
+
+      {/* Scan Confirmation Modal */}
+      <ScanConfirmationModal
+        isOpen={showScanModal}
+        onClose={() => setShowScanModal(false)}
+        protocolId={protocol.id}
+        protocolName={protocol.contractName || 'Unknown Protocol'}
+        bountyPoolAmount={protocol.bountyPoolAmount || protocol.minimumBountyRequired}
+        onChainBalance={protocol.totalBountyPool || 0}
+        bountyTerms={protocol.bountyTerms}
+        branch={protocol.branch}
+        onScanStarted={handleScanStarted}
+      />
     </div>
   );
 }

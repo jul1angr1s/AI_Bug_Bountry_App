@@ -15,6 +15,7 @@ interface FormErrors {
   contractName?: string;
   bountyTerms?: string;
   ownerAddress?: string;
+  bountyPoolAmount?: string;
 }
 
 export default function ProtocolForm({ onSubmit, isSubmitting = false, initialValues }: ProtocolFormProps) {
@@ -25,6 +26,7 @@ export default function ProtocolForm({ onSubmit, isSubmitting = false, initialVa
     contractName: '',
     bountyTerms: 'Standard bug bounty terms: Critical - $10,000, High - $5,000, Medium - $1,000, Low - $500',
     ownerAddress: '',
+    bountyPoolAmount: 100, // Default 100 USDC
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
@@ -78,6 +80,11 @@ export default function ProtocolForm({ onSubmit, isSubmitting = false, initialVa
       newErrors.ownerAddress = 'Must be a valid Ethereum address (0x...)';
     }
 
+    // Validate bounty pool amount (optional but if provided, must be >= 25)
+    if (formData.bountyPoolAmount !== undefined && formData.bountyPoolAmount < 25) {
+      newErrors.bountyPoolAmount = 'Minimum bounty pool is 25 USDC';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -96,7 +103,7 @@ export default function ProtocolForm({ onSubmit, isSubmitting = false, initialVa
     }
   };
 
-  const handleChange = (field: keyof CreateProtocolRequest, value: string) => {
+  const handleChange = (field: keyof CreateProtocolRequest, value: string | number) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     // Clear error when user starts typing
     if (errors[field as keyof FormErrors]) {
@@ -223,6 +230,41 @@ export default function ProtocolForm({ onSubmit, isSubmitting = false, initialVa
         )}
         <p className="mt-2 text-sm text-gray-500">
           Your wallet address that owns this protocol
+        </p>
+      </div>
+
+      {/* Bounty Pool Amount */}
+      <div>
+        <label htmlFor="bountyPoolAmount" className="flex items-center gap-2 text-sm font-semibold text-gray-200 mb-2">
+          <MaterialIcon name="payments" className="text-base text-green-400" />
+          Bounty Pool Amount (USDC)
+        </label>
+        <div className="relative">
+          <input
+            type="number"
+            id="bountyPoolAmount"
+            min={25}
+            step={1}
+            value={formData.bountyPoolAmount || ''}
+            onChange={(e) => handleChange('bountyPoolAmount', parseFloat(e.target.value) || 0)}
+            className={`w-full px-4 py-3 bg-[#0f1723] border ${
+              errors.bountyPoolAmount ? 'border-red-500' : 'border-[#2f466a]'
+            } rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all`}
+            placeholder="100"
+            disabled={isSubmitting}
+          />
+          <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">
+            <span className="text-gray-500 text-sm">USDC</span>
+          </div>
+        </div>
+        {errors.bountyPoolAmount && (
+          <div className="flex items-center gap-2 mt-2">
+            <MaterialIcon name="error" className="text-sm text-red-400" />
+            <p className="text-sm text-red-400">{errors.bountyPoolAmount}</p>
+          </div>
+        )}
+        <p className="mt-2 text-sm text-gray-500">
+          Amount you plan to deposit to the bounty pool (minimum 25 USDC). You'll fund this after registration.
         </p>
       </div>
 

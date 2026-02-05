@@ -113,6 +113,13 @@ model Protocol {
   // On-chain fields (Phase 3B)
   onChainProtocolId String? // bytes32 from ProtocolRegistry contract
 
+  // Funding Gate fields (Protocol → Funding → Scanning flow)
+  bountyPoolAmount      Float?    // Requested bounty pool amount in USDC
+  fundingState          String?   // AWAITING_FUNDING | FUNDED | UNDERFUNDED
+  fundingTxHash         String?   // Deposit transaction hash
+  fundingVerifiedAt     DateTime? // On-chain verification timestamp
+  minimumBountyRequired Float     @default(25) // Minimum USDC for prototype
+
   vulnerabilities Vulnerability[]
   scans           Scan[]
   auditLogs       AuditLog[]

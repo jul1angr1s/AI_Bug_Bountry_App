@@ -53,6 +53,8 @@ export async function registerProtocol(
         totalBountyPool: 0,
         availableBounty: 0,
         paidBounty: 0,
+        // Funding Gate fields
+        bountyPoolAmount: input.bountyPoolAmount,
       },
     });
 
@@ -262,11 +264,21 @@ export interface ProtocolOverview {
   status: string;
   registrationState: string | null;
   ownerAddress: string;
+  bountyTerms: string;
   totalBountyPool: number;
   availableBounty: number;
   paidBounty: number;
+  riskScore: number | null;
   createdAt: string;
   updatedAt: string;
+  // Funding Gate fields
+  onChainProtocolId: string | null;
+  bountyPoolAmount: number | null;
+  fundingState: string | null;
+  fundingTxHash: string | null;
+  fundingVerifiedAt: string | null;
+  minimumBountyRequired: number;
+  canRequestScan: boolean;
   stats: {
     vulnerabilityCount: number;
     scanCount: number;
@@ -312,6 +324,12 @@ export async function getProtocolById(
     // Count total findings across all scans
     const totalFindings = protocol.scans.reduce((sum, scan) => sum + scan.findings.length, 0);
 
+    // Determine if scan can be requested based on funding state
+    const canRequestScan =
+      protocol.status === 'ACTIVE' &&
+      protocol.fundingState === 'FUNDED' &&
+      protocol.totalBountyPool >= protocol.minimumBountyRequired;
+
     const overview: ProtocolOverview = {
       id: protocol.id,
       githubUrl: protocol.githubUrl,
@@ -321,11 +339,21 @@ export async function getProtocolById(
       status: protocol.status,
       registrationState: protocol.registrationState,
       ownerAddress: protocol.ownerAddress,
+      bountyTerms: protocol.bountyTerms,
       totalBountyPool: protocol.totalBountyPool,
       availableBounty: protocol.availableBounty,
       paidBounty: protocol.paidBounty,
+      riskScore: protocol.riskScore,
       createdAt: protocol.createdAt.toISOString(),
       updatedAt: protocol.updatedAt.toISOString(),
+      // Funding Gate fields
+      onChainProtocolId: protocol.onChainProtocolId,
+      bountyPoolAmount: protocol.bountyPoolAmount,
+      fundingState: protocol.fundingState,
+      fundingTxHash: protocol.fundingTxHash,
+      fundingVerifiedAt: protocol.fundingVerifiedAt?.toISOString() || null,
+      minimumBountyRequired: protocol.minimumBountyRequired,
+      canRequestScan,
       stats: {
         vulnerabilityCount: totalFindings, // Count findings instead of vulnerabilities
         scanCount: protocol.scans.length,
