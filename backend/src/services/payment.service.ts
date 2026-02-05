@@ -1307,26 +1307,78 @@ export async function proposeManualPayment(data: {
       };
     }
 
-    // Create payment proposal
-    // Note: This is a simplified version. In production, you'd want a PaymentProposal table
-    // For now, we'll return the proposal data without storing it
-    const proposal = {
-      id: `proposal-${Date.now()}`,
-      protocolId: data.protocolId,
-      recipientAddress: data.recipientAddress,
-      severity: data.severity,
-      amount,
-      justification: data.justification,
-      proposedBy: data.proposedBy,
-      status: 'PENDING_REVIEW',
-      createdAt: new Date().toISOString(),
-    };
+    // Create vulnerability and payment records in a transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Create a vulnerability record for the manual submission
+      const vulnerability = await tx.vulnerability.create({
+        data: {
+          protocolId: data.protocolId,
+          vulnerabilityHash: `manual-${Date.now()}-${data.recipientAddress.slice(0, 8)}`,
+          severity: data.severity,
+          status: 'ACKNOWLEDGED', // Manual submissions are pre-acknowledged
+          bounty: amount,
+          proof: `Manual Payment Proposal\n\nJustification: ${data.justification}\n\nProposed by: ${data.proposedBy}`,
+        },
+      });
 
-    console.log('[PaymentService] Manual payment proposed:', proposal);
+      // Create the payment record
+      const payment = await tx.payment.create({
+        data: {
+          vulnerabilityId: vulnerability.id,
+          amount,
+          currency: 'USDC',
+          status: 'PENDING',
+          researcherAddress: data.recipientAddress,
+        },
+      });
+
+      // Update protocol's available bounty
+      await tx.protocol.update({
+        where: { id: data.protocolId },
+        data: {
+          availableBounty: {
+            decrement: amount,
+          },
+        },
+      });
+
+      return { vulnerability, payment };
+    });
+
+    console.log('[PaymentService] Manual payment created:', {
+      vulnerabilityId: result.vulnerability.id,
+      paymentId: result.payment.id,
+      amount,
+      recipientAddress: data.recipientAddress,
+    });
+
+    // Queue the payment for on-chain execution
+    const { addPaymentJob } = await import('../queues/payment.queue.js');
+    const { ethers } = await import('ethers');
+    const validationId = ethers.id(`manual-${result.payment.id}`);
+
+    await addPaymentJob({
+      paymentId: result.payment.id,
+      validationId,
+      protocolId: data.protocolId,
+    });
+
+    console.log('[PaymentService] Manual payment queued for on-chain execution:', result.payment.id);
 
     return {
       success: true,
-      proposal,
+      proposal: {
+        id: result.payment.id,
+        vulnerabilityId: result.vulnerability.id,
+        protocolId: data.protocolId,
+        recipientAddress: data.recipientAddress,
+        severity: data.severity,
+        amount,
+        justification: data.justification,
+        proposedBy: data.proposedBy,
+        status: result.payment.status,
+        createdAt: result.payment.queuedAt || new Date().toISOString(),
+      },
     };
   } catch (error: any) {
     console.error('[PaymentService] Error proposing manual payment:', error);
