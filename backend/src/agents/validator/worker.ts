@@ -1,12 +1,8 @@
-import { getRedisClient } from '../../lib/redis.js';
+import { Worker, Job } from 'bullmq';
 import { getPrismaClient } from '../../lib/prisma.js';
 import { proofRepository } from '../../db/repositories.js';
 import { emitAgentTaskUpdate } from '../../websocket/events.js';
-import {
-  decryptProof,
-  type ProofSubmissionMessage,
-  type DecryptedProof,
-} from './steps/decrypt.js';
+import { decryptProof } from './steps/decrypt.js';
 import { spawnSandbox, deployToSandbox, killSandbox } from './steps/sandbox.js';
 import { executeExploit } from './steps/execute.js';
 import { cloneRepository, cleanupRepository } from '../protocol/steps/clone.js';
@@ -14,67 +10,81 @@ import { compileContract } from '../protocol/steps/compile.js';
 import type { ChildProcess } from 'child_process';
 import { ValidationRegistryClient, ValidationOutcome, Severity as OnChainSeverity } from '../../blockchain/index.js';
 import { ethers } from 'ethers';
+import { reputationService } from '../../services/reputation.service.js';
+import type { FeedbackType } from '@prisma/client';
+import type { ProofSubmissionMessage } from '../../messages/schemas.js';
+import { validateMessage, ProofSubmissionSchema } from '../../messages/schemas.js';
 
-const redis = getRedisClient();
 const prisma = getPrismaClient();
 
-let isRunning = false;
-let subscriber: any = null;
+let validatorWorker: Worker<ProofSubmissionMessage> | null = null;
+
+const redisConnection = {
+  host: process.env.REDIS_HOST || 'localhost',
+  port: parseInt(process.env.REDIS_PORT || '6379', 10),
+  password: process.env.REDIS_PASSWORD,
+  maxRetriesPerRequest: null,
+};
 
 /**
  * Start Validator Agent
  *
- * Subscribes to Redis 'PROOF_SUBMISSION' channel and processes
- * validation requests from Researcher Agent
+ * Uses BullMQ Worker on 'validation-jobs' queue (replaces Redis Pub/Sub).
+ * Benefits: guaranteed delivery, automatic retries, job inspection.
  */
 export async function startValidatorAgent(): Promise<void> {
-  if (isRunning) {
+  if (validatorWorker) {
     console.log('[Validator Agent] Already running');
     return;
   }
 
-  console.log('[Validator Agent] Starting...');
+  console.log('[Validator Agent] Starting BullMQ worker on validation-jobs queue...');
 
-  // Create Redis subscriber
-  subscriber = redis.duplicate();
-  await subscriber.connect();
+  validatorWorker = new Worker<ProofSubmissionMessage>(
+    'validation-jobs',
+    async (job: Job<ProofSubmissionMessage>) => {
+      // Validate message schema
+      const submission = validateMessage(
+        ProofSubmissionSchema,
+        job.data,
+        `validation job ${job.id}`
+      );
 
-  // Subscribe to proof submission channel
-  await subscriber.subscribe('PROOF_SUBMISSION', async (message: string) => {
-    try {
-      const submission: ProofSubmissionMessage = JSON.parse(message);
-      console.log(`[Validator Agent] Received proof submission: ${submission.proofId}`);
-
-      // Process validation asynchronously (don't block subscriber)
-      processValidation(submission).catch((error) => {
-        console.error('[Validator Agent] Validation processing error:', error);
-      });
-    } catch (error) {
-      console.error('[Validator Agent] Failed to parse proof submission:', error);
+      console.log(`[Validator Agent] Processing proof: ${submission.proofId}`);
+      await processValidation(submission);
+    },
+    {
+      connection: redisConnection,
+      concurrency: 1, // Process one validation at a time
+      limiter: {
+        max: 10,
+        duration: 60000, // 10 validations per minute
+      },
     }
+  );
+
+  validatorWorker.on('completed', (job) => {
+    console.log(`[Validator Agent] Job ${job.id} completed`);
   });
 
-  isRunning = true;
-  console.log('[Validator Agent] Running and listening for proofs...');
+  validatorWorker.on('failed', (job, error) => {
+    console.error(`[Validator Agent] Job ${job?.id} failed:`, error.message);
+  });
+
+  console.log('[Validator Agent] Running and listening for validation jobs...');
 }
 
 /**
  * Stop Validator Agent
  */
 export async function stopValidatorAgent(): Promise<void> {
-  if (!isRunning) {
+  if (!validatorWorker) {
     return;
   }
 
   console.log('[Validator Agent] Stopping...');
-
-  if (subscriber) {
-    await subscriber.unsubscribe('PROOF_SUBMISSION');
-    await subscriber.quit();
-    subscriber = null;
-  }
-
-  isRunning = false;
+  await validatorWorker.close();
+  validatorWorker = null;
   console.log('[Validator Agent] Stopped');
 }
 
@@ -209,19 +219,13 @@ async function processValidation(submission: ProofSubmissionMessage): Promise<vo
 
     await proofRepository.updateProofStatus(submission.proofId, validationStatus);
 
-    // Create validation record
-    await prisma.validation.create({
+    // Update proof with validation result
+    await prisma.proof.update({
+      where: { id: submission.proofId },
       data: {
-        proofId: submission.proofId,
-        scanId: proof.scanId,
-        protocolId: proof.protocolId,
-        validatorAgentId: 'validator-agent-001', // TODO: dynamic agent ID
-        result: executionResult.validated ? 'TRUE' : 'FALSE',
-        executionLog: executionResult.executionLog?.join('\n') || '',
-        stateChanges: executionResult.stateChanges as any,
-        transactionHash: executionResult.transactionHash,
-        gasUsed: executionResult.gasUsed,
-        failureReason: executionResult.error,
+        status: executionResult.validated ? 'VALIDATED' : 'REJECTED',
+        validatedAt: new Date(),
+        validatorPublicKey: 'validator-agent-001', // TODO: dynamic agent ID
       },
     });
 
@@ -229,7 +233,7 @@ async function processValidation(submission: ProofSubmissionMessage): Promise<vo
     await prisma.finding.update({
       where: { id: proof.findingId },
       data: {
-        status: executionResult.validated ? 'CONFIRMED' : 'REJECTED',
+        status: executionResult.validated ? 'VALIDATED' : 'REJECTED',
         validatedAt: new Date(),
       },
     });
@@ -326,6 +330,84 @@ async function processValidation(submission: ProofSubmissionMessage): Promise<vo
           });
 
           console.log('[Validator] Database updated with on-chain validation IDs');
+
+          // =================
+          // STEP 10: Record reputation feedback (ERC-8004)
+          // =================
+          try {
+            // Get researcher wallet from scan context
+            const scan = await prisma.scan.findUnique({
+              where: { id: proof.scanId },
+              include: { agent: true },
+            });
+
+            // Map severity + outcome to FeedbackType
+            const severityToFeedback: Record<string, FeedbackType> = {
+              'CRITICAL': 'CONFIRMED_CRITICAL',
+              'HIGH': 'CONFIRMED_HIGH',
+              'MEDIUM': 'CONFIRMED_MEDIUM',
+              'LOW': 'CONFIRMED_LOW',
+              'INFO': 'CONFIRMED_INFORMATIONAL',
+            };
+
+            const feedbackType: FeedbackType = executionResult.validated
+              ? (severityToFeedback[finding.severity] || 'CONFIRMED_INFORMATIONAL')
+              : 'REJECTED';
+
+            // Resolve researcher identity from AgentIdentity table
+            let researcherWallet = '';
+            if (scan?.agent) {
+              const researcherIdentity = await prisma.agentIdentity.findFirst({
+                where: { agentType: 'RESEARCHER', isActive: true },
+                orderBy: { registeredAt: 'asc' },
+              });
+              if (researcherIdentity) {
+                researcherWallet = researcherIdentity.walletAddress;
+              }
+            }
+            // Fallback: check env var
+            if (!researcherWallet) {
+              researcherWallet = process.env.RESEARCHER_WALLET_ADDRESS || '';
+            }
+
+            // Resolve validator identity dynamically
+            let validatorWallet = '';
+            const validatorIdentity = await prisma.agentIdentity.findFirst({
+              where: { agentType: 'VALIDATOR', isActive: true },
+              orderBy: { registeredAt: 'asc' },
+            });
+            if (validatorIdentity) {
+              validatorWallet = validatorIdentity.walletAddress;
+            }
+            // Fallback: check env vars
+            if (!validatorWallet) {
+              validatorWallet = process.env.VALIDATOR_WALLET_ADDRESS || process.env.PLATFORM_WALLET_ADDRESS || '';
+            }
+
+            if (researcherWallet && validatorWallet) {
+              console.log('[Validator] Recording reputation feedback...');
+              console.log(`  Researcher: ${researcherWallet}`);
+              console.log(`  Validator: ${validatorWallet}`);
+              console.log(`  Feedback Type: ${feedbackType}`);
+
+              await reputationService.recordFeedback(
+                researcherWallet,
+                validatorWallet,
+                onChainResult.validationId,
+                finding.id,
+                feedbackType
+              );
+
+              console.log('[Validator] Reputation feedback recorded successfully');
+            } else {
+              console.log('[Validator] Skipping reputation feedback - agent wallets not found');
+              console.log(`  Researcher: ${researcherWallet || '(not found)'}`);
+              console.log(`  Validator: ${validatorWallet || '(not found)'}`);
+            }
+          } catch (reputationError) {
+            // Don't fail validation if reputation recording fails
+            console.error('[Validator] Failed to record reputation feedback:', reputationError);
+          }
         }
       }
     } catch (onChainError) {
@@ -342,22 +424,17 @@ async function processValidation(submission: ProofSubmissionMessage): Promise<vo
     try {
       await proofRepository.updateProofStatus(submission.proofId, 'FAILED');
 
-      // Record failed validation
-      await prisma.validation.create({
-        data: {
-          proofId: submission.proofId,
-          scanId: submission.scanId,
-          protocolId: submission.protocolId,
-          validatorAgentId: 'validator-agent-001',
-          result: 'ERROR',
-          failureReason: errorMessage,
-        },
-      });
+      // Mark proof as failed — no separate validation model exists
+      // The proof status tracks the validation outcome
+      await proofRepository.updateProofStatus(submission.proofId, 'REJECTED');
     } catch (dbError) {
       console.error('[Validator] Failed to update database:', dbError);
     }
 
     await emitAgentTaskUpdate('validator-agent', `Validation error: ${errorMessage}`, 0);
+
+    // Re-throw so BullMQ can retry if attempts remain
+    throw error;
   } finally {
     // =================
     // CLEANUP
