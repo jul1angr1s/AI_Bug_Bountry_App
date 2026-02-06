@@ -249,7 +249,7 @@ graph LR
 
     R -->|AWAITING_FUNDING| F1
     F1 -->|MetaMask| F2
-    F2 -->|depositBounty()| F3
+    F2 -->|depositBounty| F3
     F3 -->|FUNDED| S
 
     style R fill:#3B82F6,stroke:#1E40AF,stroke-width:2px,color:#fff
