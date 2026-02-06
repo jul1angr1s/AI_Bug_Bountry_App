@@ -1,16 +1,5 @@
 import { proofRepository, findingRepository } from '../../../db/repositories.js';
-
-export interface ProofSubmissionMessage {
-  scanId: string;
-  protocolId: string;
-  proofId: string;
-  findingId: string;
-  commitHash: string;
-  signature?: string;
-  encryptedPayload?: string;
-  encryptionKeyId?: string;
-  timestamp: string;
-}
+import type { ProofSubmissionMessage } from '../../../messages/schemas.js';
 
 export interface DecryptedProof {
   proofId: string;
