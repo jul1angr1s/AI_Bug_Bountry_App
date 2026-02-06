@@ -113,13 +113,35 @@ graph LR
     style S7 fill:#10B981,stroke:#059669,stroke-width:2px,color:#fff
 ```
 
-**Dashboard Features**:
-- 📊 Live vulnerability feed with severity badges
-- 💰 Real-time payment tracker with earnings leaderboard
-- 📈 Protocol analytics with security scores
-- 🔔 WebSocket notifications for every state change
+### Dashboard
+Real-time overview with agent status, bounty pool, and recent vulnerabilities.
 
-*Screenshots coming soon - PR welcome!*
+![Dashboard](frontend/docs/screenshots/dashboard.png)
+
+### Protocols
+Protocol list with security scores, status filters, and one-click registration.
+
+![Protocols](frontend/docs/screenshots/protocols.png)
+
+### Protocol Detail
+Deep-dive into a registered protocol with scans, findings, and payment tabs.
+
+![Protocol Detail](frontend/docs/screenshots/protocol-detail.png)
+
+### Scan Findings
+AI-discovered vulnerabilities with severity badges, confidence scores, and detailed descriptions.
+
+![Scan Findings](frontend/docs/screenshots/scan-findings.png)
+
+### Validations
+Proof validation results powered by Kimi 2.5 LLM — VALIDATED or REJECTED per finding.
+
+![Validations](frontend/docs/screenshots/validations.png)
+
+### USDC Payments & Rewards
+Bounty tracking with payout distribution by severity, top earners leaderboard, and recent payouts.
+
+![Payments](frontend/docs/screenshots/payments.png)
 
 </div>
 
