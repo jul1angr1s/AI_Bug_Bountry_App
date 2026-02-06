@@ -9,6 +9,8 @@ const NAV_ITEMS = [
   { label: 'Scans', path: '/scans' },
   { label: 'Validations', path: '/validations' },
   { label: 'Payments', path: '/payments' },
+  { label: 'Agents', path: '/agents' },
+  { label: 'x402 Payments', path: '/x402-payments' },
 ];
 
 export default function Sidebar() {
