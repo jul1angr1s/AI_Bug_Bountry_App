@@ -105,3 +105,92 @@ export interface Payment {
     severity: SeverityLevel;
   };
 }
+
+// ========== ERC-8004 Agent Identity Types ==========
+
+export type AgentIdentityType = 'RESEARCHER' | 'VALIDATOR';
+
+export interface AgentIdentity {
+  id: string;
+  walletAddress: string;
+  agentNftId?: string | null;
+  agentType: AgentIdentityType;
+  isActive: boolean;
+  registeredAt: string;
+  updatedAt: string;
+  onChainTxHash?: string | null;
+  reputation?: AgentReputation | null;
+}
+
+export interface AgentReputation {
+  id: string;
+  agentIdentityId: string;
+  confirmedCount: number;
+  rejectedCount: number;
+  inconclusiveCount: number;
+  totalSubmissions: number;
+  reputationScore: number;
+  lastUpdated: string;
+}
+
+export type FeedbackType =
+  | 'CONFIRMED_CRITICAL'
+  | 'CONFIRMED_HIGH'
+  | 'CONFIRMED_MEDIUM'
+  | 'CONFIRMED_LOW'
+  | 'CONFIRMED_INFORMATIONAL'
+  | 'REJECTED';
+
+export interface AgentFeedback {
+  id: string;
+  researcherAgentId: string;
+  validatorAgentId: string;
+  validationId?: string | null;
+  findingId?: string | null;
+  feedbackType: FeedbackType;
+  onChainFeedbackId?: string | null;
+  createdAt: string;
+  validatorAgent?: AgentIdentity;
+}
+
+// ========== Escrow Types ==========
+
+export type EscrowTransactionType = 'DEPOSIT' | 'WITHDRAWAL' | 'SUBMISSION_FEE' | 'PROTOCOL_FEE';
+
+export interface EscrowBalance {
+  balance: string;
+  totalDeposited: string;
+  totalDeducted: string;
+  remainingSubmissions: number;
+  submissionFee: string;
+}
+
+export interface EscrowTransaction {
+  id: string;
+  agentEscrowId: string;
+  transactionType: EscrowTransactionType;
+  amount: string;
+  txHash?: string | null;
+  findingId?: string | null;
+  protocolId?: string | null;
+  createdAt: string;
+}
+
+// ========== x.402 Payment Types ==========
+
+export type X402RequestType = 'PROTOCOL_REGISTRATION' | 'FINDING_SUBMISSION';
+export type X402PaymentStatus = 'PENDING' | 'COMPLETED' | 'EXPIRED' | 'FAILED';
+
+export interface X402PaymentEvent {
+  id: string;
+  requestType: X402RequestType;
+  requesterAddress: string;
+  amount: string;
+  status: X402PaymentStatus;
+  protocolId?: string | null;
+  paymentReceipt?: string | null;
+  txHash?: string | null;
+  expiresAt: string;
+  createdAt: string;
+  completedAt?: string | null;
+}
