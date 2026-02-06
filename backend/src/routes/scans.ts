@@ -4,6 +4,8 @@ import { ScanState, AnalysisMethod } from '@prisma/client';
 import { scanRepository, findingRepository } from '../db/repositories.js';
 import { requireAuth } from '../middleware/auth.js';
 import { sseAuthenticate } from '../middleware/sse-auth.js';
+import { x402FindingSubmissionGate } from '../middleware/x402-payment-gate.middleware.js';
+import { escrowService } from '../services/escrow.service.js';
 import { ValidationError, NotFoundError } from '../errors/CustomError.js';
 import { getRedisClient } from '../lib/redis.js';
 import { enqueueScan } from '../queues/scanQueue.js';
@@ -12,13 +14,15 @@ import type { FindingsListResponse } from '../types/api.js';
 const router = Router();
 
 // Task 2.1: POST /api/v1/scans - Create scan job
+// x.402 finding submission gate: Requires escrow balance (can be skipped via SKIP_X402_PAYMENT_GATE=true)
 const createScanSchema = z.object({
   protocolId: z.string().uuid(),
   branch: z.string().optional(),
   commitHash: z.string().optional(),
+  researcherAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/).optional(),
 });
 
-router.post('/', requireAuth, async (req, res, next) => {
+router.post('/', requireAuth, x402FindingSubmissionGate(), async (req, res, next) => {
   try {
     const result = createScanSchema.safeParse(req.body);
     if (!result.success) {
@@ -27,7 +31,15 @@ router.post('/', requireAuth, async (req, res, next) => {
 
     const { protocolId, branch, commitHash } = result.data;
 
-    // Create scan job
+    // Deduct submission fee BEFORE creating scan (atomic: fail early if insufficient balance)
+    const researcherWallet = (req as any).researcherWallet as string | undefined;
+    if (researcherWallet) {
+      // This throws if balance is insufficient — request fails before scan is created
+      await escrowService.deductSubmissionFee(researcherWallet, `pending-${protocolId}-${Date.now()}`);
+      console.log(`[Scans] Submission fee deducted for researcher ${researcherWallet}`);
+    }
+
+    // Create scan job (only after fee deduction succeeds)
     const scan = await scanRepository.createScan({
       protocolId,
       targetBranch: branch,
