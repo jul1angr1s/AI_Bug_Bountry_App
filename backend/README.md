@@ -21,7 +21,7 @@
 
 <div align="center">
 
-### 🤖 **3 Autonomous Agents** | 🧠 **6x AI Detection** | ⚡ **< 4 Min E2E** | 💰 **Auto USDC Payments**
+### 🤖 **4 Autonomous Agents** | 🧠 **6x AI Detection** | ⚡ **< 4 Min E2E** | 💰 **Auto USDC Payments** | 🪪 **ERC-8004 Identity** | 💳 **x.402 Gating**
 
 </div>
 
@@ -33,13 +33,16 @@ This isn't just another Node.js backend. It's an **autonomous agent orchestratio
 
 ### ✨ Breakthrough Features
 
-- **🤖 True Multi-Agent Architecture** - Protocol, Researcher, and Validator agents coordinate via BullMQ without human intervention
+- **🤖 True Multi-Agent Architecture** - Protocol, Researcher, Validator, and Payment agents coordinate via BullMQ without human intervention
+- **🪪 ERC-8004 Agent Identity** - Soulbound NFT registration with on-chain reputation scoring
+- **💳 x.402 Payment Gating** - Coinbase x.402 facilitator for protocol registration fees (HTTP 402 flow)
+- **🏦 USDC Escrow System** - On-chain deposit verification, replay prevention, atomic fee deduction
 - **🧠 Hybrid AI Analysis** - Kimi 2.5 discovers 6x more vulnerabilities than Slither alone
-- **⛓️ Blockchain-Native** - Direct smart contract integration with ethers.js v6 on Base L2
+- **⛓️ Blockchain-Native** - 6 smart contracts with typed client abstraction layer
 - **🔬 Sandboxed Validation** - Isolated Anvil environments spawn and destroy automatically
 - **📡 Real-Time Streaming** - WebSocket + SSE push every state change to frontend
 - **💰 Payment Automation** - Event-driven USDC releases with reconciliation
-- **🔒 Production-Grade** - Split migrations, comprehensive testing, security hardened
+- **🔒 Typed Messaging** - BullMQ + Zod schemas for validated inter-agent communication
 
 ---
 
@@ -139,6 +142,7 @@ Listens for validation events, releases USDC with severity multipliers
 
 #### ⛓️ **Blockchain**
 - **ethers.js v6** - Smart contract interactions
+- **@x402/express** - x.402 payment gating middleware
 - **Foundry** - Solidity compilation
 - **Anvil** - Local test networks
 - **Simple-Git** - Repository management
@@ -187,6 +191,9 @@ graph TB
         Registry[📝 Protocol Registry<br/>0xc7DF...3235]
         Validation[✅ Validation Registry<br/>0x8fBE...44d]
         Bounty[🏦 Bounty Pool<br/>0x6D0b...7b0]
+        AgentID[🪪 Agent Identity<br/>0x5993...942d]
+        AgentRep[⭐ Agent Reputation<br/>0x8160...b850]
+        Escrow[🏦 Platform Escrow<br/>0x33e5...D1ab]
         USDC[💵 USDC Token<br/>0x036C...CF7e]
     end
 
@@ -226,8 +233,10 @@ graph TB
     %% Agents to Blockchain
     Agent_Protocol -->|Register| Registry
     Agent_Validator -->|Attest| Validation
+    Agent_Validator -->|Feedback| AgentRep
     Agent_Payment -->|Release| Bounty
     Bounty <-->|Transfer| USDC
+    Escrow <-->|Fees| USDC
 
     %% Blockchain Events
     Registry -.->|Events| WS_Server
@@ -605,6 +614,137 @@ await requestScan(protocolId, userId, branch);
 
 ---
 
+### 🪪 Agent Identity Service (ERC-8004)
+
+**Purpose**: Register AI agents as on-chain entities with soulbound NFTs
+
+**Architecture**:
+- **AgentIdentityRegistryClient** — Contract abstraction for on-chain NFT registration
+- **AgentIdentityService** — Database + blockchain orchestration (dual-write pattern)
+- **AgentReputationRegistryClient** — On-chain reputation scoring
+- **ReputationService** — Feedback recording synchronized with blockchain
+
+**Agent Registration Flow**:
+1. **Register** agent with wallet address + type (RESEARCHER | VALIDATOR)
+2. **Mint** soulbound NFT on AgentIdentityRegistry contract
+3. **Initialize** linked reputation record (score starts at 0)
+4. **Initialize** escrow balance for submission fee management
+
+**Reputation Scoring**:
+```typescript
+// After each validation, feedback is recorded:
+reputationService.recordFeedbackOnChain(
+  researcherWallet,   // Agent being scored
+  validatorWallet,    // Validator providing feedback
+  validationId,       // On-chain validation reference
+  findingId,          // Which finding was validated
+  FeedbackType.CONFIRMED_CRITICAL  // Outcome
+);
+// Score = (confirmedCount / totalSubmissions) * 100
+```
+
+**Deployed Contracts**:
+- AgentIdentityRegistry: `0x59932bDf3056D88DC07cb320263419B8ec1e942d`
+- AgentReputationRegistry: `0x8160ab516366ffaab6c239524d35963058feb850`
+
+**Tech Stack**: ethers.js, AgentIdentityRegistryClient, AgentReputationRegistryClient, Prisma
+
+---
+
+### 🏦 Escrow Service
+
+**Purpose**: USDC escrow for finding submission fees with on-chain verification
+
+**Key Features**:
+- **Deposit Verification**: Verifies USDC transfers on-chain before crediting balance
+- **Replay Prevention**: Rejects duplicate transaction hashes
+- **Atomic Fee Deduction**: Uses Prisma transactions for balance decrements
+- **Submission Gating**: 0.5 USDC per finding submission
+
+**Flow**:
+```typescript
+// 1. Researcher deposits USDC
+await escrowService.depositEscrow(walletAddress, amount, txHash);
+// → Verifies Transfer event on-chain → Credits balance
+
+// 2. On each submission, fee is deducted atomically
+await escrowService.deductSubmissionFee(walletAddress, findingId);
+// → Decrements balance by 0.5 USDC → Logs transaction
+```
+
+**Deployed Contract**: PlatformEscrow at `0x33e5ee00985f96b482370c948d1c63c0aa4bd1ab`
+
+**Tech Stack**: PlatformEscrowClient, ethers.js, Prisma transactions
+
+---
+
+### 💳 x.402 Payment Gate Middleware
+
+**Purpose**: HTTP 402-based payment gating using Coinbase's x.402 facilitator
+
+**Two Gate Types**:
+
+1. **Protocol Registration Gate** (`x402ProtocolRegistrationGate`):
+   - Returns HTTP 402 with `PAYMENT-REQUIRED` header
+   - Client pays 1 USDC via PaymentRequiredModal
+   - Facilitator verifies cryptographic receipt
+   - Records payment in `X402PaymentRequest` table
+
+2. **Finding Submission Gate** (`x402FindingSubmissionGate`):
+   - Checks prepaid USDC escrow balance
+   - Returns 402 with deposit instructions if insufficient
+   - Deducts 0.5 USDC per submission from escrow
+
+**Configuration**:
+```bash
+SKIP_X402_PAYMENT_GATE=true     # Bypass for development
+X402_FACILITATOR_URL=https://www.x402.org/facilitator
+X402_NETWORK=eip155:84532       # Base Sepolia
+PLATFORM_WALLET_ADDRESS=0x...   # Fee recipient
+```
+
+**Tech Stack**: @x402/express, @x402/evm, @x402/core, Express middleware
+
+---
+
+### 📨 Typed Message Passing (BullMQ + Zod)
+
+**Purpose**: Replace ad-hoc Redis Pub/Sub with validated, typed message schemas
+
+**Message Schemas** (`backend/src/messages/schemas.ts`):
+
+| Schema | Flow | Key Fields |
+|--------|------|------------|
+| `ProofSubmissionSchema` | Researcher → Validator | scanId, protocolId, encryptedPayload, signature |
+| `ValidationResultSchema` | Validator → Payment | outcome, severity, researcherWallet, txHash |
+| `PaymentJobSchema` | Validation → Payment Worker | paymentId, amount, researcherAddress |
+| `ScanJobSchema` | API → Researcher | scanId, protocolId, targetBranch |
+
+**Validation Queue** (`backend/src/queues/validation.queue.ts`):
+- Replaces `redis.publish('PROOF_SUBMISSION')` pattern
+- Guaranteed delivery with 3 retries (exponential backoff)
+- Job metrics: waiting, active, completed, failed counts
+
+```typescript
+// Producer (researcher submit step)
+await enqueueValidation({
+  version: 1,
+  scanId, protocolId, proofId, findingId,
+  commitHash, encryptedPayload, signature,
+  encryptionKeyId, timestamp: new Date()
+});
+
+// Consumer (validator worker)
+const worker = new Worker('validation-jobs', async (job) => {
+  const message = validateMessage(ProofSubmissionSchema, job.data);
+  await processValidation(message);
+});
+```
+
+**Tech Stack**: BullMQ, Zod, ioredis
+
+---
+
 ### 💰 Payment Agent: The Banker
 
 **Purpose**: Automate USDC bounty releases based on validations
@@ -706,11 +846,22 @@ REDIS_URL=redis://localhost:6379
 BASE_SEPOLIA_RPC_URL=https://sepolia.base.org
 PRIVATE_KEY=0x...  # Your wallet private key
 
-# Smart Contracts
+# Platform Contracts
 PROTOCOL_REGISTRY_ADDRESS=0xc7DF730cf661a306a9aEC93D7180da6f6Da23235
 VALIDATION_REGISTRY_ADDRESS=0x8fBE5E9B0C17Cb606091e5050529CE99baB7744d
 BOUNTY_POOL_ADDRESS=0x6D0bA6dA342c4ce75281Ea90c71017BC94A397b0
 USDC_ADDRESS=0x036CbD53842c5426634e7929541eC2318f3dCF7e
+
+# Agent Contracts (ERC-8004)
+AGENT_IDENTITY_REGISTRY_ADDRESS=0x59932bDf3056D88DC07cb320263419B8ec1e942d
+AGENT_REPUTATION_REGISTRY_ADDRESS=0x8160ab516366ffaab6c239524d35963058feb850
+PLATFORM_ESCROW_ADDRESS=0x33e5ee00985f96b482370c948d1c63c0aa4bd1ab
+
+# x.402 Payment Gating
+SKIP_X402_PAYMENT_GATE=true
+X402_FACILITATOR_URL=https://www.x402.org/facilitator
+X402_NETWORK=eip155:84532
+PLATFORM_WALLET_ADDRESS=0x...
 
 # AI Analysis (Optional but Recommended)
 AI_ANALYSIS_ENABLED=true
