@@ -9,6 +9,10 @@ import Scans from './pages/Scans';
 import { ScanDetailRouter } from './components/scans/ScanDetailRouter';
 import PaymentDashboard from './pages/PaymentDashboard';
 import Payments from './pages/Payments';
+import AgentRegistry from './pages/AgentRegistry';
+import EscrowDashboard from './pages/EscrowDashboard';
+import ReputationTracker from './pages/ReputationTracker';
+import X402Payments from './pages/X402Payments';
 import Login from './pages/Login';
 import ProtectedRoute from './components/ProtectedRoute';
 import { Toaster } from './components/Toaster';
@@ -39,6 +43,10 @@ function App() {
           <Route path="/validations" element={<Validations />} />
           <Route path="/payments" element={<Payments />} />
           <Route path="/protocols/:id/payments" element={<PaymentDashboard />} />
+          <Route path="/agents" element={<AgentRegistry />} />
+          <Route path="/agents/:id/escrow" element={<EscrowDashboard />} />
+          <Route path="/agents/:id/reputation" element={<ReputationTracker />} />
+          <Route path="/x402-payments" element={<X402Payments />} />
         </Route>
 
         {/* REDIRECTS */}
