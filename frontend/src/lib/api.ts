@@ -920,3 +920,130 @@ export async function fetchFundingStatus(
   const result = await response.json();
   return result.data;
 }
+
+// ========== ERC-8004 Agent Identity API Functions ==========
+
+import type {
+  AgentIdentity,
+  AgentReputation,
+  AgentFeedback,
+  EscrowBalance,
+  EscrowTransaction,
+  X402PaymentEvent,
+  AgentIdentityType,
+} from '../types/dashboard';
+
+export async function fetchAgentIdentities(): Promise<AgentIdentity[]> {
+  const headers = await getAuthHeaders();
+  const response = await fetch(`${API_BASE_URL}/api/v1/agent-identities`, { headers });
+  if (!response.ok) throw new Error(`Failed to fetch agent identities: ${response.statusText}`);
+  const result = await response.json();
+  return result.data || [];
+}
+
+export async function fetchAgentIdentity(id: string): Promise<AgentIdentity> {
+  const headers = await getAuthHeaders();
+  const response = await fetch(`${API_BASE_URL}/api/v1/agent-identities/${id}`, { headers });
+  if (!response.ok) throw new Error(`Failed to fetch agent identity: ${response.statusText}`);
+  const result = await response.json();
+  return result.data;
+}
+
+export async function fetchAgentByWallet(walletAddress: string): Promise<AgentIdentity> {
+  const headers = await getAuthHeaders();
+  const response = await fetch(`${API_BASE_URL}/api/v1/agent-identities/wallet/${walletAddress}`, { headers });
+  if (!response.ok) throw new Error(`Failed to fetch agent: ${response.statusText}`);
+  const result = await response.json();
+  return result.data;
+}
+
+export async function registerAgent(
+  walletAddress: string,
+  agentType: AgentIdentityType,
+  registerOnChain = false
+): Promise<{ agentIdentity: AgentIdentity; onChain: any }> {
+  const headers = await getAuthHeaders();
+  const response = await fetch(`${API_BASE_URL}/api/v1/agent-identities/register`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ walletAddress, agentType, registerOnChain }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Registration failed: ${response.statusText}`);
+  }
+  const result = await response.json();
+  return result.data;
+}
+
+export async function fetchAgentReputation(agentId: string): Promise<AgentReputation> {
+  const headers = await getAuthHeaders();
+  const response = await fetch(`${API_BASE_URL}/api/v1/agent-identities/${agentId}/reputation`, { headers });
+  if (!response.ok) throw new Error(`Failed to fetch reputation: ${response.statusText}`);
+  const result = await response.json();
+  return result.data;
+}
+
+export async function fetchAgentFeedback(agentId: string): Promise<AgentFeedback[]> {
+  const headers = await getAuthHeaders();
+  const response = await fetch(`${API_BASE_URL}/api/v1/agent-identities/${agentId}/feedback`, { headers });
+  if (!response.ok) throw new Error(`Failed to fetch feedback: ${response.statusText}`);
+  const result = await response.json();
+  return result.data || [];
+}
+
+export async function fetchAgentLeaderboard(limit = 10): Promise<AgentIdentity[]> {
+  const headers = await getAuthHeaders();
+  const response = await fetch(`${API_BASE_URL}/api/v1/agent-identities/leaderboard?limit=${limit}`, { headers });
+  if (!response.ok) throw new Error(`Failed to fetch leaderboard: ${response.statusText}`);
+  const result = await response.json();
+  return result.data || [];
+}
+
+export async function fetchEscrowBalance(agentId: string): Promise<EscrowBalance> {
+  const headers = await getAuthHeaders();
+  const response = await fetch(`${API_BASE_URL}/api/v1/agent-identities/${agentId}/escrow`, { headers });
+  if (!response.ok) throw new Error(`Failed to fetch escrow balance: ${response.statusText}`);
+  const result = await response.json();
+  return result.data;
+}
+
+export async function depositEscrow(
+  agentId: string,
+  amount: string,
+  txHash?: string
+): Promise<{ balance: string; totalDeposited: string; remainingSubmissions: number }> {
+  const headers = await getAuthHeaders();
+  const response = await fetch(`${API_BASE_URL}/api/v1/agent-identities/${agentId}/escrow/deposit`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ amount, txHash }),
+  });
+  if (!response.ok) throw new Error(`Failed to deposit: ${response.statusText}`);
+  const result = await response.json();
+  return result.data;
+}
+
+export async function fetchEscrowTransactions(agentId: string): Promise<EscrowTransaction[]> {
+  const headers = await getAuthHeaders();
+  const response = await fetch(`${API_BASE_URL}/api/v1/agent-identities/${agentId}/escrow/transactions`, { headers });
+  if (!response.ok) throw new Error(`Failed to fetch escrow transactions: ${response.statusText}`);
+  const result = await response.json();
+  return result.data || [];
+}
+
+export async function fetchX402Payments(): Promise<X402PaymentEvent[]> {
+  const headers = await getAuthHeaders();
+  const response = await fetch(`${API_BASE_URL}/api/v1/agent-identities/x402-payments`, { headers });
+  if (!response.ok) throw new Error(`Failed to fetch x402 payments: ${response.statusText}`);
+  const result = await response.json();
+  return result.data || [];
+}
+
+export async function fetchAgentX402Payments(agentId: string): Promise<X402PaymentEvent[]> {
+  const headers = await getAuthHeaders();
+  const response = await fetch(`${API_BASE_URL}/api/v1/agent-identities/${agentId}/x402-payments`, { headers });
+  if (!response.ok) throw new Error(`Failed to fetch agent x402 payments: ${response.statusText}`);
+  const result = await response.json();
+  return result.data || [];
+}
