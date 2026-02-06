@@ -1,5 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
+import { ethers } from 'ethers';
+import { PrismaClient } from '@prisma/client';
 import { escrowService } from '../services/escrow.service.js';
+
+const prisma = new PrismaClient();
 
 interface X402PaymentTerms {
   version: string;
@@ -24,6 +28,13 @@ const USDC_ADDRESS = process.env.USDC_ADDRESS || '0x036CbD53842c5426634e7929541e
 const PROTOCOL_REGISTRATION_FEE = '1000000';
 const SUBMISSION_FEE = '500000';
 
+// ERC-20 Transfer event signature
+const TRANSFER_TOPIC = ethers.id('Transfer(address,address,uint256)');
+
+const provider = new ethers.JsonRpcProvider(
+  process.env.BASE_SEPOLIA_RPC_URL || 'https://sepolia.base.org'
+);
+
 export function createX402PaymentResponse(
   amount: string,
   memo: string
@@ -41,17 +52,96 @@ export function createX402PaymentResponse(
   };
 }
 
-async function verifyX402Receipt(receipt: X402Receipt): Promise<boolean> {
+export async function verifyX402Receipt(
+  receipt: X402Receipt,
+  expectedAmount: string
+): Promise<{ valid: boolean; reason?: string }> {
   if (!receipt.txHash || !receipt.amount || !receipt.payer) {
-    return false;
+    return { valid: false, reason: 'Missing required receipt fields' };
   }
 
   const isValidFormat = /^0x[a-fA-F0-9]{64}$/.test(receipt.txHash);
   if (!isValidFormat) {
-    return false;
+    return { valid: false, reason: 'Invalid transaction hash format' };
   }
 
-  return true;
+  // Check for replay: has this tx hash already been used?
+  const existingPayment = await prisma.x402PaymentRequest.findFirst({
+    where: { txHash: receipt.txHash, status: 'COMPLETED' },
+  });
+
+  if (existingPayment) {
+    return { valid: false, reason: 'Transaction hash already used (replay detected)' };
+  }
+
+  // Verify on-chain transaction
+  try {
+    const txReceipt = await provider.getTransactionReceipt(receipt.txHash);
+
+    if (!txReceipt) {
+      return { valid: false, reason: 'Transaction not found on-chain' };
+    }
+
+    if (txReceipt.status !== 1) {
+      return { valid: false, reason: 'Transaction failed on-chain' };
+    }
+
+    // Parse USDC Transfer events from the receipt
+    const usdcAddress = USDC_ADDRESS.toLowerCase();
+    const platformWallet = PLATFORM_WALLET.toLowerCase();
+    const requiredAmount = BigInt(expectedAmount);
+
+    let transferFound = false;
+
+    for (const log of txReceipt.logs) {
+      if (log.address.toLowerCase() !== usdcAddress) continue;
+      if (log.topics[0] !== TRANSFER_TOPIC) continue;
+
+      // Decode Transfer(address from, address to, uint256 value)
+      const to = ethers.getAddress('0x' + log.topics[2].slice(26)).toLowerCase();
+      const value = BigInt(log.data);
+
+      if (to === platformWallet && value >= requiredAmount) {
+        transferFound = true;
+        break;
+      }
+    }
+
+    if (!transferFound) {
+      return { valid: false, reason: 'No USDC transfer to platform wallet found in transaction' };
+    }
+
+    return { valid: true };
+  } catch (error) {
+    // If RPC call fails, fall back to format-only validation in dev
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('[x402] On-chain verification failed, accepting format-valid receipt in dev mode:', error);
+      return { valid: true };
+    }
+    return { valid: false, reason: 'On-chain verification failed' };
+  }
+}
+
+async function createPaymentRequest(
+  requestType: 'PROTOCOL_REGISTRATION' | 'FINDING_SUBMISSION',
+  requesterAddress: string,
+  amount: string,
+  status: 'PENDING' | 'COMPLETED',
+  txHash?: string,
+  protocolId?: string
+) {
+  return prisma.x402PaymentRequest.create({
+    data: {
+      requestType,
+      requesterAddress: requesterAddress.toLowerCase(),
+      amount: BigInt(amount),
+      status,
+      protocolId,
+      txHash,
+      expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+      completedAt: status === 'COMPLETED' ? new Date() : undefined,
+    },
+  });
 }
 
 export function x402ProtocolRegistrationGate() {
@@ -70,6 +160,15 @@ export function x402ProtocolRegistrationGate() {
         PROTOCOL_REGISTRATION_FEE,
         'Protocol registration fee'
       );
+
+      // Track the pending payment request
+      const requester = req.body.ownerAddress || 'unknown';
+      await createPaymentRequest(
+        'PROTOCOL_REGISTRATION',
+        requester,
+        PROTOCOL_REGISTRATION_FEE,
+        'PENDING'
+      ).catch(err => console.error('[x402] Failed to create payment request:', err));
 
       return res.status(402).json({
         error: 'Payment Required',
@@ -97,18 +196,27 @@ export function x402ProtocolRegistrationGate() {
         };
       }
 
-      const isValid = await verifyX402Receipt(receipt);
+      const verification = await verifyX402Receipt(receipt, PROTOCOL_REGISTRATION_FEE);
 
-      if (!isValid) {
+      if (!verification.valid) {
         return res.status(402).json({
           error: 'Invalid Payment',
-          message: 'The provided payment receipt is invalid',
+          message: verification.reason || 'The provided payment receipt is invalid',
           x402: createX402PaymentResponse(
             PROTOCOL_REGISTRATION_FEE,
             'Protocol registration fee'
           ),
         });
       }
+
+      // Track the completed payment
+      await createPaymentRequest(
+        'PROTOCOL_REGISTRATION',
+        receipt.payer,
+        PROTOCOL_REGISTRATION_FEE,
+        'COMPLETED',
+        receipt.txHash
+      ).catch(err => console.error('[x402] Failed to create payment request:', err));
 
       (req as any).x402Receipt = receipt;
       console.log(`[x402] Payment verified for protocol registration: ${receipt.txHash}`);
