@@ -123,6 +123,54 @@ VITE_ENABLE_NOTIFICATIONS=true
 
 ---
 
+## 📸 Screenshots
+
+<div align="center">
+
+### Dashboard
+Real-time overview with agent status, bounty pool stats, and recent vulnerabilities.
+
+![Dashboard](docs/screenshots/dashboard.png)
+
+---
+
+### Protocols
+Protocol list with security scores, status filters, and registration.
+
+![Protocols](docs/screenshots/protocols.png)
+
+---
+
+### Protocol Detail
+Deep-dive into a registered protocol with scans, findings, and payment tabs.
+
+![Protocol Detail](docs/screenshots/protocol-detail.png)
+
+---
+
+### Scan Findings
+AI-discovered vulnerabilities with severity badges, confidence scores, and detailed descriptions.
+
+![Scan Findings](docs/screenshots/scan-findings.png)
+
+---
+
+### Validations
+Proof validation results powered by Kimi 2.5 LLM — VALIDATED or REJECTED status per finding.
+
+![Validations](docs/screenshots/validations.png)
+
+---
+
+### USDC Payments & Rewards
+Bounty tracking with payout distribution by severity, top earners leaderboard, and recent payouts.
+
+![Payments](docs/screenshots/payments.png)
+
+</div>
+
+---
+
 ## 🔐 Authentication
 
 ### SIWE (Sign-In with Ethereum)
