@@ -333,25 +333,62 @@ async function processValidation(submission: ProofSubmissionMessage): Promise<vo
           // STEP 10: Record reputation feedback (ERC-8004)
           // =================
           try {
-            // Get researcher wallet from scan
+            // Get researcher wallet from scan context
             const scan = await prisma.scan.findUnique({
               where: { id: proof.scanId },
               include: { agent: true },
             });
 
             // Map severity + outcome to FeedbackType
+            // INFO severity maps to CONFIRMED_INFORMATIONAL
+            const severityToFeedback: Record<string, FeedbackType> = {
+              'CRITICAL': 'CONFIRMED_CRITICAL',
+              'HIGH': 'CONFIRMED_HIGH',
+              'MEDIUM': 'CONFIRMED_MEDIUM',
+              'LOW': 'CONFIRMED_LOW',
+              'INFO': 'CONFIRMED_INFORMATIONAL',
+            };
+
             const feedbackType: FeedbackType = executionResult.validated
-              ? (`CONFIRMED_${finding.severity}` as FeedbackType)
+              ? (severityToFeedback[finding.severity] || 'CONFIRMED_INFORMATIONAL')
               : 'REJECTED';
 
-            // Get researcher and validator agent identities
-            // For now, use placeholder wallets - in production these would come from agent registration
-            const researcherWallet = process.env.RESEARCHER_WALLET_ADDRESS || '';
-            const validatorWallet = process.env.VALIDATOR_WALLET_ADDRESS || process.env.PLATFORM_WALLET_ADDRESS || '';
+            // Resolve researcher identity from AgentIdentity table
+            // Look up RESEARCHER agents - if a scan has an associated agent, use that agent's identity
+            let researcherWallet = '';
+            if (scan?.agent) {
+              // Look up agent identity by the platform agent's linked wallet
+              const researcherIdentity = await prisma.agentIdentity.findFirst({
+                where: { agentType: 'RESEARCHER', isActive: true },
+                orderBy: { registeredAt: 'asc' },
+              });
+              if (researcherIdentity) {
+                researcherWallet = researcherIdentity.walletAddress;
+              }
+            }
+            // Fallback: check env var
+            if (!researcherWallet) {
+              researcherWallet = process.env.RESEARCHER_WALLET_ADDRESS || '';
+            }
+
+            // Resolve validator identity dynamically
+            let validatorWallet = '';
+            const validatorIdentity = await prisma.agentIdentity.findFirst({
+              where: { agentType: 'VALIDATOR', isActive: true },
+              orderBy: { registeredAt: 'asc' },
+            });
+            if (validatorIdentity) {
+              validatorWallet = validatorIdentity.walletAddress;
+            }
+            // Fallback: check env vars
+            if (!validatorWallet) {
+              validatorWallet = process.env.VALIDATOR_WALLET_ADDRESS || process.env.PLATFORM_WALLET_ADDRESS || '';
+            }
 
             if (researcherWallet && validatorWallet) {
               console.log('[Validator] Recording reputation feedback...');
               console.log(`  Researcher: ${researcherWallet}`);
+              console.log(`  Validator: ${validatorWallet}`);
               console.log(`  Feedback Type: ${feedbackType}`);
 
               await reputationService.recordFeedback(
@@ -364,7 +401,9 @@ async function processValidation(submission: ProofSubmissionMessage): Promise<vo
 
               console.log('[Validator] Reputation feedback recorded successfully');
             } else {
-              console.log('[Validator] Skipping reputation feedback - agent wallets not configured');
+              console.log('[Validator] Skipping reputation feedback - agent wallets not found');
+              console.log(`  Researcher: ${researcherWallet || '(not found)'}`);
+              console.log(`  Validator: ${validatorWallet || '(not found)'}`);
             }
           } catch (reputationError) {
             // Don't fail validation if reputation recording fails

@@ -1,8 +1,11 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
+import { PrismaClient } from '@prisma/client';
 import { agentIdentityService } from '../services/agent-identity.service.js';
 import { reputationService } from '../services/reputation.service.js';
 import { escrowService } from '../services/escrow.service.js';
+
+const prisma = new PrismaClient();
 
 const router = Router();
 
@@ -17,6 +20,32 @@ const DepositEscrowSchema = z.object({
   txHash: z.string().optional(),
 });
 
+// =============================================
+// STATIC ROUTES (must be before /:id param)
+// =============================================
+
+// GET /api/v1/agent-identities - List all agents
+router.get('/', async (req: Request, res: Response) => {
+  try {
+    const agents = await prisma.agentIdentity.findMany({
+      include: { reputation: true },
+      orderBy: { registeredAt: 'desc' },
+    });
+
+    res.json({
+      success: true,
+      data: agents,
+    });
+  } catch (error) {
+    console.error('List agents error:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to list agents',
+    });
+  }
+});
+
+// POST /api/v1/agent-identities/register
 router.post('/register', async (req: Request, res: Response) => {
   try {
     const { walletAddress, agentType, registerOnChain } = RegisterAgentSchema.parse(req.body);
@@ -48,6 +77,50 @@ router.post('/register', async (req: Request, res: Response) => {
   }
 });
 
+// GET /api/v1/agent-identities/x402-payments - List all x.402 payment requests
+router.get('/x402-payments', async (req: Request, res: Response) => {
+  try {
+    const payments = await prisma.x402PaymentRequest.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json({
+      success: true,
+      data: payments.map(p => ({
+        ...p,
+        amount: p.amount.toString(),
+      })),
+    });
+  } catch (error) {
+    console.error('Get x402 payments error:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to get x402 payments',
+    });
+  }
+});
+
+// GET /api/v1/agent-identities/leaderboard
+router.get('/leaderboard', async (req: Request, res: Response) => {
+  try {
+    const limit = parseInt(req.query.limit as string) || 10;
+
+    const leaderboard = await agentIdentityService.getLeaderboard(limit);
+
+    res.json({
+      success: true,
+      data: leaderboard,
+    });
+  } catch (error) {
+    console.error('Get leaderboard error:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to get leaderboard',
+    });
+  }
+});
+
+// GET /api/v1/agent-identities/wallet/:walletAddress
 router.get('/wallet/:walletAddress', async (req: Request, res: Response) => {
   try {
     const { walletAddress } = req.params;
@@ -74,32 +147,7 @@ router.get('/wallet/:walletAddress', async (req: Request, res: Response) => {
   }
 });
 
-router.get('/:id', async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-
-    const agent = await agentIdentityService.getAgentById(id);
-
-    if (!agent) {
-      return res.status(404).json({
-        success: false,
-        error: 'Agent not found',
-      });
-    }
-
-    res.json({
-      success: true,
-      data: agent,
-    });
-  } catch (error) {
-    console.error('Get agent error:', error);
-    res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to get agent',
-    });
-  }
-});
-
+// GET /api/v1/agent-identities/type/:agentType
 router.get('/type/:agentType', async (req: Request, res: Response) => {
   try {
     const agentType = req.params.agentType.toUpperCase() as 'RESEARCHER' | 'VALIDATOR';
@@ -126,25 +174,38 @@ router.get('/type/:agentType', async (req: Request, res: Response) => {
   }
 });
 
-router.get('/leaderboard', async (req: Request, res: Response) => {
-  try {
-    const limit = parseInt(req.query.limit as string) || 10;
+// =============================================
+// PARAMETERIZED ROUTES (/:id and sub-routes)
+// =============================================
 
-    const leaderboard = await agentIdentityService.getLeaderboard(limit);
+// GET /api/v1/agent-identities/:id
+router.get('/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const agent = await agentIdentityService.getAgentById(id);
+
+    if (!agent) {
+      return res.status(404).json({
+        success: false,
+        error: 'Agent not found',
+      });
+    }
 
     res.json({
       success: true,
-      data: leaderboard,
+      data: agent,
     });
   } catch (error) {
-    console.error('Get leaderboard error:', error);
+    console.error('Get agent error:', error);
     res.status(500).json({
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to get leaderboard',
+      error: error instanceof Error ? error.message : 'Failed to get agent',
     });
   }
 });
 
+// GET /api/v1/agent-identities/:id/reputation
 router.get('/:id/reputation', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -171,6 +232,7 @@ router.get('/:id/reputation', async (req: Request, res: Response) => {
   }
 });
 
+// GET /api/v1/agent-identities/:id/feedback
 router.get('/:id/feedback', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -198,6 +260,7 @@ router.get('/:id/feedback', async (req: Request, res: Response) => {
   }
 });
 
+// GET /api/v1/agent-identities/:id/escrow
 router.get('/:id/escrow', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -231,6 +294,7 @@ router.get('/:id/escrow', async (req: Request, res: Response) => {
   }
 });
 
+// POST /api/v1/agent-identities/:id/escrow/deposit
 router.post('/:id/escrow/deposit', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -267,6 +331,7 @@ router.post('/:id/escrow/deposit', async (req: Request, res: Response) => {
   }
 });
 
+// GET /api/v1/agent-identities/:id/escrow/transactions
 router.get('/:id/escrow/transactions', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -297,6 +362,41 @@ router.get('/:id/escrow/transactions', async (req: Request, res: Response) => {
   }
 });
 
+// GET /api/v1/agent-identities/:id/x402-payments
+router.get('/:id/x402-payments', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const agent = await agentIdentityService.getAgentById(id);
+    if (!agent) {
+      return res.status(404).json({
+        success: false,
+        error: 'Agent not found',
+      });
+    }
+
+    const payments = await prisma.x402PaymentRequest.findMany({
+      where: { requesterAddress: agent.walletAddress.toLowerCase() },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json({
+      success: true,
+      data: payments.map(p => ({
+        ...p,
+        amount: p.amount.toString(),
+      })),
+    });
+  } catch (error) {
+    console.error('Get agent x402 payments error:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to get x402 payments',
+    });
+  }
+});
+
+// POST /api/v1/agent-identities/:id/deactivate
 router.post('/:id/deactivate', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
