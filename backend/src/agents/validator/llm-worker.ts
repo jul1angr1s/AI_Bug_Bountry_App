@@ -1,17 +1,24 @@
-import { getRedisClient } from '../../lib/redis.js';
+import { Worker, Job } from 'bullmq';
 import { getPrismaClient } from '../../lib/prisma.js';
 import { getKimiClient } from '../../lib/llm.js';
 import { getValidationService } from '../../services/validation.service.js';
 import { emitAgentTaskUpdate } from '../../websocket/events.js';
-import { decryptProof, type ProofSubmissionMessage } from './steps/decrypt.js';
+import { decryptProof } from './steps/decrypt.js';
+import { validateMessage, ProofSubmissionSchema } from '../../messages/schemas.js';
+import type { ProofSubmissionMessage } from '../../messages/schemas.js';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
-const redis = await getRedisClient();
 const prisma = getPrismaClient();
 
-let isRunning = false;
-let subscriber: ReturnType<typeof redis.duplicate> | null = null;
+let validatorLLMWorker: Worker<ProofSubmissionMessage> | null = null;
+
+const redisConnection = {
+  host: process.env.REDIS_HOST || 'localhost',
+  port: parseInt(process.env.REDIS_PORT || '6379', 10),
+  password: process.env.REDIS_PASSWORD,
+  maxRetriesPerRequest: null,
+};
 
 /**
  * Start Validator Agent with LLM-based Proof Analysis
@@ -22,9 +29,11 @@ let subscriber: ReturnType<typeof redis.duplicate> | null = null;
  * - Validity of the attack vector
  * - Severity and impact assessment
  * - Confidence score (0-100)
+ *
+ * Uses BullMQ Worker on 'validation-jobs' queue (replaces Redis Pub/Sub).
  */
 export async function startValidatorAgentLLM(): Promise<void> {
-  if (isRunning) {
+  if (validatorLLMWorker) {
     console.log('[Validator Agent LLM] Already running');
     return;
   }
@@ -48,57 +57,49 @@ export async function startValidatorAgentLLM(): Promise<void> {
     throw error;
   }
 
-  // Create Redis subscriber (use a new client instance for pub/sub)
-  // Note: duplicate() creates a new connection, no need to call connect() manually
-  subscriber = redis.duplicate();
+  validatorLLMWorker = new Worker<ProofSubmissionMessage>(
+    'validation-jobs',
+    async (job: Job<ProofSubmissionMessage>) => {
+      const submission = validateMessage(
+        ProofSubmissionSchema,
+        job.data,
+        `validation job ${job.id}`
+      );
 
-  // Set up message handler BEFORE subscribing (ioredis pattern)
-  // In ioredis, subscribe() doesn't take a message callback - messages come via 'message' event
-  subscriber.on('message', async (channel: string, message: string) => {
-    if (channel !== 'PROOF_SUBMISSION') {
-      return;
-    }
-
-    try {
-      const submission: ProofSubmissionMessage = JSON.parse(message);
       console.log(
         `[Validator Agent LLM] Received proof submission: ${submission.proofId}`
       );
 
-      // Process validation asynchronously
-      processValidationLLM(submission).catch((error) => {
-        console.error('[Validator Agent LLM] Validation processing error:', error);
-      });
-    } catch (error) {
-      console.error('[Validator Agent LLM] Failed to parse proof submission:', error);
+      await processValidationLLM(submission);
+    },
+    {
+      connection: redisConnection,
+      concurrency: 1,
     }
+  );
+
+  validatorLLMWorker.on('completed', (job) => {
+    console.log(`[Validator Agent LLM] Job ${job.id} completed`);
   });
 
-  // Now subscribe to the channel
-  await subscriber.subscribe('PROOF_SUBMISSION');
-  console.log('[Validator Agent LLM] Subscribed to PROOF_SUBMISSION channel');
+  validatorLLMWorker.on('failed', (job, error) => {
+    console.error(`[Validator Agent LLM] Job ${job?.id} failed:`, error.message);
+  });
 
-  isRunning = true;
-  console.log('[Validator Agent LLM] Running and listening for proofs...');
+  console.log('[Validator Agent LLM] Running and listening for validation jobs...');
 }
 
 /**
  * Stop Validator Agent
  */
 export async function stopValidatorAgentLLM(): Promise<void> {
-  if (!isRunning) {
+  if (!validatorLLMWorker) {
     return;
   }
 
   console.log('[Validator Agent LLM] Stopping...');
-
-  if (subscriber) {
-    await subscriber.unsubscribe('PROOF_SUBMISSION');
-    await subscriber.quit();
-    subscriber = null;
-  }
-
-  isRunning = false;
+  await validatorLLMWorker.close();
+  validatorLLMWorker = null;
   console.log('[Validator Agent LLM] Stopped');
 }
 
@@ -280,5 +281,8 @@ async function processValidationLLM(submission: ProofSubmissionMessage): Promise
       `Validation error: ${errorMessage}`,
       0
     );
+
+    // Re-throw so BullMQ can retry if attempts remain
+    throw error;
   }
 }

@@ -117,6 +117,9 @@ export const MOCK_LOGS: LogMessage[] = [
   },
 ];
 
+// Stable empty array to avoid new reference on every render when no logs prop is passed
+const EMPTY_LOGS: LogMessage[] = [];
+
 // Color mapping for log levels
 const LOG_LEVEL_COLORS = {
   INFO: 'text-[#60a5fa]', // Blue
@@ -132,7 +135,7 @@ const ANALYSIS_GLOW = {
 };
 
 export const LiveTerminalOutput: React.FC<LiveTerminalOutputProps> = ({
-  logs = [],
+  logs = EMPTY_LOGS,
   scanState = 'RUNNING',
 }) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
