@@ -1,0 +1,27 @@
+schema: change
+version: 1.0
+status: in_progress
+started: 2026-02-05
+component:
+  - Contracts
+  - Backend
+  - Frontend
+layer:
+  - Smart Contracts
+  - API
+  - Services
+chain: Base Sepolia (84532)
+artifacts:
+  - name: proposal
+    completed: true
+  - name: design
+    completed: true
+  - name: tasks
+    completed: true
+notes: |
+  ERC-8004 Agent Identity & Reputation Scoring
+  - AgentIdentityRegistry: ERC-721 agent NFTs (created, pending deployment)
+  - AgentReputationRegistry: Score aggregation from ValidationRegistry (created, pending deployment)
+  - Backend services for agent management and reputation tracking (implemented)
+  - API routes for agent registration and reputation queries (implemented)
+  - Prisma schema updated with AgentIdentity, AgentReputation, AgentFeedback models

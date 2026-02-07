@@ -46,6 +46,17 @@ router.post('/', requireAuth, x402FindingSubmissionGate(), async (req, res, next
       targetCommitHash: commitHash,
     });
 
+    // Deduct submission fee from researcher escrow (non-refundable)
+    const researcherWallet = (req as any).researcherWallet as string | undefined;
+    if (researcherWallet) {
+      try {
+        await escrowService.deductSubmissionFee(researcherWallet, scan.id);
+        console.log(`[Scans] Submission fee deducted for researcher ${researcherWallet}, scan ${scan.id}`);
+      } catch (feeError) {
+        console.error('[Scans] Fee deduction failed (scan still created):', feeError);
+      }
+    }
+
     // Enqueue scan job for researcher agent
     await enqueueScan({
       scanId: scan.id,
