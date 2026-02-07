@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-02-06
+title: Testing and QA Expansion
+description: Expand test coverage from <30% to 70%+ backend, 70%+ frontend, 90%+ contracts with TDD methodology, mock infrastructure, and CI enforcement

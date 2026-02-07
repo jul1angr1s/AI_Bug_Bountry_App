@@ -78,3 +78,7 @@ Build → Lint → Unit Tests → Integration Tests → E2E (Nightly) → Securi
 - `npm run test:unit` + `forge test`
 - `npm run test:integration`
 - `slither .` (contracts) + `trivy` (images)
+
+## Change Specifications
+
+- [Testing & QA Expansion](../changes/testing-qa-expansion/) - Expand coverage to 70%+ backend, 70%+ frontend, 90%+ contracts with TDD, mock infrastructure, CI enforcement
