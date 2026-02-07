@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { Prisma } from '@prisma/client';
 import { getPrismaClient } from '../lib/prisma.js';
 import { addPaymentJob } from '../queues/payment.queue.js';
 
@@ -23,7 +24,7 @@ export async function listPayments(req: Request, res: Response): Promise<void> {
     const skip = (pageNum - 1) * limitNum;
 
     // Build filter
-    const where: any = {};
+    const where: Prisma.PaymentWhereInput = {};
     if (protocolId) {
       where.vulnerability = {
         protocolId: protocolId as string,
@@ -79,7 +80,7 @@ export async function listPayments(req: Request, res: Response): Promise<void> {
         totalPages: Math.ceil(total / limitNum),
       },
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('[PaymentController] listPayments error:', error);
     res.status(500).json({ error: 'Failed to list payments' });
   }
@@ -128,7 +129,7 @@ export async function getPayment(req: Request, res: Response): Promise<void> {
       protocol: payment.vulnerability.protocol,
       reconciliations: payment.reconciliations,
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('[PaymentController] getPayment error:', error);
     res.status(500).json({ error: 'Failed to get payment' });
   }
@@ -182,7 +183,7 @@ export async function getResearcherPayments(req: Request, res: Response): Promis
         totalPages: Math.ceil(total / limitNum),
       },
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('[PaymentController] getResearcherPayments error:', error);
     res.status(500).json({ error: 'Failed to get researcher payments' });
   }
@@ -244,7 +245,7 @@ export async function retryPayment(req: Request, res: Response): Promise<void> {
       message: 'Payment queued for retry',
       paymentId: id,
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('[PaymentController] retryPayment error:', error);
     res.status(500).json({ error: 'Failed to retry payment' });
   }
@@ -275,7 +276,7 @@ export async function getPaymentStats(req: Request, res: Response): Promise<void
       totalAmountPaid: totalAmount._sum.amount?.toString() || '0',
       successRate: total > 0 ? Math.round((completed / total) * 100) : 0,
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('[PaymentController] getPaymentStats error:', error);
     res.status(500).json({ error: 'Failed to get payment stats' });
   }

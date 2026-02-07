@@ -14,7 +14,7 @@ export interface CompileStepParams {
 export interface CompileStepResult {
   success: boolean;
   artifactsPath: string;
-  abi?: any;
+  abi?: Record<string, unknown>[];
   bytecode?: string;
   errors?: string[];
   warnings?: string[];
@@ -135,7 +135,7 @@ async function extractArtifacts(
   artifactsPath: string,
   contractPath: string,
   contractName: string
-): Promise<{ abi?: any; bytecode?: string }> {
+): Promise<{ abi?: Record<string, unknown>[]; bytecode?: string }> {
   try {
     // Foundry stores artifacts in out/<ContractFile>/<ContractName>.json
     const contractFileName = path.basename(contractPath, '.sol');

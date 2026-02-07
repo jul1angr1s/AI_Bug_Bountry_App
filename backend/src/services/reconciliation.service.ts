@@ -133,9 +133,10 @@ export class ReconciliationService {
       );
 
       console.log('[Reconciliation] Periodic reconciliation job scheduled (every 10 minutes)');
-    } catch (error: any) {
-      console.error('[Reconciliation] Failed to initialize periodic reconciliation:', error.message);
-      throw new Error(`Failed to initialize periodic reconciliation: ${error.message}`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      console.error('[Reconciliation] Failed to initialize periodic reconciliation:', msg);
+      throw new Error(`Failed to initialize periodic reconciliation: ${msg}`);
     }
   }
 
@@ -173,9 +174,10 @@ export class ReconciliationService {
 
       // Step 4: Alert if unresolved discrepancy count > 10
       await this.checkDiscrepancyThreshold();
-    } catch (error: any) {
-      console.error('[Reconciliation] Reconciliation failed:', error.message);
-      throw new Error(`Reconciliation failed: ${error.message}`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      console.error('[Reconciliation] Reconciliation failed:', msg);
+      throw new Error(`Reconciliation failed: ${msg}`);
     }
   }
 
@@ -227,9 +229,10 @@ export class ReconciliationService {
       }
 
       return events;
-    } catch (error: any) {
-      console.error('[Reconciliation] Failed to query BountyReleased events:', error.message);
-      throw new Error(`Failed to query events: ${error.message}`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      console.error('[Reconciliation] Failed to query BountyReleased events:', msg);
+      throw new Error(`Failed to query events: ${msg}`);
     }
   }
 
@@ -318,8 +321,9 @@ export class ReconciliationService {
         `[Reconciliation] MISSING_PAYMENT detected: validationId=${event.validationId}, ` +
           `amount=${amountUsdc} USDC, txHash=${event.txHash}`
       );
-    } catch (error: any) {
-      console.error(`[Reconciliation] Failed to handle missing payment:`, error.message);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      console.error(`[Reconciliation] Failed to handle missing payment:`, msg);
     }
   }
 
@@ -358,8 +362,9 @@ export class ReconciliationService {
         `[Reconciliation] UNCONFIRMED_PAYMENT detected: paymentId=${payment.id}, ` +
           `validationId=${payment.onChainBountyId}, amount=${payment.amount} USDC`
       );
-    } catch (error: any) {
-      console.error(`[Reconciliation] Failed to handle unconfirmed payment:`, error.message);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      console.error(`[Reconciliation] Failed to handle unconfirmed payment:`, msg);
     }
   }
 
@@ -474,8 +479,9 @@ export class ReconciliationService {
 
         console.log(`[Reconciliation] Payment ${payment.id} successfully reconciled`);
       }
-    } catch (error: any) {
-      console.error(`[Reconciliation] Failed to validate payment match:`, error.message);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      console.error(`[Reconciliation] Failed to validate payment match:`, msg);
     }
   }
 
@@ -497,8 +503,9 @@ export class ReconciliationService {
           `[Reconciliation] HIGH DISCREPANCY COUNT ALERT: ${unresolvedCount} unresolved discrepancies detected!`
         );
       }
-    } catch (error: any) {
-      console.error('[Reconciliation] Failed to check discrepancy threshold:', error.message);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      console.error('[Reconciliation] Failed to check discrepancy threshold:', msg);
     }
   }
 
@@ -583,9 +590,10 @@ export class ReconciliationService {
         reconciliationRate: Math.round(reconciliationRate * 100) / 100,
         discrepanciesByStatus,
       };
-    } catch (error: any) {
-      console.error('[Reconciliation] Failed to get reconciliation report:', error.message);
-      throw new Error(`Failed to get reconciliation report: ${error.message}`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      console.error('[Reconciliation] Failed to get reconciliation report:', msg);
+      throw new Error(`Failed to get reconciliation report: ${msg}`);
     }
   }
 
@@ -615,9 +623,10 @@ export class ReconciliationService {
       });
 
       return discrepancies;
-    } catch (error: any) {
-      console.error('[Reconciliation] Failed to get discrepancies:', error.message);
-      throw new Error(`Failed to get discrepancies: ${error.message}`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      console.error('[Reconciliation] Failed to get discrepancies:', msg);
+      throw new Error(`Failed to get discrepancies: ${msg}`);
     }
   }
 
@@ -650,8 +659,9 @@ export class ReconciliationService {
       });
 
       console.log(`[Reconciliation] Discrepancy ${discrepancyId} resolved`);
-    } catch (error: any) {
-      console.error('[Reconciliation] Failed to resolve discrepancy:', error.message);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      console.error('[Reconciliation] Failed to resolve discrepancy:', msg);
       throw error;
     }
   }
@@ -663,8 +673,9 @@ export class ReconciliationService {
     try {
       await this.reconciliationQueue.close();
       console.log('[Reconciliation] Queue closed');
-    } catch (error: any) {
-      console.error('[Reconciliation] Failed to close queue:', error.message);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      console.error('[Reconciliation] Failed to close queue:', msg);
     }
   }
 }

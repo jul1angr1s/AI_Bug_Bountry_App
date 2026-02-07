@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { getPrismaClient } from '../lib/prisma.js';
 import { getCache, setCache, CACHE_KEYS, CACHE_TTL } from '../lib/cache.js';
 import type { AgentType, ProtocolStatus, Severity, VulnerabilityStatus } from '@prisma/client';
@@ -286,7 +287,7 @@ export async function getProtocolVulnerabilities(
 
   try {
     // Query findings from scans instead of vulnerability table
-    const whereClause: any = {
+    const whereClause: Prisma.FindingWhereInput = {
       scan: { protocolId },
     };
     if (severity) whereClause.severity = severity;
@@ -298,7 +299,7 @@ export async function getProtocolVulnerabilities(
       whereClause.status = findingStatus;
     }
 
-    let orderBy: any = {};
+    let orderBy: Prisma.FindingOrderByWithRelationInput = {};
     switch (sort) {
       case 'severity':
         orderBy = { severity: 'desc' };

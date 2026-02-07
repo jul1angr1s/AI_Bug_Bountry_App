@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { getPrismaClient } from '../lib/prisma.js';
 import type { ProtocolRegistrationInput, ProtocolFundingInput } from '../schemas/protocol.schema.js';
 import { invalidateCache, CACHE_KEYS } from '../lib/cache.js';
@@ -291,7 +292,7 @@ export async function getProtocolById(
   userId?: string
 ): Promise<ProtocolOverview | null> {
   try {
-    const whereClause: any = { id: protocolId };
+    const whereClause: Prisma.ProtocolWhereInput = { id: protocolId };
 
     // If userId is provided, ensure user owns the protocol
     if (userId) {
@@ -401,7 +402,7 @@ export async function listProtocols(params: {
     const skip = (page - 1) * limit;
 
     // Build where clause
-    const whereClause: any = {};
+    const whereClause: Prisma.ProtocolWhereInput = {};
 
     if (params.status) {
       whereClause.status = params.status;

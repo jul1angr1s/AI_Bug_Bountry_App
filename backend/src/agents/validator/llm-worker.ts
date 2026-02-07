@@ -11,7 +11,7 @@ const redis = await getRedisClient();
 const prisma = getPrismaClient();
 
 let isRunning = false;
-let subscriber: any = null;
+let subscriber: ReturnType<typeof redis.duplicate> | null = null;
 
 /**
  * Start Validator Agent with LLM-based Proof Analysis

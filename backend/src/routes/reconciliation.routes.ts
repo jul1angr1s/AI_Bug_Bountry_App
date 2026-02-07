@@ -116,12 +116,13 @@ router.get(
           discrepanciesByStatus: report.discrepanciesByStatus,
         },
       });
-    } catch (error: any) {
+    } catch (error) {
       console.error('[ReconciliationRoutes] Error fetching reconciliation report:', error);
+      const msg = error instanceof Error ? error.message : 'Failed to fetch reconciliation report';
       res.status(500).json({
         error: {
           code: 'RECONCILIATION_REPORT_ERROR',
-          message: error.message || 'Failed to fetch reconciliation report',
+          message: msg,
           requestId: req.id,
         },
       });
@@ -163,12 +164,13 @@ router.get(
           notes: d.notes,
         })),
       });
-    } catch (error: any) {
+    } catch (error) {
       console.error('[ReconciliationRoutes] Error fetching discrepancies:', error);
+      const msg = error instanceof Error ? error.message : 'Failed to fetch discrepancies';
       res.status(500).json({
         error: {
           code: 'DISCREPANCIES_ERROR',
-          message: error.message || 'Failed to fetch discrepancies',
+          message: msg,
           requestId: req.id,
         },
       });
@@ -206,11 +208,12 @@ router.post(
           resolvedAt: new Date(),
         },
       });
-    } catch (error: any) {
+    } catch (error) {
       console.error('[ReconciliationRoutes] Error resolving discrepancy:', error);
+      const msg = error instanceof Error ? error.message : 'Failed to resolve discrepancy';
 
       // Handle specific error cases per OpenSpec
-      if (error.message === 'Discrepancy not found') {
+      if (msg === 'Discrepancy not found') {
         return res.status(404).json({
           error: {
             code: 'DISCREPANCY_NOT_FOUND',
@@ -220,7 +223,7 @@ router.post(
         });
       }
 
-      if (error.message === 'Discrepancy already resolved') {
+      if (msg === 'Discrepancy already resolved') {
         return res.status(409).json({
           error: {
             code: 'DISCREPANCY_ALREADY_RESOLVED',
@@ -233,7 +236,7 @@ router.post(
       res.status(500).json({
         error: {
           code: 'RESOLVE_DISCREPANCY_ERROR',
-          message: error.message || 'Failed to resolve discrepancy',
+          message: msg,
           requestId: req.id,
         },
       });

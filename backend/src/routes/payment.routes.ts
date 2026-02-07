@@ -568,15 +568,17 @@ router.get(
       res.status(200).json({
         data: payment,
       });
-    } catch (error: any) {
+    } catch (error) {
       console.error('[PaymentRoutes] Error fetching payment:', error);
 
-      const statusCode = error.name === 'NotFoundError' ? 404 : 500;
+      const isNotFound = error instanceof Error && error.name === 'NotFoundError';
+      const statusCode = isNotFound ? 404 : 500;
+      const msg = error instanceof Error ? error.message : 'Failed to fetch payment';
 
       res.status(statusCode).json({
         error: {
-          code: error.name === 'NotFoundError' ? 'PAYMENT_NOT_FOUND' : 'INTERNAL_ERROR',
-          message: error.message || 'Failed to fetch payment',
+          code: isNotFound ? 'PAYMENT_NOT_FOUND' : 'INTERNAL_ERROR',
+          message: msg,
           requestId: req.id,
         },
       });
