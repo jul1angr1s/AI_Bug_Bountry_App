@@ -78,8 +78,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (newSession) {
         setSession(newSession);
         setUser(mapSupabaseUserToUser(newSession.user));
-        // Sync auth cookie for SSE authentication
-        await syncAuthCookie();
+        // Sync auth cookie for SSE authentication (fire-and-forget)
+        syncAuthCookie();
       } else {
         setSession(null);
         setUser(null);
@@ -186,8 +186,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         setUser(mappedUser);
 
-        // Sync auth cookie for SSE authentication
-        await syncAuthCookie();
+        // Sync auth cookie for SSE authentication (fire-and-forget)
+        syncAuthCookie();
         console.log('Successfully signed in with SIWE');
         console.log('User set:', mappedUser);
 
