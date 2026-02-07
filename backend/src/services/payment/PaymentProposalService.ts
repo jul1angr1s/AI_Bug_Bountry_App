@@ -51,7 +51,7 @@ export class PaymentProposalService {
 
       try {
         // For now, use database balance since we need protocolId for on-chain query
-        // TODO: Add getPoolBalance method or use getProtocolBalance with onChainProtocolId
+        // See GitHub Issue #104
         availableBalance = protocol.availableBounty.toString();
         availableBalanceFormatted = protocol.availableBounty.toString();
       } catch (error) {

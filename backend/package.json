@@ -28,7 +28,9 @@
     "docker:down": "docker-compose down",
     "docker:logs": "docker-compose logs -f backend",
     "docker:restart": "docker-compose restart backend",
-    "docker:clean": "docker-compose down -v"
+    "docker:clean": "docker-compose down -v",
+    "lint": "eslint src/",
+    "lint:strict": "eslint src/ --max-warnings=0"
   },
   "dependencies": {
     "@prisma/client": "^5.0.0",
@@ -65,7 +67,10 @@
     "@types/morgan": "^1.9.9",
     "@types/node": "^20.11.30",
     "@types/supertest": "^6.0.3",
+    "@typescript-eslint/eslint-plugin": "^8.54.0",
+    "@typescript-eslint/parser": "^8.54.0",
     "@vitest/coverage-v8": "^2.1.8",
+    "eslint": "^9.39.2",
     "nodemon": "^3.0.2",
     "prisma": "^5.0.0",
     "supertest": "^7.2.2",

@@ -190,7 +190,7 @@ async function handleValidationRecorded(event: EventLog): Promise<void> {
     // For MVP: Use environment variable RESEARCHER_ADDRESS
     // In production: Extract from encrypted proof payload using decryptProof()
     //
-    // TODO: Implement researcher address extraction from proof
+    // See GitHub Issue #106
     // const { payload, isValid } = decryptProof(proof.encryptedPayload);
     // const researcherAddress = payload.researcherAddress;
     //

@@ -64,7 +64,7 @@ export async function listPayments(req: Request, res: Response): Promise<void> {
       payments: payments.map((p) => ({
         id: p.id,
         findingId: p.vulnerabilityId,
-        findingTitle: 'Vulnerability', // TODO: Add title field to Vulnerability model
+        findingTitle: 'Vulnerability', // See GitHub Issue #102
         protocolName: p.vulnerability.protocol?.githubUrl.split('/').pop() || 'Unknown',
         researcherAddress: p.researcherAddress,
         amount: p.amount.toString(),
@@ -197,7 +197,7 @@ export async function retryPayment(req: Request, res: Response): Promise<void> {
   try {
     const { id } = req.params;
 
-    // TODO: Add admin authorization check
+    // See GitHub Issue #103
     // if (!req.user?.isAdmin) {
     //   res.status(403).json({ error: 'Forbidden: Admin access required' });
     //   return;

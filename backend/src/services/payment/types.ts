@@ -1,33 +1,8 @@
-import { NotFoundError, ValidationError } from '../../errors/CustomError.js';
 import type { PaymentStatus, Severity } from '@prisma/client';
 
-// ========================================
-// Custom Error Classes
-// ========================================
-
-export class PaymentNotFoundError extends NotFoundError {
-  constructor(paymentId: string) {
-    super('Payment', paymentId);
-  }
-}
-
-export class ValidationNotFoundError extends NotFoundError {
-  constructor(validationId: string) {
-    super('Validation', validationId);
-  }
-}
-
-export class VulnerabilityNotFoundError extends NotFoundError {
-  constructor(vulnerabilityId: string) {
-    super('Vulnerability', vulnerabilityId);
-  }
-}
-
-export class InsufficientFundsError extends ValidationError {
-  constructor(required: number, available: number) {
-    super(`Insufficient funds. Required: ${required} USDC, Available: ${available} USDC`);
-  }
-}
+// Re-export error classes from centralized location
+export { PaymentNotFoundError, InsufficientFundsError } from '../../errors/payment.errors.js';
+export { ValidationNotFoundError, VulnerabilityNotFoundError } from '../../errors/validation.errors.js';
 
 // ========================================
 // Shared Interfaces

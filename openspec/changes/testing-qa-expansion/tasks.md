@@ -39,50 +39,22 @@
   - Uses vi.hoisted() for mock objects accessible within vi.mock() factories
 - [x] Achieve 70%+ coverage for payment service
 
-### Week 2: Protocol + Escrow Service Tests (P1)
+### Week 2: Protocol + Escrow Service Tests (P1) - DONE
 
-- [ ] Create `backend/src/services/__tests__/protocol.service.test.ts` (30+ tests)
-  - registerProtocol: 8 tests
-  - getProtocolById: 4 tests
-  - listProtocols: 6 tests
-  - fundProtocol: 6 tests
-  - updateProtocolRegistrationState: 6 tests
-- [ ] Create `backend/src/services/__tests__/escrow.service.test.ts` (20+ tests)
-  - depositEscrow: 5 tests
-  - deductSubmissionFee: 5 tests
-  - getEscrowBalance: 4 tests
-  - canSubmitFinding: 3 tests
-  - getTransactionHistory: 3 tests
-- [ ] Achieve 70%+ coverage for both services
+- [x] Create `backend/src/services/__tests__/protocol.service.test.ts` (58 tests, ALL PASSING)
+- [x] Create `backend/src/services/__tests__/escrow.service.test.ts` (34 tests, ALL PASSING)
+- [x] Achieve 70%+ coverage for both services
 
 ## Phase 2: Blockchain Client Tests (1 week)
 
-### Week 3: All Blockchain Clients (P0) - PARTIALLY DONE
+### Week 3: All Blockchain Clients (P0) - DONE
 
 - [x] Create `backend/src/blockchain/contracts/__tests__/BountyPoolClient.test.ts` (37 tests, ALL PASSING)
-  - constructor: 2 tests
-  - depositBounty: 4 tests
-  - releaseBounty: 5 tests
-  - calculateBountyAmount: 3 tests
-  - getProtocolBalance: 3 tests
-  - getBounty: 3 tests
-  - getProtocolBounties: 2 tests
-  - getResearcherBounties: 2 tests
-  - getTotalBountiesPaid: 1 test
-  - getResearcherEarnings: 1 test
-  - getBaseBountyAmount: 1 test
-  - getBaseBountyAmountRaw: 1 test
-  - calculateBountyAmountRaw: 1 test
-  - updateBaseBountyAmount: 2 tests
-  - updateSeverityMultiplier: 2 tests
-  - isPayer: 2 tests
-  - getContract: 1 test
-  - getAddress: 1 test
-- [ ] Create `backend/src/blockchain/contracts/__tests__/ValidationRegistryClient.test.ts` (20+ tests)
-- [ ] Create `backend/src/blockchain/contracts/__tests__/USDCClient.test.ts` (15+ tests)
-- [ ] Create `backend/src/blockchain/contracts/__tests__/ProtocolRegistryClient.test.ts` (15+ tests)
-- [ ] Create `backend/src/blockchain/contracts/__tests__/PlatformEscrowClient.test.ts` (10+ tests)
-- [ ] Achieve 80%+ coverage for all blockchain clients
+- [x] Create `backend/src/blockchain/contracts/__tests__/ValidationRegistryClient.test.ts` (32 tests, ALL PASSING)
+- [x] Create `backend/src/blockchain/contracts/__tests__/USDCClient.test.ts` (29 tests, ALL PASSING)
+- [x] Create `backend/src/blockchain/contracts/__tests__/ProtocolRegistryClient.test.ts` (29 tests, ALL PASSING)
+- [x] Create `backend/src/blockchain/contracts/__tests__/PlatformEscrowClient.test.ts` (28 tests, ALL PASSING)
+- [x] Achieve 80%+ coverage for all blockchain clients
 
 ## Phase 3: Integration Tests (1 week)
 
@@ -184,8 +156,14 @@
 | Metric | Before | After |
 |--------|--------|-------|
 | Payment service tests | 0 | 55 |
+| Protocol service tests | 0 | 58 |
+| Escrow service tests | 0 | 34 |
 | BountyPoolClient tests | 0 | 37 |
-| Total new tests | 0 | 92 |
+| ValidationRegistryClient tests | 0 | 32 |
+| USDCClient tests | 0 | 29 |
+| ProtocolRegistryClient tests | 0 | 29 |
+| PlatformEscrowClient tests | 0 | 28 |
+| **Total new tests** | **0** | **302** |
 | Test helper files | 1 (testContainer.ts) | 4 (+ test-database, test-blockchain, test-redis) |
 | Fixture files | 0 | 2 (payment, protocol) |
 | CI jobs | 2 serial | 5 parallel + summary |

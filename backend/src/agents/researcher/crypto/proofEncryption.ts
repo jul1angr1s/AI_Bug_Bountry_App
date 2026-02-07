@@ -7,7 +7,7 @@ import crypto from 'crypto';
  * and researcher signing of proofs.
  */
 
-// TODO: In production, load from secure key management (AWS KMS, HashiCorp Vault, etc.)
+// See GitHub Issue #110
 const ENCRYPTION_KEY = process.env.PROOF_ENCRYPTION_KEY;
 
 if (!ENCRYPTION_KEY) {

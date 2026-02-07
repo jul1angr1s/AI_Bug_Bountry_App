@@ -225,7 +225,7 @@ async function processValidation(submission: ProofSubmissionMessage): Promise<vo
       data: {
         status: executionResult.validated ? 'VALIDATED' : 'REJECTED',
         validatedAt: new Date(),
-        validatorPublicKey: 'validator-agent-001', // TODO: dynamic agent ID
+        validatorPublicKey: 'validator-agent-001', // See GitHub Issue #111
       },
     });
 

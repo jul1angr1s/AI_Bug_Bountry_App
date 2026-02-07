@@ -92,7 +92,7 @@ class MetricsCollector {
 
     return {
       totalProcessed: total,
-      successRate: 100, // TODO: Track failures separately
+      successRate: 100, // See GitHub Issue #101
       averageProcessingTime: avgTime,
       failureRate: 0,
     };
