@@ -1,0 +1,17 @@
+schema: spec-driven
+version: 1.0
+status: completed
+started: 2026-02-05
+completed: 2026-02-05
+component: [Backend]
+layer: [Services, Queues]
+chain: Base Sepolia (84532)
+artifacts:
+  - name: proposal
+    completed: true
+  - name: design
+    completed: true
+  - name: specs
+    completed: true
+  - name: tasks
+    completed: true

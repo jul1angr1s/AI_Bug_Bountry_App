@@ -7,5 +7,5 @@
 
 | ID | Time | T | Title | Read |
 |----|------|---|-------|------|
-| #1128 | 8:27 PM | 🔵 | Scans Component CLAUDE.md Confirms Deletion Pattern | ~381 |
+| #1120 | 8:25 PM | 🔵 | Backend Contracts and OpenSpec References Verification | ~470 |
 </claude-mem-context>
