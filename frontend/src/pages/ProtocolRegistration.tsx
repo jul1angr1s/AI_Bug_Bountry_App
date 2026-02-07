@@ -71,14 +71,14 @@ export default function ProtocolRegistration() {
       const response = await createProtocol(data);
 
       // Show success toast
-      toast.success('Protocol registered successfully!', {
-        description: `Your protocol is now being analyzed by our Protocol Agent. You'll be notified when analysis is complete.`,
+      toast.success('Protocol registered! Redirecting to funding...', {
+        description: `Your protocol is now being analyzed by our Protocol Agent. You'll be redirected to set up funding.`,
         duration: 5000,
       });
 
-      // Navigate to protocols list after short delay
+      // Navigate to protocol detail page (where FundingGate lives) after short delay
       setTimeout(() => {
-        navigate('/protocols');
+        navigate(`/protocols/${response.id}`);
       }, 1500);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to register protocol';

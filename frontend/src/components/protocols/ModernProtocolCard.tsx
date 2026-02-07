@@ -49,7 +49,7 @@ export default function ModernProtocolCard({ protocol }: ModernProtocolCardProps
         return {
           color: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
           pulseStatus: 'active' as const,
-          label: 'Scanning',
+          label: 'Registering',
         };
       case 'PAUSED':
         return {
@@ -127,8 +127,8 @@ export default function ModernProtocolCard({ protocol }: ModernProtocolCardProps
     latestScan.state === 'PENDING'
   );
 
-  // Show progress view if protocol is pending registration OR has an active scan
-  const showProgressView = protocol.status === 'PENDING' || hasActiveScan;
+  // Show progress view only when there's an actual active scan
+  const showProgressView = hasActiveScan;
 
   return (
     <GlowCard

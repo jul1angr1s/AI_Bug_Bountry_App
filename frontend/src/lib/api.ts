@@ -482,8 +482,9 @@ export async function createProtocol(request: CreateProtocolRequest): Promise<Cr
     }
 
     const data = await response.json();
-    console.log('[API] Protocol created successfully:', data.id);
-    return data;
+    const protocol = data.data || data;
+    console.log('[API] Protocol created successfully:', protocol.id);
+    return protocol;
   } catch (error) {
     // Enhanced error handling for common issues
     if (error instanceof TypeError && error.message === 'Failed to fetch') {
