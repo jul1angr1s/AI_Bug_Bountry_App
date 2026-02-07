@@ -22,7 +22,7 @@
 
 <div align="center">
 
-### ⚡ **6x More Vulnerabilities** | 🤖 **3 Autonomous AI Agents** | 💰 **Automatic USDC Payments** | ⏱️ **< 4 Minute E2E**
+### ⚡ **6x More Vulnerabilities** | 🤖 **4 Autonomous AI Agents** | 💰 **Automatic USDC Payments** | ⏱️ **< 4 Minute E2E** | 🪪 **ERC-8004 Agent Identity** | 💳 **x.402 Payment Gating**
 
 </div>
 
@@ -113,13 +113,35 @@ graph LR
     style S7 fill:#10B981,stroke:#059669,stroke-width:2px,color:#fff
 ```
 
-**Dashboard Features**:
-- 📊 Live vulnerability feed with severity badges
-- 💰 Real-time payment tracker with earnings leaderboard
-- 📈 Protocol analytics with security scores
-- 🔔 WebSocket notifications for every state change
+### Dashboard
+Real-time overview with agent status, bounty pool, and recent vulnerabilities.
 
-*Screenshots coming soon - PR welcome!*
+![Dashboard](frontend/docs/screenshots/dashboard.png)
+
+### Protocols
+Protocol list with security scores, status filters, and one-click registration.
+
+![Protocols](frontend/docs/screenshots/protocols.png)
+
+### Protocol Detail
+Deep-dive into a registered protocol with scans, findings, and payment tabs.
+
+![Protocol Detail](frontend/docs/screenshots/protocol-detail.png)
+
+### Scan Findings
+AI-discovered vulnerabilities with severity badges, confidence scores, and detailed descriptions.
+
+![Scan Findings](frontend/docs/screenshots/scan-findings.png)
+
+### Validations
+Proof validation results powered by Kimi 2.5 LLM — VALIDATED or REJECTED per finding.
+
+![Validations](frontend/docs/screenshots/validations.png)
+
+### USDC Payments & Rewards
+Bounty tracking with payout distribution by severity, top earners leaderboard, and recent payouts.
+
+![Payments](frontend/docs/screenshots/payments.png)
 
 </div>
 
@@ -142,12 +164,14 @@ graph LR
 
 ### 🎯 What Makes This Special
 
-- **🤖 True Agent Autonomy**: Three specialized AI agents (Protocol, Researcher, Validator) coordinate through BullMQ queues with zero human intervention
+- **🤖 True Agent Autonomy**: Four specialized AI agents (Protocol, Researcher, Validator, Payment) coordinate through BullMQ queues with zero human intervention
+- **🪪 ERC-8004 Agent Identity**: Soulbound NFT registration with on-chain reputation scoring tied to validation outcomes
+- **💳 x.402 Payment Gating**: Coinbase x.402 facilitator gates protocol registration with HTTP 402 USDC payment flows
 - **🧠 Hybrid AI Analysis**: Kimi 2.5 discovers business logic flaws, access control issues, and DoS vectors that static analysis misses
-- **⛓️ Blockchain-Native**: Immutable on-chain registry, automated USDC payments via smart contracts on Base L2
+- **⛓️ Blockchain-Native**: 6 smart contracts on Base L2 — platform registry, agent identity, reputation, and escrow
 - **🔬 Sandboxed Validation**: Isolated Anvil environments ensure exploit verification without risk
 - **📡 Real-Time Everything**: WebSocket + SSE streaming for live vulnerability feeds and payment tracking
-- **🏗️ Production-Grade**: 85%+ test coverage, 11,600+ lines of docs, security hardened, OpenSpec framework
+- **🔒 Typed Messaging**: BullMQ + Zod schemas for type-safe, validated inter-agent communication
 
 ---
 
@@ -159,16 +183,15 @@ This platform has completed all development phases including comprehensive testi
 
 ### Recent Achievements (February 2026)
 
+- ✨ **ERC-8004 Agent Identity**: Soulbound NFT registration for Researcher and Validator agents with on-chain identity tracking
+- ✨ **On-Chain Reputation System**: Dual-registry reputation scoring tied to validation outcomes (confirmed/rejected feedback)
+- ✨ **x.402 Payment Gating**: HTTP 402 protocol registration gate using Coinbase x.402 facilitator with USDC payments
+- ✨ **Platform Escrow**: USDC escrow system with on-chain deposit verification, replay prevention, and atomic fee deduction
+- ✨ **BullMQ + Zod Messaging**: Type-safe inter-agent communication with validated schemas replacing Redis Pub/Sub
+- ✨ **Contract Abstraction Layer**: Clean client classes for all 6 smart contracts (3 platform + 3 agent)
 - ✨ **Funding Gate**: 3-step funding wizard (Approve USDC → Fund Protocol → Verify On-Chain) gates scanning
-- ✨ **Editable Deposits**: Users can customize bounty pool amounts with minimum validation (25 USDC)
-- ✨ **Network Validation**: Automatic Base Sepolia network detection with user warnings
-- ✨ **Scan Confirmation**: Modal confirmation before triggering vulnerability scans
 - ✨ **Complete Test Coverage**: 49+ E2E tests + 36 integration tests + 87 contract tests (85%+ coverage)
-- ✨ **Comprehensive Documentation**: API reference (50+ endpoints), architecture (8 diagrams), deployment, security, operations
-- ✨ **Production Hardening**: Security checklist (21/21 ✓), monitoring, backup/recovery, troubleshooting guides
-- ✨ **OpenSpec Archived**: All 11 development changes properly documented and archived
-- ✨ **E2E Validation**: Thunder Loan demonstration workflow validated end-to-end (<4 minutes)
-- ✨ **Smart Contracts**: 3 verified contracts deployed on Base Sepolia with full integration
+- ✨ **6 Smart Contracts**: ProtocolRegistry, ValidationRegistry, BountyPool + AgentIdentityRegistry, AgentReputationRegistry, PlatformEscrow
 - ✨ **AI Integration**: Kimi 2.5 (Moonshot AI) achieving 6x vulnerability detection improvement
 
 ---
@@ -229,7 +252,8 @@ graph LR
     style C fill:#EC4899,stroke:#BE185D,stroke-width:2px,color:#fff
 ```
 
-**Smart Contracts**: ProtocolRegistry • ValidationRegistry • BountyPool
+**Platform Contracts**: ProtocolRegistry • ValidationRegistry • BountyPool
+**Agent Contracts**: AgentIdentityRegistry • AgentReputationRegistry • PlatformEscrow
 **Network**: Base Sepolia (testnet) → Base Mainnet (soon)
 **Token**: USDC with severity-based multipliers (0.25x - 5x)
 
@@ -247,7 +271,7 @@ graph LR
 
     R -->|AWAITING_FUNDING| F1
     F1 -->|MetaMask| F2
-    F2 -->|depositBounty()| F3
+    F2 -->|depositBounty| F3
     F3 -->|FUNDED| S
 
     style R fill:#3B82F6,stroke:#1E40AF,stroke-width:2px,color:#fff
@@ -258,6 +282,40 @@ graph LR
 ```
 
 **Why Funding Gate?** Prevents payment failures by ensuring bounty pool has USDC before researchers find vulnerabilities.
+
+### 🪪 ERC-8004 Agent Economy
+
+AI agents are first-class on-chain citizens with identity, reputation, and escrow balances:
+
+```mermaid
+graph LR
+    subgraph Identity["🪪 Agent Identity"]
+        REG[Register Agent<br/>Soulbound NFT]
+        NFT[TokenID Assigned<br/>RESEARCHER or VALIDATOR]
+    end
+
+    subgraph Reputation["⭐ Reputation"]
+        FB[Record Feedback<br/>After Validation]
+        SCORE[Score Updated<br/>confirmed / total]
+    end
+
+    subgraph Escrow["🏦 Escrow"]
+        DEP[Deposit USDC<br/>Verified On-Chain]
+        FEE[Deduct 0.5 USDC<br/>Per Submission]
+    end
+
+    REG --> NFT
+    NFT --> DEP
+    DEP --> FEE
+    FEE --> FB
+    FB --> SCORE
+
+    style Identity fill:#3B82F6,stroke:#1E40AF,stroke-width:2px,color:#fff
+    style Reputation fill:#8B5CF6,stroke:#7C3AED,stroke-width:2px,color:#fff
+    style Escrow fill:#10B981,stroke:#059669,stroke-width:2px,color:#fff
+```
+
+**x.402 Protocol Registration**: Protocol owners pay a 1 USDC registration fee via Coinbase's x.402 facilitator (HTTP 402 → USDC transfer → cryptographic receipt → access granted).
 
 ### 🔥 Tech Stack
 
@@ -284,9 +342,9 @@ graph LR
 - TypeScript
 - Prisma ORM
 - BullMQ + Redis
+- Zod Schemas
 - Socket.io
 - PostgreSQL
-- Docker
 
 </td>
 <td width="25%">
@@ -309,7 +367,8 @@ graph LR
 - Base L2 (Sepolia)
 - USDC Token
 - Foundry
-- Hardhat (legacy)
+- @x402/express
+- Viem / Ethers.js v6
 
 </td>
 </tr>
@@ -325,18 +384,18 @@ graph LR
 - ✅ **AI-Enhanced Discovery** - Hybrid Slither + Kimi 2.5 analysis
 - ✅ **6x Vulnerability Detection** - Business logic, access control, DoS
 - ✅ **Sandboxed Validation** - Isolated Anvil environments
-- ✅ **ERC-8004 Compliant** - Standardized validation attestation
+- ✅ **ERC-8004 Agent Identity** - Soulbound NFT registration + on-chain reputation
 - ✅ **Comprehensive Testing** - 85%+ coverage, 49+ E2E tests
 
 </td>
 <td width="50%">
 
 #### 💰 **Payments & Blockchain**
+- ✅ **x.402 Payment Gating** - Coinbase facilitator for protocol registration fees
+- ✅ **Platform Escrow** - USDC escrow with on-chain verification + replay prevention
+- ✅ **Automated USDC Payments** - Event-driven releases with severity multipliers
+- ✅ **6 Smart Contracts** - Platform + Agent registries on Base Sepolia
 - ✅ **Funding Gate** - 3-step wizard ensures pool funding before scans
-- ✅ **On-Chain Registry** - Immutable records on Base Sepolia
-- ✅ **Automated USDC Payments** - Event-driven releases
-- ✅ **Severity Multipliers** - 5x CRITICAL → 0.25x INFORMATIONAL
-- ✅ **Smart Contract Verified** - 3 contracts on Basescan
 - ✅ **Reconciliation Engine** - Sync on-chain ↔ database
 
 </td>
@@ -517,6 +576,9 @@ graph TB
         PR[Protocol Registry<br/>0xc7DF...3235]
         VR[Validation Registry<br/>0x8fBE...44d]
         BP[Bounty Pool<br/>0x6D0b...7b0]
+        AIR[🪪 Agent Identity<br/>0x5993...942d]
+        ARR[⭐ Agent Reputation<br/>0x8160...b850]
+        PE[🏦 Platform Escrow<br/>0x33e5...D1ab]
         USDC[💵 USDC Token<br/>0x036C...CF7e]
     end
 
@@ -538,7 +600,11 @@ graph TB
     PA -->|ethers.js| PR
     VA -->|ethers.js| VR
     VA -->|ethers.js| BP
+    API -->|Agent Reg| AIR
+    VA -->|Feedback| ARR
+    API -->|Escrow| PE
     BP <--> USDC
+    PE <--> USDC
 
     PR -.->|Events| WSServer
     VR -.->|Events| WSServer
@@ -563,6 +629,10 @@ graph LR
     Validation[(✅ Validation)]
     Payment[(💰 Payment)]
     ScanStep[(📊 ScanStep)]
+    Agent[(🪪 AgentIdentity<br/>+ walletAddress<br/>+ agentNftId)]
+    Rep[(⭐ AgentReputation<br/>+ reputationScore)]
+    Escrow[(🏦 AgentEscrow<br/>+ balance)]
+    Feedback[(📋 AgentFeedback)]
 
     Protocol -->|1:N| Scan
     Scan -->|1:N| Finding
@@ -571,20 +641,29 @@ graph LR
     Proof -->|1:1| Validation
     Proof -->|1:1| Payment
 
+    Agent -->|1:1| Rep
+    Agent -->|1:1| Escrow
+    Agent -->|1:N| Feedback
+
     style Protocol fill:#3B82F6,stroke:#1E40AF,stroke-width:2px,color:#fff
     style Scan fill:#8B5CF6,stroke:#7C3AED,stroke-width:2px,color:#fff
     style Finding fill:#EF4444,stroke:#DC2626,stroke-width:2px,color:#fff
     style Proof fill:#10B981,stroke:#059669,stroke-width:2px,color:#fff
     style Validation fill:#F59E0B,stroke:#D97706,stroke-width:2px,color:#fff
     style Payment fill:#FFD700,stroke:#FFA500,stroke-width:2px,color:#000
+    style Agent fill:#3B82F6,stroke:#1E40AF,stroke-width:2px,color:#fff
+    style Rep fill:#8B5CF6,stroke:#7C3AED,stroke-width:2px,color:#fff
+    style Escrow fill:#10B981,stroke:#059669,stroke-width:2px,color:#fff
+    style Feedback fill:#F59E0B,stroke:#D97706,stroke-width:2px,color:#fff
 ```
 
-**Protocol Funding Fields**:
-- `bountyPoolAmount` - Requested USDC amount for bounty pool
-- `fundingState` - AWAITING_FUNDING | FUNDED | UNDERFUNDED
-- `fundingTxHash` - Deposit transaction hash
-- `fundingVerifiedAt` - On-chain verification timestamp
-- `minimumBountyRequired` - Minimum 25 USDC for prototype
+**Agent Identity Fields**:
+- `walletAddress` - Unique Ethereum address (lowercase)
+- `agentType` - RESEARCHER | VALIDATOR
+- `agentNftId` - On-chain soulbound NFT token ID
+- `isActive` - Agent activation status
+- `reputationScore` - Calculated from confirmed/total submissions
+- `balance` - USDC escrow balance for submission fees
 
 ---
 
@@ -739,12 +818,27 @@ sequenceDiagram
 
 ## 📦 Deployed Contracts (Base Sepolia)
 
+### Platform Contracts
+
 | Contract | Address | Verified | Purpose |
 |----------|---------|----------|---------|
 | **ProtocolRegistry** | [`0xc7DF730cf661a306a9aEC93D7180da6f6Da23235`](https://sepolia.basescan.org/address/0xc7DF730cf661a306a9aEC93D7180da6f6Da23235) | ✅ | Protocol registration & management |
 | **ValidationRegistry** | [`0x8fBE5E9B0C17Cb606091e5050529CE99baB7744d`](https://sepolia.basescan.org/address/0x8fBE5E9B0C17Cb606091e5050529CE99baB7744d) | ✅ | ERC-8004 validation attestation |
 | **BountyPool** | [`0x6D0bA6dA342c4ce75281Ea90c71017BC94A397b0`](https://sepolia.basescan.org/address/0x6D0bA6dA342c4ce75281Ea90c71017BC94A397b0) | ✅ | USDC bounty management |
-| **USDC (Testnet)** | [`0x036CbD53842c5426634e7929541eC2318f3dCF7e`](https://sepolia.basescan.org/address/0x036CbD53842c5426634e7929541eC2318f3dCF7e) | ✅ | Base Sepolia USDC |
+
+### Agent Contracts (ERC-8004)
+
+| Contract | Address | Purpose |
+|----------|---------|---------|
+| **AgentIdentityRegistry** | [`0x59932bDf3056D88DC07cb320263419B8ec1e942d`](https://sepolia.basescan.org/address/0x59932bDf3056D88DC07cb320263419B8ec1e942d) | Soulbound NFT agent registration |
+| **AgentReputationRegistry** | [`0x8160ab516366ffaab6c239524d35963058feb850`](https://sepolia.basescan.org/address/0x8160ab516366ffaab6c239524d35963058feb850) | On-chain reputation scoring |
+| **PlatformEscrow** | [`0x33e5ee00985f96b482370c948d1c63c0aa4bd1ab`](https://sepolia.basescan.org/address/0x33e5ee00985f96b482370c948d1c63c0aa4bd1ab) | USDC escrow for submission fees |
+
+### Tokens
+
+| Token | Address | Purpose |
+|-------|---------|---------|
+| **USDC (Testnet)** | [`0x036CbD53842c5426634e7929541eC2318f3dCF7e`](https://sepolia.basescan.org/address/0x036CbD53842c5426634e7929541eC2318f3dCF7e) | Base Sepolia USDC |
 
 ### Bounty Multipliers
 
@@ -803,10 +897,20 @@ REDIS_URL="redis://localhost:6379"
 BASE_SEPOLIA_RPC_URL="https://sepolia.base.org"
 PRIVATE_KEY="0x..."  # Your wallet private key
 
-# Deployed Contracts
+# Platform Contracts
 PROTOCOL_REGISTRY_ADDRESS="0xc7DF730cf661a306a9aEC93D7180da6f6Da23235"
 VALIDATION_REGISTRY_ADDRESS="0x8fBE5E9B0C17Cb606091e5050529CE99baB7744d"
 BOUNTY_POOL_ADDRESS="0x6D0bA6dA342c4ce75281Ea90c71017BC94A397b0"
+
+# Agent Contracts (ERC-8004)
+AGENT_IDENTITY_REGISTRY_ADDRESS="0x59932bDf3056D88DC07cb320263419B8ec1e942d"
+AGENT_REPUTATION_REGISTRY_ADDRESS="0x8160ab516366ffaab6c239524d35963058feb850"
+PLATFORM_ESCROW_ADDRESS="0x33e5ee00985f96b482370c948d1c63c0aa4bd1ab"
+
+# x.402 Payment Gating
+X402_FACILITATOR_URL="https://www.x402.org/facilitator"
+X402_NETWORK="eip155:84532"
+PLATFORM_WALLET_ADDRESS="0x..."
 
 # API Keys
 BASESCAN_API_KEY="..."  # For contract verification
@@ -1104,22 +1208,28 @@ All project changes are tracked and archived using the [OpenSpec framework](http
 AI_Bug_Bountry_App/
 ├── backend/                    # Node.js/Express backend
 │   ├── contracts/              # Foundry smart contracts
-│   │   ├── src/                # Contract source files
+│   │   ├── src/                # Contract source files (3 platform)
 │   │   ├── test/               # Comprehensive test suite
 │   │   ├── script/             # Deployment & integration scripts
 │   │   └── lib/                # OpenZeppelin & forge-std
 │   ├── src/
 │   │   ├── agents/             # AI agents (Protocol, Researcher, Validator)
 │   │   ├── blockchain/         # Smart contract integration layer
+│   │   │   └── contracts/      # Contract client abstractions (3 agent clients)
+│   │   ├── messages/           # Zod schemas for inter-agent messaging
+│   │   ├── middleware/         # x.402 payment gate middleware
 │   │   ├── queues/             # BullMQ job queues
 │   │   ├── routes/             # API endpoints
+│   │   ├── services/           # Agent identity, reputation, escrow services
 │   │   └── websocket/          # Real-time events
 │   ├── prisma/                 # Database schema & migrations
 │   └── test-blockchain-integration.mjs
 ├── frontend/                   # React/TypeScript frontend
 │   ├── src/
 │   │   ├── components/         # UI components
-│   │   ├── pages/              # Dashboard, Protocol pages
+│   │   │   ├── agents/         # PaymentRequiredModal, agent UI
+│   │   │   └── payments/       # Payment proposal components
+│   │   ├── pages/              # Dashboard, Protocol, Agent pages
 │   │   └── lib/                # API client, utilities
 ├── openspec/                   # OpenSpec framework
 │   ├── changes/                # Feature implementations
@@ -1315,12 +1425,12 @@ All sensitive values are in `.env` files (gitignored).
 </td>
 <td width="33%">
 
-#### 👥 Community
-- [ ] Researcher onboarding
-- [ ] Protocol partner program
-- [ ] Reputation system v1
+#### 👥 Community & Agent Economy
+- [x] Reputation system v1 (ERC-8004 on-chain scoring)
+- [x] Agent identity (soulbound NFT registration)
+- [x] Platform escrow (USDC submission fees)
+- [ ] Researcher onboarding portal
 - [ ] Governance token design
-- [ ] DAO formation planning
 
 </td>
 </tr>
@@ -1389,16 +1499,16 @@ Imagine a world where:
 ### Current Metrics
 
 **Code:**
-- Smart Contracts: 3 files, ~1,000 lines
-- TypeScript Backend: ~15,000 lines (with payment automation + AI analysis + comprehensive tests)
-- React Frontend: ~8,000 lines (7 major pages + components + E2E tests)
+- Smart Contracts: 6 deployed (3 platform + 3 agent)
+- TypeScript Backend: ~17,000 lines (agents + AI + payments + agent economy)
+- React Frontend: ~9,000 lines (7+ pages + agent components + E2E tests)
 - Documentation: 11,600+ lines of comprehensive documentation
 - Test Coverage: 12,000+ lines (contracts + backend + frontend + E2E tests)
 
 **Blockchain:**
 - Network: Base Sepolia (Chain ID: 84532)
-- Contracts Deployed: 3 (all verified on Basescan)
-- Gas Cost: ~0.014 ETH (~$50 USD)
+- Contracts Deployed: 6 (3 platform verified + 3 agent)
+- Agent Economy: ERC-8004 identity + reputation + escrow
 - USDC Base Amount: 100 USDC
 - Real Transactions: Verified on testnet
 
@@ -1420,10 +1530,10 @@ Imagine a world where:
 - Production Guides: 4 comprehensive documents (Production, Security, Troubleshooting, Backup/Recovery)
 
 **Development Quality:**
-- PRs Merged: 8 major PRs (implementation phases)
+- PRs Merged: 12 major PRs (implementation phases)
 - PR Size Limit: 1,500 lines (enforced via GitHub Actions)
 - Automated Size Checks: ✅ Active
-- OpenSpec Changes: 10 archived (100% complete)
+- OpenSpec Changes: 10+ archived (100% complete)
 - Split Migrations: Database changes by feature domain
 - Code Reviews: All PRs reviewed and tested before merge
 
@@ -1583,10 +1693,10 @@ cd AI_Bug_Bountry_App
 ![GitHub forks](https://img.shields.io/github/forks/jul1angr1s/AI_Bug_Bountry_App?style=social)
 ![GitHub watchers](https://img.shields.io/github/watchers/jul1angr1s/AI_Bug_Bountry_App?style=social)
 
-**Code**: 24,000+ lines (TypeScript + Solidity)
+**Code**: 26,000+ lines (TypeScript + Solidity)
 **Tests**: 87 contract tests + 36 integration + 49 E2E
 **Documentation**: 11,600+ lines of comprehensive guides
-**Smart Contracts**: 3 verified on Base Sepolia
+**Smart Contracts**: 6 deployed on Base Sepolia (3 platform + 3 agent)
 **Coverage**: 85%+ across entire codebase
 
 ---

@@ -31,7 +31,15 @@ router.post('/', requireAuth, x402FindingSubmissionGate(), async (req, res, next
 
     const { protocolId, branch, commitHash } = result.data;
 
-    // Create scan job
+    // Deduct submission fee BEFORE creating scan (atomic: fail early if insufficient balance)
+    const researcherWallet = (req as any).researcherWallet as string | undefined;
+    if (researcherWallet) {
+      // This throws if balance is insufficient — request fails before scan is created
+      await escrowService.deductSubmissionFee(researcherWallet, `pending-${protocolId}-${Date.now()}`);
+      console.log(`[Scans] Submission fee deducted for researcher ${researcherWallet}`);
+    }
+
+    // Create scan job (only after fee deduction succeeds)
     const scan = await scanRepository.createScan({
       protocolId,
       targetBranch: branch,

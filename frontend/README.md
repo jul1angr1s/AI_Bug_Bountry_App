@@ -20,7 +20,7 @@
 
 <div align="center">
 
-### 📡 **Real-Time Updates** | 🎨 **Beautiful UI** | ⚡ **Sub-100ms Rendering** | 🔐 **Web3 Auth**
+### 📡 **Real-Time Updates** | 🎨 **Beautiful UI** | ⚡ **Sub-100ms Rendering** | 🔐 **Web3 Auth** | 💳 **x.402 Payments** | 🪪 **Agent Dashboard**
 
 </div>
 
@@ -32,6 +32,8 @@ This isn't just another React dashboard. It's a **real-time mission control** fo
 
 ### ✨ Standout Features
 
+- **💳 x.402 Payment Modal** - USDC Approve → Transfer flow for protocol registration via Coinbase x.402
+- **🪪 Agent Dashboard** - Agent Registry, Escrow Dashboard, Reputation Tracker pages
 - **🔴 Live Agent Visualization** - Watch Protocol, Researcher, and Validator agents work in real-time
 - **⚡ WebSocket Streaming** - Sub-second updates for every vulnerability discovered
 - **🎯 7-Step Progress Tracking** - Visual pipeline showing CLONE → COMPILE → DEPLOY → ANALYZE → AI → PROOF → SUBMIT
@@ -118,6 +120,54 @@ VITE_ENABLE_NOTIFICATIONS=true
 7. **Watch Magic Happen** - Real-time dashboard shows agent progress
 8. **View Results** - See vulnerabilities appear live as AI discovers them
 9. **Track Payments** - Watch USDC bounties release automatically
+
+---
+
+## 📸 Screenshots
+
+<div align="center">
+
+### Dashboard
+Real-time overview with agent status, bounty pool stats, and recent vulnerabilities.
+
+![Dashboard](docs/screenshots/dashboard.png)
+
+---
+
+### Protocols
+Protocol list with security scores, status filters, and registration.
+
+![Protocols](docs/screenshots/protocols.png)
+
+---
+
+### Protocol Detail
+Deep-dive into a registered protocol with scans, findings, and payment tabs.
+
+![Protocol Detail](docs/screenshots/protocol-detail.png)
+
+---
+
+### Scan Findings
+AI-discovered vulnerabilities with severity badges, confidence scores, and detailed descriptions.
+
+![Scan Findings](docs/screenshots/scan-findings.png)
+
+---
+
+### Validations
+Proof validation results powered by Kimi 2.5 LLM — VALIDATED or REJECTED status per finding.
+
+![Validations](docs/screenshots/validations.png)
+
+---
+
+### USDC Payments & Rewards
+Bounty tracking with payout distribution by severity, top earners leaderboard, and recent payouts.
+
+![Payments](docs/screenshots/payments.png)
+
+</div>
 
 ---
 
@@ -241,7 +291,7 @@ graph LR
 
 ## 🎨 UI Components
 
-### 📄 7 Major Pages
+### 📄 9 Major Pages
 
 <table>
 <tr>
@@ -326,6 +376,47 @@ Platform insights:
 
 </td>
 </tr>
+<tr>
+<td width="33%">
+
+#### 🪪 Agent Registry
+**Route**: `/agents`
+
+Agent management:
+- Registered agents list
+- Agent type (Researcher/Validator)
+- On-chain NFT IDs
+- Activation status
+- Registration history
+
+</td>
+<td width="33%">
+
+#### ⭐ Reputation Tracker
+**Route**: `/agents/reputation`
+
+Reputation scoring:
+- Leaderboard by score
+- Confirmed vs rejected ratio
+- Feedback history
+- Score trends
+- Minimum score gating
+
+</td>
+<td width="33%">
+
+#### 🏦 Escrow Dashboard
+**Route**: `/agents/escrow`
+
+Escrow management:
+- USDC balance tracking
+- Deposit history
+- Fee deduction log
+- Remaining submissions
+- On-chain verification
+
+</td>
+</tr>
 </table>
 
 ### 🧩 Reusable Components
@@ -338,8 +429,10 @@ components/
 │   ├── ProtocolCard.tsx           # Protocol overview card
 │   ├── ProtocolForm.tsx           # Registration form (+ bountyPoolAmount field)
 │   ├── ProtocolList.tsx           # Filterable list
-│   ├── FundingGate.tsx            # 3-step funding wizard ⭐ NEW
-│   └── ScanConfirmationModal.tsx  # Scan confirmation dialog ⭐ NEW
+│   ├── FundingGate.tsx            # 3-step funding wizard
+│   └── ScanConfirmationModal.tsx  # Scan confirmation dialog
+├── agents/
+│   └── PaymentRequiredModal.tsx   # x.402 USDC payment flow (Approve → Transfer)
 ├── Payment/
 │   └── USDCApprovalFlow.tsx       # USDC token approval component
 ├── scans/
@@ -348,6 +441,7 @@ components/
 │   └── AgentActivityLog.tsx       # Real-time agent logs
 ├── payments/
 │   ├── PaymentHistory.tsx         # Transaction table
+│   ├── ProposePaymentModal.tsx    # Manual payment proposals
 │   └── EarningsChart.tsx          # Visual earnings
 └── shared/
     ├── StatCard.tsx               # Metric cards
@@ -382,6 +476,37 @@ The `FundingGate.tsx` component implements a 3-step wizard for protocol funding:
 - Network check (warns if not on Base Sepolia)
 - Transaction progress tracking with Basescan links
 - Auto-reset approval when amount changes
+
+### 💳 PaymentRequiredModal (x.402)
+
+The `PaymentRequiredModal.tsx` handles HTTP 402 payment flows using wagmi wallet integration:
+
+```typescript
+<PaymentRequiredModal
+  isOpen={showPayment}
+  paymentTerms={{
+    amount: "1000000",           // 1 USDC (6 decimals)
+    asset: "USDC",
+    chain: "eip155:84532",       // Base Sepolia
+    recipient: platformWallet,
+    memo: "Protocol registration fee",
+    expiresAt: new Date(...)
+  }}
+  onRetry={(txHash) => retryRegistration(txHash)}
+  onClose={() => setShowPayment(false)}
+/>
+```
+
+**Payment Flow States**:
+`idle` → `approving` → `approved` → `paying` → `confirming` → `complete`
+
+**Features**:
+- Auto-detects existing USDC allowance (skips approve if sufficient)
+- Displays Basescan transaction links during confirmation
+- Auto-retries original API request after payment completes
+- Error state with retry capability
+
+**Tech Stack**: wagmi (`useWriteContract`, `useWaitForTransactionReceipt`, `useReadContract`), viem
 
 ---
 
@@ -558,6 +683,7 @@ frontend/
 ├── src/
 │   ├── components/           # React components
 │   │   ├── protocols/
+│   │   ├── agents/           # PaymentRequiredModal, agent UI
 │   │   ├── scans/
 │   │   ├── payments/
 │   │   └── shared/
@@ -567,6 +693,7 @@ frontend/
 │   │   ├── Scans.tsx
 │   │   ├── Validations.tsx
 │   │   ├── Payments.tsx
+│   │   ├── AgentRegistry.tsx
 │   │   └── Analytics.tsx
 │   ├── lib/                  # Utilities
 │   │   ├── api.ts           # API client

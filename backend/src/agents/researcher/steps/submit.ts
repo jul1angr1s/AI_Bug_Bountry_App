@@ -1,8 +1,9 @@
 import { ChildProcess } from 'child_process';
-import { getRedisClient } from '../../../lib/redis.js';
 import { proofRepository } from '../../../db/repositories.js';
 import { killAnvil } from './deploy.js';
 import { ProofData } from './proof-generation.js';
+import { enqueueValidation } from '../../../queues/validation.queue.js';
+import type { ProofSubmissionMessage } from '../../../messages/schemas.js';
 
 export interface SubmitStepParams {
   scanId: string;
@@ -33,7 +34,6 @@ export async function executeSubmitStep(params: SubmitStepParams): Promise<Submi
 
   console.log(`[Submit] Submitting ${proofs.length} proofs for scan ${scanId}...`);
 
-  const redis = await getRedisClient();
   const submissionTimestamp = new Date().toISOString();
   let proofsSubmitted = 0;
 
@@ -43,11 +43,16 @@ export async function executeSubmitStep(params: SubmitStepParams): Promise<Submi
 
     console.log(`[Submit] Found ${dbProofs.length} proofs in database`);
 
-    // Submit each proof to Redis
+    // Submit each proof via BullMQ validation queue (guaranteed delivery + retries)
     for (const dbProof of dbProofs) {
       try {
-        // Create submission message
-        const submissionMessage = {
+        if (!dbProof.findingId) {
+          console.warn(`[Submit] Proof ${dbProof.id} has no findingId, skipping`);
+          continue;
+        }
+
+        const submissionMessage: ProofSubmissionMessage = {
+          version: '1.0',
           scanId,
           protocolId,
           proofId: dbProof.id,
@@ -59,15 +64,15 @@ export async function executeSubmitStep(params: SubmitStepParams): Promise<Submi
           timestamp: submissionTimestamp,
         };
 
-        // Publish to Redis channel that Validator Agent subscribes to
-        await redis.publish('PROOF_SUBMISSION', JSON.stringify(submissionMessage));
+        // Enqueue to BullMQ validation queue (replaces Redis Pub/Sub)
+        await enqueueValidation(submissionMessage);
 
         // Update proof status in database
         await proofRepository.updateProofStatus(dbProof.id, 'SUBMITTED');
 
         proofsSubmitted++;
 
-        console.log(`[Submit] Submitted proof ${dbProof.id}`);
+        console.log(`[Submit] Submitted proof ${dbProof.id} to validation queue`);
       } catch (error) {
         console.error(`[Submit] Failed to submit proof ${dbProof.id}:`, error);
         // Continue with other proofs
