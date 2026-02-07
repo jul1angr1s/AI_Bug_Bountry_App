@@ -16,6 +16,8 @@ import {
   executeSubmitStep,
   cleanupResources,
 } from './steps/index.js';
+import type { VulnerabilityFinding } from './steps/analyze.js';
+import type { AIAnalysisMetrics } from './steps/ai-deep-analysis.js';
 
 // Error codes for structured error handling
 export const ScanErrorCodes = {
@@ -325,7 +327,7 @@ async function executeScanPipeline(
 
   // Step 4: Static Analysis (45-60%)
   const analyzeStep = await scanStepRepository.startStep(scanId, ScanStep.ANALYZE);
-  let slitherFindings: any[] = [];
+  let slitherFindings: VulnerabilityFinding[] = [];
   try {
     await emitScanProgress(scanId, protocolId, 'ANALYZE', ScanState.RUNNING, 50, 'Running static analysis...');
 
@@ -357,7 +359,7 @@ async function executeScanPipeline(
   // Step 5: AI Deep Analysis (60-75%)
   const aiAnalysisStep = await scanStepRepository.startStep(scanId, ScanStep.AI_DEEP_ANALYSIS);
   let finalFindings = slitherFindings;
-  let aiMetrics: any = null;
+  let aiMetrics: AIAnalysisMetrics | null = null;
   let aiAnalysisFailed = false;
 
   try {

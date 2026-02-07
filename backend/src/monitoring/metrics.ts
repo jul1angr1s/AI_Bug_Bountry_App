@@ -59,7 +59,7 @@ class MetricsCollector {
   /**
    * Get queue metrics from BullMQ
    */
-  async getQueueMetrics(queue: any): Promise<QueueMetrics> {
+  async getQueueMetrics(queue: { name: string; getJobCounts: () => Promise<Record<string, number>> }): Promise<QueueMetrics> {
     const counts = await queue.getJobCounts();
 
     return {
@@ -146,7 +146,7 @@ export const metricsCollector = new MetricsCollector();
 /**
  * Middleware to record request metrics
  */
-export function metricsMiddleware(req: any, res: any, next: any): void {
+export function metricsMiddleware(req: { method: string; path: string }, res: { on: (event: string, cb: () => void) => void }, next: () => void): void {
   const start = Date.now();
 
   metricsCollector.recordRequest(req.path);

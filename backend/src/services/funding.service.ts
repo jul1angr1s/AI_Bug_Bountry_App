@@ -380,7 +380,7 @@ export async function getProtocolFundingStatus(
   onChainBalance: number;
   canRequestScan: boolean;
 } | null> {
-  const whereClause: any = { id: protocolId };
+  const whereClause: { id: string; authUserId?: string } = { id: protocolId };
   if (userId) {
     whereClause.authUserId = userId;
   }

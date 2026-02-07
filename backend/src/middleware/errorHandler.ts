@@ -12,7 +12,12 @@ import { createLogger } from '../lib/logger.js';
 const log = createLogger('error-handler');
 
 // Sentry integration (optional - only if SENTRY_DSN is set)
-let Sentry: any = null;
+interface SentryLike {
+  init(options: Record<string, unknown>): void;
+  captureException(error: unknown, context?: Record<string, unknown>): void;
+  captureMessage(message: string, context?: Record<string, unknown>): void;
+}
+let Sentry: SentryLike | null = null;
 if (process.env.SENTRY_DSN) {
   try {
     // Dynamic import to avoid requiring @sentry/node if not configured
