@@ -225,6 +225,81 @@ Each archived change should include an `ARCHIVE_REASON.md` file explaining:
 **Reason**: Smart contracts deployed and verified
 **Archived**: 2026-01-31
 
+### 2026-02-06: security-posture-hardening
+**Reason**: Completed and fully implemented
+**Archived**: 2026-02-06
+**Status**: Core security hardening merged (PR #96)
+
+**Summary**: Remediated critical security vulnerabilities blocking production deployment. Removed DEV_AUTH_BYPASS from all middleware, implemented CSRF protection (double-submit cookie pattern), added payment race condition fix with atomic locking and idempotency keys, created Pino structured logging with PII redaction, built secrets management abstraction, configured Helmet security headers, and reduced body size limits.
+
+**Key Outcomes**:
+- DEV_AUTH_BYPASS removed from auth.ts, admin.ts, sse-auth.ts
+- CSRF middleware with frontend integration
+- Atomic payment processing with idempotencyKey
+- Pino logger with redaction paths and correlation IDs
+- Secrets provider abstraction (EnvSecretsProvider)
+- Helmet CSP + HSTS headers
+- Redis-backed rate limiting
+
+**Related PRs**: #96
+
+---
+
+### 2026-02-06: backend-architecture-hardening
+**Reason**: Completed and fully implemented
+**Archived**: 2026-02-06
+**Status**: DI infrastructure and payment decomposition merged (PR #97)
+
+**Summary**: Implemented tsyringe dependency injection framework, decomposed 1,394-line payment.service.ts into 4 focused services (PaymentService, PaymentStatisticsService, USDCService, PaymentProposalService), created typed contract interfaces, and established DI test infrastructure.
+
+**Key Outcomes**:
+- tsyringe DI container with injectable services
+- Payment god service decomposed into 4 services + types + barrel export
+- DI interfaces: ILogger, IDatabase, IBountyPoolClient, IUSDCClient, IValidationRegistryClient
+- Injection tokens for all services
+- Test container with mock factories
+- BountyPoolClient: 18 `any` types replaced with proper types
+- Typed contract interfaces (RawBounty, RawValidation)
+
+**Related PRs**: #97
+
+---
+
+### 2026-02-06: frontend-architecture-optimization
+**Reason**: Completed and fully implemented
+**Archived**: 2026-02-06
+**Status**: Code splitting, Web3 fix, and state management merged (PR #98)
+
+**Summary**: Added React.lazy code splitting for 13 page components with Suspense and ErrorBoundary, fixed critical Web3 chainId mismatch (1 -> baseSepolia.id), removed insecure demo WalletConnect project ID fallback, and replaced Map-based optimistic updates with Record for proper Zustand reactivity.
+
+**Key Outcomes**:
+- 13 pages lazy-loaded with React.lazy/Suspense
+- ErrorBoundary with chunk load error detection and retry
+- LoadingSpinner Suspense fallback
+- chainId fixed from 1 (Mainnet) to 84532 (Base Sepolia)
+- WalletConnect connector only added when project ID is set
+- dashboardStore Map -> Record for Zustand compatibility
+
+**Related PRs**: #98
+
+---
+
+### 2026-02-06: funding-gate-protocol-flow
+**Reason**: Completed and fully implemented
+**Archived**: 2026-02-06
+**Status**: Funding gate workflow merged (PR from Feb 5 session)
+
+**Summary**: Added funding gate between protocol registration and scanning to prevent payment failures. Implemented 3-step wizard (approve USDC, deposit to BountyPool, verify on-chain), confirmation modal for scan initiation, and WebSocket events for funding state changes.
+
+**Key Outcomes**:
+- FundingGate.tsx 3-step wizard component
+- ScanConfirmationModal.tsx
+- funding.service.ts + funding.routes.ts
+- Protocol worker sets AWAITING_FUNDING instead of auto-scanning
+- WebSocket events for funding state transitions
+
+---
+
 ## Retrieving Archived Changes
 
 If you need to reference an archived change:
