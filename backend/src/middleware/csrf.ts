@@ -12,8 +12,9 @@ export function generateCsrfToken(): string {
  * Middleware to set CSRF cookie on every request if not already present.
  */
 export function setCsrfCookie(req: Request, res: Response, next: NextFunction): void {
-  if (!req.cookies[CSRF_COOKIE_NAME]) {
-    const token = generateCsrfToken();
+  let token = req.cookies[CSRF_COOKIE_NAME];
+  if (!token) {
+    token = generateCsrfToken();
     res.cookie(CSRF_COOKIE_NAME, token, {
       httpOnly: false, // Frontend needs to read the cookie
       secure: process.env.NODE_ENV === 'production',
@@ -21,6 +22,8 @@ export function setCsrfCookie(req: Request, res: Response, next: NextFunction): 
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
     });
   }
+  // Store the token in res.locals so the endpoint can access it
+  res.locals.csrfToken = token;
   next();
 }
 
@@ -62,14 +65,11 @@ export function verifyCsrfToken(req: Request, res: Response, next: NextFunction)
 /**
  * Endpoint handler to return a CSRF token to the frontend.
  * GET /api/v1/csrf-token
+ *
+ * The setCsrfCookie middleware has already ensured a token is set and stored in res.locals.csrfToken.
+ * We just need to return it to the frontend.
  */
 export function getCsrfTokenEndpoint(req: Request, res: Response): void {
-  const token = req.cookies[CSRF_COOKIE_NAME] || generateCsrfToken();
-  res.cookie(CSRF_COOKIE_NAME, token, {
-    httpOnly: false,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    maxAge: 24 * 60 * 60 * 1000,
-  });
+  const token = res.locals.csrfToken;
   res.json({ csrfToken: token });
 }
