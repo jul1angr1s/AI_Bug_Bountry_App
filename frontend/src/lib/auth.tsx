@@ -131,18 +131,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const signature = await signSiweMessage(message);
       console.log('Message signed successfully');
 
-      // Step 4: Authenticate with Supabase using the signed message
-      // Note: This requires a Supabase Edge Function to verify the SIWE signature
-      // For now, we'll use a simplified approach with user metadata
-      const { data, error } = await supabase.auth.signInAnonymously({
-        options: {
-          data: {
-            wallet_address: walletAddress,
-            siwe_message: message,
-            siwe_signature: signature,
-            signed_at: new Date().toISOString(),
-          },
-        },
+      // Step 4: Verify SIWE signature on backend
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+      const verifyResponse = await fetch(`${API_BASE_URL}/api/v1/auth/siwe`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message,
+          signature,
+          walletAddress,
+        }),
+      });
+
+      if (!verifyResponse.ok) {
+        const errorData = await verifyResponse.json();
+        throw new Error(errorData.error || 'SIWE verification failed');
+      }
+
+      const { access_token } = await verifyResponse.json();
+      console.log('SIWE verification successful');
+
+      // Step 5: Set session using the verified token
+      const { data, error } = await supabase.auth.setSession({
+        access_token,
+        refresh_token: '', // Magic link tokens don't have refresh tokens
       });
 
       if (error) {

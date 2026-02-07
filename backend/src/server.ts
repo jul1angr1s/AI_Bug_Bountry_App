@@ -8,6 +8,7 @@ import http from 'http';
 import './config/security.js'; // Security startup guards - must be first
 import { initializeContainer } from './di/container.js';
 import apiRouter from './routes/index.js';
+import authRoutes from './routes/auth.routes.js';
 import { config } from './config/env.js';
 import { requestId } from './middleware/requestId.js';
 import { authenticate } from './middleware/auth.js';
@@ -72,6 +73,11 @@ app.use((req, _res, next) => {
   correlationStorage.run(req.id || 'unknown', next);
 });
 app.use(setCsrfCookie);
+
+// Register auth routes BEFORE global authentication middleware
+// This allows public endpoints like /auth/siwe to work without authentication
+app.use('/api/v1/auth', authRoutes);
+
 app.use(authenticate);
 
 // CSRF token endpoint (before CSRF verification)
