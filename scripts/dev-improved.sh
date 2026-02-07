@@ -62,6 +62,7 @@ required_vars=(
   "REDIS_PASSWORD"
   "SUPABASE_URL"
   "SUPABASE_ANON_KEY"
+  "SUPABASE_SERVICE_ROLE_KEY"
 )
 
 for var in "${required_vars[@]}"; do
@@ -72,6 +73,29 @@ for var in "${required_vars[@]}"; do
   fi
 done
 echo "✓ Environment variables validated"
+
+# Validate against deprecated/dangerous environment variables
+echo "🔒 Validating security configuration..."
+deprecated_vars=(
+  "DEV_AUTH_BYPASS"
+)
+
+for var in "${deprecated_vars[@]}"; do
+  if [ -n "${!var:-}" ]; then
+    echo "❌ ERROR: Deprecated security variable detected: $var"
+    echo "   This variable has been removed for security reasons"
+    echo "   Please remove it from your .env files:"
+    echo "   - backend/.env"
+    echo "   - backend/.env.local"
+    echo ""
+    echo "   For development authentication, ensure these are set:"
+    echo "   - SUPABASE_URL"
+    echo "   - SUPABASE_ANON_KEY"
+    echo "   - SUPABASE_SERVICE_ROLE_KEY"
+    exit 1
+  fi
+done
+echo "✓ No deprecated security variables detected"
 
 # Check npm dependencies
 if [ ! -d "$ROOT_DIR/backend/node_modules" ]; then
@@ -469,6 +493,15 @@ if [ "${START_BACKEND:-1}" = "1" ]; then
             echo "  ✓ Database: $database_status"
           else
             echo "  ⚠️  Database: $database_status"
+          fi
+
+          # Validate authentication configuration
+          echo "🔐 Validating authentication configuration..."
+          if echo "$health_response" | grep -q "ok"; then
+            echo "  ✓ Authentication middleware loaded (Supabase configuration detected)"
+          else
+            echo "  ⚠️  Could not verify authentication configuration"
+            echo "     Ensure SUPABASE_* variables are set correctly"
           fi
 
           break
