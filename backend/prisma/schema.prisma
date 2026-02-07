@@ -344,11 +344,16 @@ model Payment {
   retryCount        Int       @default(0)
   queuedAt          DateTime?
 
+  // Security: idempotency and race condition prevention
+  idempotencyKey String?   @unique
+  processedAt    DateTime?
+
   vulnerability   Vulnerability           @relation(fields: [vulnerabilityId], references: [id], onDelete: Cascade)
   reconciliations PaymentReconciliation[]
 
   @@index([researcherAddress])
   @@index([reconciled])
+  @@index([status, processedAt])
 }
 
 model AuditLog {
