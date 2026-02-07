@@ -1,21 +1,8 @@
 import type { Request, Response, NextFunction } from 'express';
+import { getRedisClient } from '../lib/redis.js';
+import { createLogger } from '../lib/logger.js';
 
-interface RateLimitEntry {
-  count: number;
-  resetTime: number;
-}
-
-const rateLimitStore = new Map<string, RateLimitEntry>();
-
-// Cleanup old entries every 5 minutes
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, entry] of rateLimitStore.entries()) {
-    if (now > entry.resetTime) {
-      rateLimitStore.delete(key);
-    }
-  }
-}, 5 * 60 * 1000);
+const log = createLogger('rate-limit');
 
 interface RateLimitOptions {
   points: number;
@@ -23,51 +10,53 @@ interface RateLimitOptions {
 }
 
 function getClientId(req: Request): string {
-  // Use user ID if authenticated, otherwise use IP
   return req.user?.id || req.ip || 'unknown';
 }
 
+/**
+ * Redis-backed rate limiter.
+ * State persists across server restarts and scales across instances.
+ */
 function createRateLimiter(options: RateLimitOptions) {
-  return (req: Request, res: Response, next: NextFunction): void => {
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const clientId = getClientId(req);
-    const key = `${req.path}:${clientId}`;
-    const now = Date.now();
-    
-    let entry = rateLimitStore.get(key);
-    
-    if (!entry || now > entry.resetTime) {
-      // Create new entry
-      entry = {
-        count: 1,
-        resetTime: now + (options.duration * 1000),
-      };
-      rateLimitStore.set(key, entry);
-    } else {
-      // Increment count
-      entry.count++;
+    const key = `rate:${req.path}:${clientId}`;
+
+    try {
+      const redis = getRedisClient();
+      const current = await redis.incr(key);
+
+      if (current === 1) {
+        await redis.expire(key, options.duration);
+      }
+
+      const ttl = await redis.ttl(key);
+      const remaining = Math.max(0, options.points - current);
+
+      // Set rate limit headers
+      res.setHeader('X-RateLimit-Limit', options.points.toString());
+      res.setHeader('X-RateLimit-Remaining', remaining.toString());
+      res.setHeader('X-RateLimit-Reset', (Math.floor(Date.now() / 1000) + ttl).toString());
+
+      if (current > options.points) {
+        res.setHeader('Retry-After', ttl.toString());
+        log.warn({ clientId, path: req.path, count: current }, 'Rate limit exceeded');
+        res.status(429).json({
+          error: {
+            code: 'RateLimitExceeded',
+            message: `Rate limit exceeded. Try again after ${ttl} seconds.`,
+            requestId: req.id,
+          },
+        });
+        return;
+      }
+
+      next();
+    } catch (err) {
+      // If Redis is unavailable, allow the request (fail open) but log warning
+      log.warn({ err }, 'Rate limit check failed, allowing request');
+      next();
     }
-    
-    const remaining = Math.max(0, options.points - entry.count);
-    const resetTime = Math.ceil(entry.resetTime / 1000);
-    
-    // Set rate limit headers
-    res.setHeader('X-RateLimit-Limit', options.points.toString());
-    res.setHeader('X-RateLimit-Remaining', remaining.toString());
-    res.setHeader('X-RateLimit-Reset', resetTime.toString());
-    
-    if (entry.count > options.points) {
-      res.setHeader('Retry-After', Math.ceil((entry.resetTime - now) / 1000).toString());
-      res.status(429).json({
-        error: {
-          code: 'RateLimitExceeded',
-          message: `Rate limit exceeded. Try again after ${Math.ceil((entry.resetTime - now) / 1000)} seconds.`,
-          requestId: req.id,
-        },
-      });
-      return;
-    }
-    
-    next();
   };
 }
 

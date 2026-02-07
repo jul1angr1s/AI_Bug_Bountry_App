@@ -96,19 +96,40 @@ async function processPayment(job: Job<PaymentJobData>): Promise<void> {
 
   try {
     // =================
-    // STEP 1: Validate payment eligibility
+    // STEP 1: Atomic status transition - prevents race condition
+    // Only one worker can claim a PENDING payment
     // =================
-    const payment = await validatePaymentEligibility(paymentId);
+    const claimResult = await prisma.payment.updateMany({
+      where: {
+        id: paymentId,
+        status: 'PENDING' as PaymentStatus,
+      },
+      data: {
+        status: 'PROCESSING' as PaymentStatus,
+        processedAt: new Date(),
+      },
+    });
 
-    if (!payment) {
-      throw new Error(`Payment ${paymentId} is not eligible for processing`);
+    if (claimResult.count === 0) {
+      console.log(`[Payment Worker] Payment ${paymentId} already claimed or not pending, skipping`);
+      return;
     }
 
-    // Update status to PROCESSING
-    await prisma.payment.update({
+    // Fetch full payment details after claiming
+    const payment = await prisma.payment.findUnique({
       where: { id: paymentId },
-      data: { status: 'PROCESSING' as PaymentStatus },
+      include: {
+        vulnerability: {
+          include: {
+            protocol: true,
+          },
+        },
+      },
     });
+
+    if (!payment) {
+      throw new Error(`Payment ${paymentId} not found after claiming`);
+    }
 
     // =================
     // STEP 2: Get finding and protocol details
@@ -216,38 +237,17 @@ async function processPayment(job: Job<PaymentJobData>): Promise<void> {
 }
 
 /**
- * Validate payment eligibility
+ * Check for duplicate payment using idempotency key.
+ * Returns true if a payment with this key already exists.
  */
-async function validatePaymentEligibility(
-  paymentId: string
-): Promise<any | null> {
-  const payment = await prisma.payment.findUnique({
-    where: { id: paymentId },
-    include: {
-      vulnerability: {
-        include: {
-          protocol: true,
-        },
-      },
-    },
+async function checkIdempotencyKey(idempotencyKey: string | null | undefined): Promise<boolean> {
+  if (!idempotencyKey) return false;
+
+  const existing = await prisma.payment.findUnique({
+    where: { idempotencyKey },
   });
 
-  if (!payment) {
-    console.error(`[Payment Worker] Payment ${paymentId} not found`);
-    return null;
-  }
-
-  // Check if already paid
-  if (payment.status === 'COMPLETED' && payment.paidAt) {
-    console.warn(`[Payment Worker] Payment ${paymentId} already completed`);
-    return null;
-  }
-
-  // Check if finding is validated
-  // Note: The vulnerability model might need to be updated to reflect validated status
-  // For now, we'll assume the payment was queued only for validated findings
-
-  return payment;
+  return existing !== null;
 }
 
 /**

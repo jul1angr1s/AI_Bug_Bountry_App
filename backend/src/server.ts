@@ -4,11 +4,14 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import http from 'http';
+import './config/security.js'; // Security startup guards - must be first
 import apiRouter from './routes/index.js';
 import { config } from './config/env.js';
 import { requestId } from './middleware/requestId.js';
 import { authenticate } from './middleware/auth.js';
+import { setCsrfCookie, verifyCsrfToken, getCsrfTokenEndpoint } from './middleware/csrf.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
+import { correlationStorage } from './lib/logger.js';
 import { createSocketServer } from './websocket/server.js';
 import { registerSocketHandlers } from './websocket/handlers.js';
 import { getPrismaClient } from './lib/prisma.js';
@@ -27,7 +30,27 @@ setupProcessErrorHandlers();
 
 const app = express();
 
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", 'data:', 'https:'],
+      connectSrc: [
+        "'self'",
+        'https://base-sepolia.g.alchemy.com',
+        'https://*.supabase.co',
+        config.FRONTEND_URL,
+      ].filter(Boolean),
+      fontSrc: ["'self'", 'data:'],
+      objectSrc: ["'none'"],
+      frameSrc: ["'none'"],
+    },
+  },
+  hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+}));
 app.use(
   cors({
     origin: config.FRONTEND_URL,
@@ -36,10 +59,23 @@ app.use(
   })
 );
 app.use(morgan(config.NODE_ENV === 'production' ? 'combined' : 'dev'));
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '1mb' }));
 app.use(cookieParser());
 app.use(requestId);
+// Bind correlation ID to async context for structured logging
+app.use((req, _res, next) => {
+  correlationStorage.run(req.id || 'unknown', next);
+});
+app.use(setCsrfCookie);
 app.use(authenticate);
+
+// CSRF token endpoint (before CSRF verification)
+app.get('/api/v1/csrf-token', getCsrfTokenEndpoint);
+
+// Apply CSRF verification to state-changing routes
+app.use('/api/v1/protocols', verifyCsrfToken);
+app.use('/api/v1/payments', verifyCsrfToken);
+app.use('/api/v1/funding', verifyCsrfToken);
 
 app.use('/api/v1', apiRouter);
 
