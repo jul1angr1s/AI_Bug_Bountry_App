@@ -47,3 +47,7 @@ Before pushing code to the remote repository, the following tests MUST pass loca
 ## CI/CD Parity
 
 Local hooks are designed to mirror the CI pipeline. If a check fails locally via Husky, it WILL fail in CI. Fix issues locally to save time and CI resources.
+
+## Change Specifications
+
+- [Code Quality Improvement](../changes/code-quality-improvement/) - Eliminate 152 `any` types, centralize error hierarchy, migrate TODOs to Issues, ESLint enforcement
