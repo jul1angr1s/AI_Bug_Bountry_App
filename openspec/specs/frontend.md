@@ -66,3 +66,7 @@ interface AppStore {
 - `web-design-guidelines` - Accessibility, forms, animations
 - `composition-patterns` - Component architecture
 - `supabase-postgres-best-practices` - Auth flows, RLS
+
+## Change Specifications
+
+- [Frontend Architecture Optimization](../changes/frontend-architecture-optimization/) - Code splitting, component decomposition, Zod API validation, Web3 chain fix, performance
