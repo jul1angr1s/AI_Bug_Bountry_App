@@ -1,0 +1,27 @@
+schema: change
+version: 1.0
+status: in_progress
+started: 2026-02-05
+component:
+  - Contracts
+  - Backend
+  - API
+layer:
+  - Smart Contracts
+  - Middleware
+  - Services
+chain: Base Sepolia (84532)
+artifacts:
+  - name: proposal
+    completed: true
+  - name: design
+    completed: true
+  - name: tasks
+    completed: true
+notes: |
+  x.402 Payment Gating for Platform Sustainability
+  - PlatformEscrow: Researcher submission fee escrow (created, pending deployment)
+  - x402 middleware for protocol registration gating (implemented)
+  - EscrowService for researcher fee management (implemented)
+  - API routes for escrow deposit and balance queries (implemented)
+  - Prisma schema updated with AgentEscrow, EscrowTransaction, X402PaymentRequest models

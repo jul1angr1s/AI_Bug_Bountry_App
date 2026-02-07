@@ -342,6 +342,7 @@ async function processValidation(submission: ProofSubmissionMessage): Promise<vo
             });
 
             // Map severity + outcome to FeedbackType
+            // INFO severity maps to CONFIRMED_INFORMATIONAL
             const severityToFeedback: Record<string, FeedbackType> = {
               'CRITICAL': 'CONFIRMED_CRITICAL',
               'HIGH': 'CONFIRMED_HIGH',
@@ -355,8 +356,10 @@ async function processValidation(submission: ProofSubmissionMessage): Promise<vo
               : 'REJECTED';
 
             // Resolve researcher identity from AgentIdentity table
+            // Look up RESEARCHER agents - if a scan has an associated agent, use that agent's identity
             let researcherWallet = '';
             if (scan?.agent) {
+              // Look up agent identity by the platform agent's linked wallet
               const researcherIdentity = await prisma.agentIdentity.findFirst({
                 where: { agentType: 'RESEARCHER', isActive: true },
                 orderBy: { registeredAt: 'asc' },
