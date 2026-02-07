@@ -10,3 +10,4 @@ node_modules/
 .opencode/
 CLAUDE.md
 **/CLAUDE.md
+settings.json
