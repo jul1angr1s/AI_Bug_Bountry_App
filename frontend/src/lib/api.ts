@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { getCsrfToken } from './csrf';
 import type {
   Protocol,
   Agent,
@@ -10,6 +11,21 @@ import type {
 } from '../types/dashboard';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+
+/**
+ * Get headers for state-changing requests (POST, PUT, DELETE, PATCH).
+ * Includes auth headers plus CSRF token.
+ */
+async function getMutationHeaders(): Promise<HeadersInit> {
+  const [authHeaders, csrfToken] = await Promise.all([
+    getAuthHeaders(),
+    getCsrfToken(),
+  ]);
+  return {
+    ...authHeaders,
+    'x-csrf-token': csrfToken,
+  };
+}
 
 /**
  * Check if the backend server is reachable
@@ -270,7 +286,7 @@ export interface Finding {
  * Create a new scan job
  */
 export async function createScan(request: CreateScanRequest): Promise<{ scanId: string; state: string }> {
-  const headers = await getAuthHeaders();
+  const headers = await getMutationHeaders();
   const response = await fetch(`${API_BASE_URL}/api/v1/scans`, {
     method: 'POST',
     headers,
@@ -326,7 +342,7 @@ export async function fetchScan(scanId: string): Promise<Scan> {
  * Cancel a scan
  */
 export async function cancelScan(scanId: string): Promise<{ id: string; state: string }> {
-  const headers = await getAuthHeaders();
+  const headers = await getMutationHeaders();
   const response = await fetch(`${API_BASE_URL}/api/v1/scans/${scanId}`, {
     method: 'DELETE',
     headers,
@@ -437,7 +453,7 @@ export interface ProtocolListResponse {
  */
 export async function createProtocol(request: CreateProtocolRequest): Promise<CreateProtocolResponse> {
   try {
-    const headers = await getAuthHeaders();
+    const headers = await getMutationHeaders();
     const url = `${API_BASE_URL}/api/v1/protocols`;
 
     console.log('[API] Creating protocol:', request.name);
@@ -524,7 +540,7 @@ export const api = {
   },
 
   async post(url: string, body?: unknown) {
-    const headers = await getAuthHeaders();
+    const headers = await getMutationHeaders();
     const response = await fetch(`${API_BASE_URL}/api/v1${url}`, {
       method: 'POST',
       headers,
@@ -540,7 +556,7 @@ export const api = {
   },
 
   async put(url: string, body?: unknown) {
-    const headers = await getAuthHeaders();
+    const headers = await getMutationHeaders();
     const response = await fetch(`${API_BASE_URL}/api/v1${url}`, {
       method: 'PUT',
       headers,
@@ -556,7 +572,7 @@ export const api = {
   },
 
   async delete(url: string) {
-    const headers = await getAuthHeaders();
+    const headers = await getMutationHeaders();
     const response = await fetch(`${API_BASE_URL}/api/v1${url}`, {
       method: 'DELETE',
       headers,
@@ -644,7 +660,7 @@ export async function generateUSDCApprovalTx(
   amount: string,
   spender: string
 ): Promise<USDCApprovalTransactionData> {
-  const headers = await getAuthHeaders();
+  const headers = await getMutationHeaders();
   const response = await fetch(`${API_BASE_URL}/api/v1/payments/approve`, {
     method: 'POST',
     headers,
@@ -830,7 +846,7 @@ export interface FundingStatusResponse {
 export async function verifyProtocolFunding(
   protocolId: string
 ): Promise<VerifyFundingResponse> {
-  const headers = await getAuthHeaders();
+  const headers = await getMutationHeaders();
   const response = await fetch(
     `${API_BASE_URL}/api/v1/protocols/${protocolId}/verify-funding`,
     {
@@ -855,7 +871,7 @@ export async function requestProtocolScan(
   protocolId: string,
   branch?: string
 ): Promise<{ scanId: string; message: string }> {
-  const headers = await getAuthHeaders();
+  const headers = await getMutationHeaders();
   const response = await fetch(
     `${API_BASE_URL}/api/v1/protocols/${protocolId}/request-scan`,
     {
@@ -881,7 +897,7 @@ export async function recordFundingTransaction(
   protocolId: string,
   txHash: string
 ): Promise<{ message: string; txHash: string }> {
-  const headers = await getAuthHeaders();
+  const headers = await getMutationHeaders();
   const response = await fetch(
     `${API_BASE_URL}/api/v1/protocols/${protocolId}/record-funding`,
     {
@@ -962,7 +978,7 @@ export async function registerAgent(
   agentType: AgentIdentityType,
   registerOnChain = false
 ): Promise<{ agentIdentity: AgentIdentity; onChain: any }> {
-  const headers = await getAuthHeaders();
+  const headers = await getMutationHeaders();
   const response = await fetch(`${API_BASE_URL}/api/v1/agent-identities/register`, {
     method: 'POST',
     headers,
@@ -1013,7 +1029,7 @@ export async function depositEscrow(
   amount: string,
   txHash?: string
 ): Promise<{ balance: string; totalDeposited: string; remainingSubmissions: number }> {
-  const headers = await getAuthHeaders();
+  const headers = await getMutationHeaders();
   const response = await fetch(`${API_BASE_URL}/api/v1/agent-identities/${agentId}/escrow/deposit`, {
     method: 'POST',
     headers,

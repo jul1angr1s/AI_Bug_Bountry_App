@@ -7,6 +7,9 @@ import {
   UnauthorizedError,
   ValidationError,
 } from '../errors/CustomError.js';
+import { createLogger } from '../lib/logger.js';
+
+const log = createLogger('error-handler');
 
 // Sentry integration (optional - only if SENTRY_DSN is set)
 let Sentry: any = null;
@@ -19,9 +22,9 @@ if (process.env.SENTRY_DSN) {
       environment: process.env.NODE_ENV || 'development',
       tracesSampleRate: parseFloat(process.env.SENTRY_TRACES_SAMPLE_RATE || '0.1'),
     });
-    console.log('[ErrorHandler] Sentry error tracking enabled');
+    log.info('Sentry error tracking enabled');
   } catch (error) {
-    console.warn('[ErrorHandler] Sentry not available:', error);
+    log.warn({ err: error }, 'Sentry not available');
   }
 }
 
@@ -88,15 +91,14 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
 
   // Log error details
   if (err instanceof Error) {
-    console.error('Request error', {
+    log.error({
       requestId: req.id,
       userId: req.user?.id,
       path: req.path,
       method: req.method,
-      message: err.message,
-      stack: err.stack,
+      err,
       status,
-    });
+    }, 'Request error');
 
     // Report to Sentry if configured (only for 5xx errors in production)
     if (Sentry && isProduction && status >= 500) {
@@ -116,7 +118,7 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
       });
     }
   } else {
-    console.error('Unknown error', { requestId: req.id, value: err });
+    log.error({ requestId: req.id, value: err }, 'Unknown error');
 
     if (Sentry && isProduction) {
       Sentry.captureMessage('Unknown error type encountered', {

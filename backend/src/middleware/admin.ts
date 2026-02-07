@@ -2,12 +2,6 @@ import type { Request, Response, NextFunction } from 'express';
 import { ForbiddenError } from '../errors/CustomError.js';
 
 export function requireAdmin(req: Request, _res: Response, next: NextFunction): void {
-  // Development bypass for testing
-  if (process.env.DEV_AUTH_BYPASS === 'true') {
-    console.log('[Admin Middleware] DEV_AUTH_BYPASS enabled - skipping admin check');
-    return next();
-  }
-
   const user = req.user;
 
   if (!user) {
