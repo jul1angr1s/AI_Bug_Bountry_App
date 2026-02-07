@@ -137,8 +137,9 @@ async function processPayment(job: Job<PaymentJobData>): Promise<void> {
       } else {
         console.log('[PaymentWorker] No on-chain validation found, checking database (LLM validation)...');
       }
-    } catch (error: any) {
-      console.warn('[PaymentWorker] On-chain validation check failed, checking database:', error.message);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      console.warn('[PaymentWorker] On-chain validation check failed, checking database:', msg);
     }
 
     // If no on-chain validation, check database for LLM-validated findings
@@ -218,8 +219,9 @@ async function processPayment(job: Job<PaymentJobData>): Promise<void> {
           console.log(`[PaymentWorker] Pool balance (${poolBalance}) < payment amount (${payment.amount})`);
           console.log('[PaymentWorker] Falling back to demo mode due to insufficient pool funds');
         }
-      } catch (error: any) {
-        console.log(`[PaymentWorker] Could not check pool balance: ${error.message}`);
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        console.log(`[PaymentWorker] Could not check pool balance: ${msg}`);
         console.log('[PaymentWorker] Falling back to demo mode');
       }
     }
@@ -268,12 +270,13 @@ async function processPayment(job: Job<PaymentJobData>): Promise<void> {
         console.log(`  Block: ${releaseResult.blockNumber}`);
         console.log(`  Amount: ${ethers.formatUnits(releaseResult.amount, usdcConfig.decimals)} USDC`);
         console.log(`  Bounty ID: ${releaseResult.bountyId}`);
-      } catch (error: any) {
-        console.error('[PaymentWorker] Failed to release bounty:', error.message);
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        console.error('[PaymentWorker] Failed to release bounty:', msg);
 
         // Task 5.4 - Scenario: Worker handles insufficient pool funds
-        if (error.message.includes('Insufficient pool balance') ||
-            error.message.includes('InsufficientBalance')) {
+        if (msg.includes('Insufficient pool balance') ||
+            msg.includes('InsufficientBalance')) {
           console.error('[PaymentWorker] Insufficient pool balance - marking as FAILED');
 
           await prisma.payment.update({
@@ -346,12 +349,14 @@ async function processPayment(job: Job<PaymentJobData>): Promise<void> {
 
     console.log('[PaymentWorker] Payment processing completed successfully!');
 
-  } catch (error: any) {
+  } catch (error) {
     // Task 5.7: Logging - Payment failure logged
-    console.error('[PaymentWorker] Payment processing failed:', error.message);
+    const msg = error instanceof Error ? error.message : String(error);
+    const stack = error instanceof Error ? error.stack : undefined;
+    console.error('[PaymentWorker] Payment processing failed:', msg);
     console.error(`  Payment ID: ${paymentId}`);
     console.error(`  Validation ID: ${validationId}`);
-    console.error(`  Error: ${error.stack || error.message}`);
+    console.error(`  Error: ${stack || msg}`);
 
     // Re-throw error to let BullMQ handle retry logic
     throw error;

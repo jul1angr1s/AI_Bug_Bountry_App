@@ -70,7 +70,7 @@ router.get('/health', async (_req, res) => {
  */
 router.get('/health/detailed', async (_req, res) => {
   const prisma = getPrismaClient();
-  const checks: Record<string, any> = {
+  const checks: Record<string, { status: string; message?: string; usedMB?: number; totalMB?: number; percentUsed?: number }> = {
     server: { status: 'ok' },
     database: { status: 'unknown' },
     redis: { status: 'unknown' },
@@ -81,10 +81,10 @@ router.get('/health/detailed', async (_req, res) => {
   try {
     await prisma.$queryRaw`SELECT 1`;
     checks.database = { status: 'ok' };
-  } catch (error: any) {
+  } catch (error) {
     checks.database = {
       status: 'error',
-      message: error.message,
+      message: error instanceof Error ? error.message : String(error),
     };
   }
 
@@ -92,10 +92,10 @@ router.get('/health/detailed', async (_req, res) => {
   try {
     const redisHealthy = await pingRedis();
     checks.redis = { status: redisHealthy ? 'ok' : 'error' };
-  } catch (error: any) {
+  } catch (error) {
     checks.redis = {
       status: 'error',
-      message: error.message,
+      message: error instanceof Error ? error.message : String(error),
     };
   }
 
@@ -113,8 +113,8 @@ router.get('/health/detailed', async (_req, res) => {
   };
 
   // Overall status
-  const hasError = Object.values(checks).some((c: any) => c.status === 'error');
-  const hasWarning = Object.values(checks).some((c: any) => c.status === 'warning');
+  const hasError = Object.values(checks).some((c) => c.status === 'error');
+  const hasWarning = Object.values(checks).some((c) => c.status === 'warning');
   const overallStatus = hasError ? 'error' : hasWarning ? 'warning' : 'ok';
 
   res.status(hasError ? 503 : 200).json({

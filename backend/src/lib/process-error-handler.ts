@@ -5,7 +5,12 @@
  * and ensure proper logging of unexpected errors.
  */
 
-let Sentry: any = null;
+interface SentryLike {
+  captureException(error: unknown, context?: Record<string, unknown>): void;
+  captureMessage(message: string, context?: Record<string, unknown>): void;
+  close(timeout?: number): Promise<boolean>;
+}
+let Sentry: SentryLike | null = null;
 
 // Initialize Sentry if configured
 if (process.env.SENTRY_DSN) {

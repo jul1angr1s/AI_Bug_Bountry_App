@@ -83,7 +83,7 @@ export class ProtocolRegistryClient {
       console.log(`[ProtocolRegistry] Transaction confirmed in block ${receipt.blockNumber}`);
 
       // Parse the ProtocolRegistered event to get protocolId
-      const event = receipt.logs.find((log: any) => {
+      const event = receipt.logs.find((log) => {
         try {
           const parsed = this.contract.interface.parseLog(log);
           return parsed?.name === 'ProtocolRegistered';
@@ -118,20 +118,22 @@ export class ProtocolRegistryClient {
         blockNumber: receipt.blockNumber,
         timestamp,
       };
-    } catch (error: any) {
+    } catch (error) {
       console.error('[ProtocolRegistry] Registration failed:', error);
 
       // Parse revert reason if available
-      if (error.data) {
+      const errObj = error as { data?: string; message?: string };
+      if (errObj.data) {
         try {
-          const decodedError = this.contract.interface.parseError(error.data);
+          const decodedError = this.contract.interface.parseError(errObj.data);
           console.error(`  Revert reason: ${decodedError?.name}`);
         } catch {
           // Ignore parsing errors
         }
       }
 
-      throw new Error(`Failed to register protocol: ${error.message}`);
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to register protocol: ${msg}`);
     }
   }
 
@@ -153,8 +155,9 @@ export class ProtocolRegistryClient {
         registeredAt: protocol.registeredAt,
         totalBountyPool: protocol.totalBountyPool,
       };
-    } catch (error: any) {
-      throw new Error(`Failed to get protocol: ${error.message}`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to get protocol: ${msg}`);
     }
   }
 
@@ -164,8 +167,9 @@ export class ProtocolRegistryClient {
   async isGithubUrlRegistered(githubUrl: string): Promise<boolean> {
     try {
       return await this.contract.isGithubUrlRegistered(githubUrl);
-    } catch (error: any) {
-      throw new Error(`Failed to check GitHub URL: ${error.message}`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to check GitHub URL: ${msg}`);
     }
   }
 
@@ -182,8 +186,9 @@ export class ProtocolRegistryClient {
       }
 
       return protocolId;
-    } catch (error: any) {
-      throw new Error(`Failed to get protocol ID: ${error.message}`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to get protocol ID: ${msg}`);
     }
   }
 
@@ -206,8 +211,9 @@ export class ProtocolRegistryClient {
       }
 
       return receipt.hash;
-    } catch (error: any) {
-      throw new Error(`Failed to update protocol status: ${error.message}`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to update protocol status: ${msg}`);
     }
   }
 
@@ -218,8 +224,9 @@ export class ProtocolRegistryClient {
     try {
       const count = await this.contract.getProtocolCount();
       return Number(count);
-    } catch (error: any) {
-      throw new Error(`Failed to get protocol count: ${error.message}`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to get protocol count: ${msg}`);
     }
   }
 
@@ -229,8 +236,9 @@ export class ProtocolRegistryClient {
   async getProtocolsByOwner(ownerAddress: string): Promise<string[]> {
     try {
       return await this.contract.getProtocolsByOwner(ownerAddress);
-    } catch (error: any) {
-      throw new Error(`Failed to get protocols by owner: ${error.message}`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to get protocols by owner: ${msg}`);
     }
   }
 

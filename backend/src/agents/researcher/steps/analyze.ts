@@ -22,7 +22,7 @@ export interface VulnerabilityFinding {
 
 export interface AnalyzeStepResult {
   findings: VulnerabilityFinding[];
-  rawOutput?: any;
+  rawOutput?: unknown;
   toolsUsed: string[];
 }
 
@@ -136,7 +136,7 @@ async function runSlither(clonedPath: string, contractPath: string): Promise<Vul
 /**
  * Parse Slither detector output into our finding format
  */
-function parseSlitherDetector(detector: any, contractPath: string): VulnerabilityFinding | null {
+function parseSlitherDetector(detector: { impact?: string; check?: string; description?: string; elements?: Array<{ source_mapping?: { filename_relative?: string; lines?: number[] }; name?: string }> }, contractPath: string): VulnerabilityFinding | null {
   try {
     // Map Slither impact to our Severity
     const severity = mapSlitherImpactToSeverity(detector.impact);

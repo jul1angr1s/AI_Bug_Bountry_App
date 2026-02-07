@@ -62,7 +62,14 @@ export async function decryptProof(
     // For MVP: proof data is stored in plaintext
     // In production: decrypt the encryptedPayload and verify signature
 
-    let proofData: any;
+    let proofData: {
+      vulnerabilityType?: string;
+      severity?: string;
+      description?: string;
+      location?: { filePath: string; lineNumber?: number; functionSelector?: string };
+      exploitDetails?: { reproductionSteps: string[]; expectedOutcome: string; actualOutcome?: string };
+      contractDetails?: { deploymentAddress?: string; affectedFunction?: string };
+    };
 
     if (dbProof.encryptedPayload) {
       // TODO: Implement actual decryption when encryption is enabled
@@ -167,7 +174,7 @@ export function verifyResearcherSignature(
 /**
  * Generate vulnerability-specific reproduction steps for validation
  */
-function generateReproductionSteps(vulnerabilityType: string, finding: any): string[] {
+function generateReproductionSteps(vulnerabilityType: string, finding: { filePath?: string; lineNumber?: number; functionSelector?: string; description?: string }): string[] {
   const location = `${finding.filePath}:${finding.lineNumber || 'unknown'}`;
   const func = finding.functionSelector || 'vulnerable function';
 
@@ -303,7 +310,7 @@ function generateReproductionSteps(vulnerabilityType: string, finding: any): str
 /**
  * Generate vulnerability-specific expected outcome for validation
  */
-function generateExpectedOutcome(vulnerabilityType: string, finding: any): string {
+function generateExpectedOutcome(vulnerabilityType: string, finding: { description?: string }): string {
   switch (vulnerabilityType) {
     case 'REENTRANCY':
       return 'Attacker drains contract balance through recursive calls before state update. Multiple withdrawals in single transaction.';
