@@ -121,9 +121,11 @@ Listens for validation events, releases USDC with severity multipliers
 
 #### ⚡ **Core Runtime**
 - **Node.js 20+** - Latest LTS with ESM support
-- **TypeScript** - Strict mode, full type safety
+- **TypeScript** - Strict mode, ESLint enforced type safety
 - **Express.js** - REST API + middleware
+- **tsyringe** - Dependency injection with typed interfaces
 - **Zod** - Runtime validation schemas
+- **Pino** - Structured logging with PII redaction
 
 #### 🗄️ **Data Layer**
 - **PostgreSQL 15+** - Primary database
@@ -1089,7 +1091,7 @@ socket.on('payment:released', (data) => {
 ### Test Suites
 
 ```bash
-# Run all tests
+# Run all tests (302 unit tests)
 npm test
 
 # Run unit tests only
@@ -1109,6 +1111,12 @@ npm run test:watch
 
 # Generate coverage report
 npm run test:coverage
+
+# Lint TypeScript code
+npm run lint
+
+# Lint with zero warnings allowed
+npm run lint:strict
 ```
 
 ### Test Structure
@@ -1116,20 +1124,32 @@ npm run test:coverage
 ```
 backend/
 ├── src/
-│   └── agents/
-│       └── researcher/
-│           ├── ai/
-│           │   └── __tests__/
-│           │       ├── embeddings.test.ts
-│           │       ├── knowledge-base.test.ts
-│           │       ├── llm-analyzer.test.ts
-│           │       └── fixtures/
-│           │           ├── contracts/
-│           │           └── llm-responses.json
-│           └── __tests__/
-│               ├── integration/
-│               │   └── ai-pipeline.ai.test.ts
-│               └── setup.ts
+│   ├── __tests__/
+│   │   ├── helpers/
+│   │   │   ├── test-database.ts          # Mock PrismaClient factory
+│   │   │   ├── test-blockchain.ts        # Mock ethers.js providers & contracts
+│   │   │   └── test-redis.ts             # Mock ioredis with in-memory store
+│   │   └── fixtures/
+│   │       ├── payment.fixtures.ts       # Payment & vulnerability factories
+│   │       └── protocol.fixtures.ts      # Protocol factories with relations
+│   ├── services/__tests__/
+│   │   ├── payment.service.test.ts       # 55 tests
+│   │   ├── protocol.service.test.ts      # 58 tests
+│   │   └── escrow.service.test.ts        # 34 tests
+│   ├── blockchain/contracts/__tests__/
+│   │   ├── BountyPoolClient.test.ts      # 37 tests
+│   │   ├── ValidationRegistryClient.test.ts  # 32 tests
+│   │   ├── USDCClient.test.ts            # 29 tests
+│   │   ├── ProtocolRegistryClient.test.ts    # 29 tests
+│   │   └── PlatformEscrowClient.test.ts  # 28 tests
+│   └── agents/researcher/
+│       ├── ai/__tests__/
+│       │   ├── embeddings.test.ts
+│       │   ├── knowledge-base.test.ts
+│       │   ├── llm-analyzer.test.ts
+│       │   └── fixtures/
+│       └── __tests__/integration/
+│           └── ai-pipeline.ai.test.ts
 └── tests/
     ├── integration/
     │   ├── payment-flow.test.ts
@@ -1143,20 +1163,23 @@ backend/
         └── test-database.ts
 ```
 
-### Test Coverage Targets
+### Unit Test Coverage (302 tests)
 
-| Component | Lines | Functions | Current |
-|-----------|-------|-----------|---------|
-| AI Deep Analysis | 90% | 90% | ✅ 92% |
-| Embeddings | 90% | 90% | ✅ 91% |
-| Knowledge Base | 85% | 85% | ✅ 87% |
-| LLM Analyzer | 80% | 80% | ✅ 83% |
-| Agent Workers | 85% | 85% | ✅ 86% |
-| **Overall** | **85%** | **85%** | **✅ 88%** |
+| Test File | Tests | Coverage |
+|-----------|-------|----------|
+| payment.service.test.ts | 55 | Payment CRUD, processing, stats, leaderboard, proposals |
+| protocol.service.test.ts | 58 | Registration, listing, funding, state management |
+| escrow.service.test.ts | 34 | Deposits, fee deduction, balance, submission gating |
+| BountyPoolClient.test.ts | 37 | Deposits, releases, balance queries, event parsing |
+| ValidationRegistryClient.test.ts | 32 | Record validation, queries, confirmed lookups |
+| USDCClient.test.ts | 29 | Allowance, balance, approval, formatting |
+| ProtocolRegistryClient.test.ts | 29 | Registration, lookup, status updates |
+| PlatformEscrowClient.test.ts | 28 | Escrow deposits, fees, balance, USDC verification |
+| **Total** | **302** | **All passing** |
 
 ### Mocking Strategy
 
-AI tests use mocked responses by default for speed:
+Unit tests use `vi.mock()` with `vi.hoisted()` for dependency isolation:
 
 ```bash
 # Run with mocked LLM (default)
@@ -1167,6 +1190,13 @@ KIMI_API_KEY=nvapi-... \
 MOCK_EXTERNAL_SERVICES=false \
 npm run test:ai
 ```
+
+**Mock Infrastructure:**
+- **test-database.ts** - Mock PrismaClient factory with stubs for all model methods
+- **test-blockchain.ts** - Mock ethers.js providers and contract instances (BountyPool, ValidationRegistry, USDC)
+- **test-redis.ts** - Mock ioredis with in-memory Map backing store and full API
+- **payment.fixtures.ts** - Payment and vulnerability factories with override support
+- **protocol.fixtures.ts** - Protocol factories with scan relations
 
 ---
 
@@ -1245,13 +1275,16 @@ GET /api/health/redis    # Redis health
 - Cache hit rate: AI response caching efficiency
 ```
 
-**Structured Logging**:
+**Structured Logging (Pino)**:
+
+The backend uses **Pino** for structured logging with automatic PII redaction:
 
 ```json
 {
   "level": "info",
-  "timestamp": "2026-02-04T18:00:00.000Z",
+  "timestamp": "2026-02-06T18:00:00.000Z",
   "component": "researcher-agent",
+  "correlationId": "req-abc123",
   "step": "AI_DEEP_ANALYSIS",
   "scanId": "scan-123",
   "message": "AI analysis completed",
@@ -1323,11 +1356,13 @@ GET /api/health/redis    # Redis health
 
 ### Code Standards
 
-- **TypeScript strict mode** - No implicit any
-- **Test coverage > 80%** - All new features must include tests
+- **TypeScript strict mode** - No implicit any, ESLint `@typescript-eslint/no-explicit-any` enforced
+- **Dependency Injection** - tsyringe with `@injectable()` and `@inject()` decorators
+- **Centralized Errors** - Error classes in `src/errors/` (payment, blockchain, validation, protocol)
+- **Test coverage > 80%** - All new features must include tests (302 unit tests and growing)
 - **Conventional Commits** - feat, fix, docs, refactor, test, chore
-- **ESLint + Prettier** - Code formatting enforced
-- **Documentation** - Update README and inline comments
+- **ESLint** - `npm run lint` must pass, `npm run lint:strict` for zero warnings
+- **No TODOs** - All TODOs tracked as GitHub Issues (see #101-#111)
 
 ---
 

@@ -209,8 +209,9 @@ The auth system automatically handles:
 **Wagmi Configuration:**
 
 Located in `frontend/src/lib/wagmi.ts`:
-- Configured for Base Sepolia (chain 84532)
-- Supports MetaMask (injected), WalletConnect, and Coinbase Wallet
+- Configured for **Base Sepolia (chain 84532)** - chainId correctly set to `baseSepolia.id`
+- Supports MetaMask (injected) and Coinbase Wallet
+- WalletConnect connector only added when `VITE_WALLETCONNECT_PROJECT_ID` env var is set (no insecure fallback)
 - Enables payment components to use wagmi hooks for contract interactions
 
 ---
@@ -224,11 +225,11 @@ Located in `frontend/src/lib/wagmi.ts`:
 <td width="50%">
 
 #### 🎨 **UI Layer**
-- **React 18** - Latest features (Suspense, Transitions)
+- **React 18** - Suspense, React.lazy, ErrorBoundary
 - **TypeScript** - Strict type safety
 - **Tailwind CSS** - Utility-first styling
 - **Lucide React** - Beautiful icons
-- **Framer Motion** - Smooth animations (coming soon)
+- **Code Splitting** - 13 lazy-loaded pages with chunk error recovery
 
 </td>
 <td width="50%">
@@ -788,11 +789,12 @@ npm run build
 
 ### Build Optimizations
 
-- **Code splitting** - Automatic route-based chunks
+- **Code splitting** - React.lazy/Suspense for 13 page components with ErrorBoundary and chunk load error recovery
 - **Tree shaking** - Remove unused code
 - **Minification** - Terser for JS, cssnano for CSS
 - **Asset optimization** - Image compression, font subsetting
 - **Gzip/Brotli** - Pre-compressed assets
+- **Zustand compatibility** - Record-based state (not Map) for proper reactivity with Immer
 
 ### Performance Targets
 
