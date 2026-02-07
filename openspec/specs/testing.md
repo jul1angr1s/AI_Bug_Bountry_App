@@ -56,7 +56,18 @@ function invariant_noDoublePay() public { ... }
 
 ## E2E Testing
 
-### FirstFlight Simulation (Daily)
+### Manual E2E Testing Workflow
+Before demonstrations and production deployments, complete the **[Manual E2E Testing Workflow](./manual-e2e-testing.md)** (60-90 minutes):
+- Prerequisites validation (database, Redis, contracts, environment)
+- Service startup (backend, frontend, agents, workers)
+- Agent registration and escrow funding
+- Protocol registration and scan execution
+- Validator testing and payment processing
+- Reputation updates and frontend verification
+
+This manual workflow is essential for pre-demonstration readiness and serves as the blueprint for automated E2E tests.
+
+### FirstFlight Simulation (Daily) - Automated
 1. Spin up Docker environment
 2. Register VulnerableVault protocol
 3. Trigger Researcher Agent scan
