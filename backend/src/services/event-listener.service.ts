@@ -403,7 +403,7 @@ export class EventListenerService {
         // Reinitialize provider
         await this.initializeProvider();
 
-        // TODO: Restart all listeners
+        // See GitHub Issue #105
         // This would require storing listener configs and restarting them
         // For now, the server restart will handle this
 

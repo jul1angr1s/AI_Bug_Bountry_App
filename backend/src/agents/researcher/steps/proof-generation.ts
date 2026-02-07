@@ -137,11 +137,11 @@ async function generateProofForFinding(
   const proofPayload = JSON.stringify(proofData, null, 2);
 
   // For MVP: Skip encryption, just base64 encode
-  // TODO: Implement actual encryption in Task 4.1
+  // See GitHub Issue #109
   const encryptedPayload = Buffer.from(proofPayload).toString('base64');
 
   // Generate placeholder signature
-  // TODO: Implement actual signature in Task 4.1
+  // See GitHub Issue #109
   const researcherSignature = `0x${Buffer.from(proofId).toString('hex')}`;
 
   // Store proof in database
