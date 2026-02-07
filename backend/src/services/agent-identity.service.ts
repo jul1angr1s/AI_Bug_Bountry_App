@@ -1,37 +1,18 @@
 import { PrismaClient, AgentIdentityType } from '@prisma/client';
-import { ethers } from 'ethers';
+import { AgentIdentityRegistryClient, AgentType } from '../blockchain/contracts/AgentIdentityRegistryClient.js';
 
 const prisma = new PrismaClient();
 
-const AGENT_IDENTITY_REGISTRY_ABI = [
-  'function selfRegister(uint8 agentType) external returns (uint256 agentId)',
-  'function registerAgent(address wallet, uint8 agentType) external returns (uint256 agentId)',
-  'function getAgent(uint256 agentId) external view returns (tuple(uint256 agentId, address wallet, uint8 agentType, uint256 registeredAt, bool active))',
-  'function getAgentByWallet(address wallet) external view returns (tuple(uint256 agentId, address wallet, uint8 agentType, uint256 registeredAt, bool active))',
-  'function isRegistered(address wallet) external view returns (bool)',
-  'function isActive(uint256 agentId) external view returns (bool)',
-  'event AgentRegistered(uint256 indexed agentId, address indexed wallet, uint8 agentType, uint256 registeredAt)',
-];
+// Lazy-initialized contract client
+let _registryClient: AgentIdentityRegistryClient | null = null;
+function getRegistryClient(): AgentIdentityRegistryClient {
+  if (!_registryClient) {
+    _registryClient = new AgentIdentityRegistryClient();
+  }
+  return _registryClient;
+}
 
 export class AgentIdentityService {
-  private provider: ethers.JsonRpcProvider;
-  private signer: ethers.Wallet | null = null;
-  private registryAddress: string;
-
-  constructor() {
-    this.registryAddress = process.env.AGENT_IDENTITY_REGISTRY_ADDRESS || '';
-
-    this.provider = new ethers.JsonRpcProvider(
-      process.env.BASE_SEPOLIA_RPC_URL || 'https://sepolia.base.org'
-    );
-
-    const privateKey = process.env.PLATFORM_PRIVATE_KEY || process.env.PRIVATE_KEY;
-    if (privateKey) {
-      const formattedKey = privateKey.startsWith('0x') ? privateKey : `0x${privateKey}`;
-      this.signer = new ethers.Wallet(formattedKey, this.provider);
-    }
-  }
-
   async registerAgent(walletAddress: string, agentType: AgentIdentityType) {
     const existing = await prisma.agentIdentity.findUnique({
       where: { walletAddress: walletAddress.toLowerCase() },
@@ -72,43 +53,20 @@ export class AgentIdentityService {
   }
 
   async registerAgentOnChain(walletAddress: string, agentType: AgentIdentityType) {
-    if (!this.signer || !this.registryAddress) {
-      throw new Error('Signer or registry address not configured');
-    }
+    const client = getRegistryClient();
+    const agentTypeEnum = agentType === 'RESEARCHER' ? AgentType.RESEARCHER : AgentType.VALIDATOR;
 
-    const agentTypeNum = agentType === 'RESEARCHER' ? 0 : 1;
-
-    const contract = new ethers.Contract(
-      this.registryAddress,
-      AGENT_IDENTITY_REGISTRY_ABI,
-      this.signer
-    );
-
-    const tx = await contract.registerAgent(walletAddress, agentTypeNum);
-    const receipt = await tx.wait();
-
-    let agentNftId: bigint | undefined;
-    for (const log of receipt.logs) {
-      try {
-        const parsed = contract.interface.parseLog(log);
-        if (parsed?.name === 'AgentRegistered') {
-          agentNftId = parsed.args.agentId;
-          break;
-        }
-      } catch {
-        // Skip logs that don't match
-      }
-    }
+    const result = await client.registerAgent(walletAddress, agentTypeEnum);
 
     const agentIdentity = await prisma.agentIdentity.update({
       where: { walletAddress: walletAddress.toLowerCase() },
       data: {
-        agentNftId,
-        onChainTxHash: tx.hash,
+        agentNftId: BigInt(result.tokenId),
+        onChainTxHash: result.txHash,
       },
     });
 
-    return { agentIdentity, txHash: tx.hash, agentNftId };
+    return { agentIdentity, txHash: result.txHash, agentNftId: BigInt(result.tokenId) };
   }
 
   async getAgentByWallet(walletAddress: string) {
@@ -132,15 +90,9 @@ export class AgentIdentityService {
   }
 
   async isRegisteredOnChain(walletAddress: string): Promise<boolean> {
-    if (!this.registryAddress) return false;
-
     try {
-      const contract = new ethers.Contract(
-        this.registryAddress,
-        AGENT_IDENTITY_REGISTRY_ABI,
-        this.provider
-      );
-      return await contract.isRegistered(walletAddress);
+      const client = getRegistryClient();
+      return await client.isRegistered(walletAddress);
     } catch {
       return false;
     }

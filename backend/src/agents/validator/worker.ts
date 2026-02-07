@@ -1,12 +1,8 @@
-import { getRedisClient } from '../../lib/redis.js';
+import { Worker, Job } from 'bullmq';
 import { getPrismaClient } from '../../lib/prisma.js';
 import { proofRepository } from '../../db/repositories.js';
 import { emitAgentTaskUpdate } from '../../websocket/events.js';
-import {
-  decryptProof,
-  type ProofSubmissionMessage,
-  type DecryptedProof,
-} from './steps/decrypt.js';
+import { decryptProof } from './steps/decrypt.js';
 import { spawnSandbox, deployToSandbox, killSandbox } from './steps/sandbox.js';
 import { executeExploit } from './steps/execute.js';
 import { cloneRepository, cleanupRepository } from '../protocol/steps/clone.js';
@@ -16,67 +12,79 @@ import { ValidationRegistryClient, ValidationOutcome, Severity as OnChainSeverit
 import { ethers } from 'ethers';
 import { reputationService } from '../../services/reputation.service.js';
 import type { FeedbackType } from '@prisma/client';
+import type { ProofSubmissionMessage } from '../../messages/schemas.js';
+import { validateMessage, ProofSubmissionSchema } from '../../messages/schemas.js';
 
-const redis = getRedisClient();
 const prisma = getPrismaClient();
 
-let isRunning = false;
-let subscriber: any = null;
+let validatorWorker: Worker<ProofSubmissionMessage> | null = null;
+
+const redisConnection = {
+  host: process.env.REDIS_HOST || 'localhost',
+  port: parseInt(process.env.REDIS_PORT || '6379', 10),
+  password: process.env.REDIS_PASSWORD,
+  maxRetriesPerRequest: null,
+};
 
 /**
  * Start Validator Agent
  *
- * Subscribes to Redis 'PROOF_SUBMISSION' channel and processes
- * validation requests from Researcher Agent
+ * Uses BullMQ Worker on 'validation-jobs' queue (replaces Redis Pub/Sub).
+ * Benefits: guaranteed delivery, automatic retries, job inspection.
  */
 export async function startValidatorAgent(): Promise<void> {
-  if (isRunning) {
+  if (validatorWorker) {
     console.log('[Validator Agent] Already running');
     return;
   }
 
-  console.log('[Validator Agent] Starting...');
+  console.log('[Validator Agent] Starting BullMQ worker on validation-jobs queue...');
 
-  // Create Redis subscriber
-  subscriber = redis.duplicate();
-  await subscriber.connect();
+  validatorWorker = new Worker<ProofSubmissionMessage>(
+    'validation-jobs',
+    async (job: Job<ProofSubmissionMessage>) => {
+      // Validate message schema
+      const submission = validateMessage(
+        ProofSubmissionSchema,
+        job.data,
+        `validation job ${job.id}`
+      );
 
-  // Subscribe to proof submission channel
-  await subscriber.subscribe('PROOF_SUBMISSION', async (message: string) => {
-    try {
-      const submission: ProofSubmissionMessage = JSON.parse(message);
-      console.log(`[Validator Agent] Received proof submission: ${submission.proofId}`);
-
-      // Process validation asynchronously (don't block subscriber)
-      processValidation(submission).catch((error) => {
-        console.error('[Validator Agent] Validation processing error:', error);
-      });
-    } catch (error) {
-      console.error('[Validator Agent] Failed to parse proof submission:', error);
+      console.log(`[Validator Agent] Processing proof: ${submission.proofId}`);
+      await processValidation(submission);
+    },
+    {
+      connection: redisConnection,
+      concurrency: 1, // Process one validation at a time
+      limiter: {
+        max: 10,
+        duration: 60000, // 10 validations per minute
+      },
     }
+  );
+
+  validatorWorker.on('completed', (job) => {
+    console.log(`[Validator Agent] Job ${job.id} completed`);
   });
 
-  isRunning = true;
-  console.log('[Validator Agent] Running and listening for proofs...');
+  validatorWorker.on('failed', (job, error) => {
+    console.error(`[Validator Agent] Job ${job?.id} failed:`, error.message);
+  });
+
+  console.log('[Validator Agent] Running and listening for validation jobs...');
 }
 
 /**
  * Stop Validator Agent
  */
 export async function stopValidatorAgent(): Promise<void> {
-  if (!isRunning) {
+  if (!validatorWorker) {
     return;
   }
 
   console.log('[Validator Agent] Stopping...');
-
-  if (subscriber) {
-    await subscriber.unsubscribe('PROOF_SUBMISSION');
-    await subscriber.quit();
-    subscriber = null;
-  }
-
-  isRunning = false;
+  await validatorWorker.close();
+  validatorWorker = null;
   console.log('[Validator Agent] Stopped');
 }
 
@@ -211,19 +219,13 @@ async function processValidation(submission: ProofSubmissionMessage): Promise<vo
 
     await proofRepository.updateProofStatus(submission.proofId, validationStatus);
 
-    // Create validation record
-    await prisma.validation.create({
+    // Update proof with validation result
+    await prisma.proof.update({
+      where: { id: submission.proofId },
       data: {
-        proofId: submission.proofId,
-        scanId: proof.scanId,
-        protocolId: proof.protocolId,
-        validatorAgentId: 'validator-agent-001', // TODO: dynamic agent ID
-        result: executionResult.validated ? 'TRUE' : 'FALSE',
-        executionLog: executionResult.executionLog?.join('\n') || '',
-        stateChanges: executionResult.stateChanges as any,
-        transactionHash: executionResult.transactionHash,
-        gasUsed: executionResult.gasUsed,
-        failureReason: executionResult.error,
+        status: executionResult.validated ? 'VALIDATED' : 'REJECTED',
+        validatedAt: new Date(),
+        validatorPublicKey: 'validator-agent-001', // TODO: dynamic agent ID
       },
     });
 
@@ -231,7 +233,7 @@ async function processValidation(submission: ProofSubmissionMessage): Promise<vo
     await prisma.finding.update({
       where: { id: proof.findingId },
       data: {
-        status: executionResult.validated ? 'CONFIRMED' : 'REJECTED',
+        status: executionResult.validated ? 'VALIDATED' : 'REJECTED',
         validatedAt: new Date(),
       },
     });
@@ -425,22 +427,17 @@ async function processValidation(submission: ProofSubmissionMessage): Promise<vo
     try {
       await proofRepository.updateProofStatus(submission.proofId, 'FAILED');
 
-      // Record failed validation
-      await prisma.validation.create({
-        data: {
-          proofId: submission.proofId,
-          scanId: submission.scanId,
-          protocolId: submission.protocolId,
-          validatorAgentId: 'validator-agent-001',
-          result: 'ERROR',
-          failureReason: errorMessage,
-        },
-      });
+      // Mark proof as failed — no separate validation model exists
+      // The proof status tracks the validation outcome
+      await proofRepository.updateProofStatus(submission.proofId, 'REJECTED');
     } catch (dbError) {
       console.error('[Validator] Failed to update database:', dbError);
     }
 
     await emitAgentTaskUpdate('validator-agent', `Validation error: ${errorMessage}`, 0);
+
+    // Re-throw so BullMQ can retry if attempts remain
+    throw error;
   } finally {
     // =================
     // CLEANUP

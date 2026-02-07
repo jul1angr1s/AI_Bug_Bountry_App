@@ -64,6 +64,9 @@ export const contractAddresses = {
   protocolRegistry: process.env.PROTOCOL_REGISTRY_ADDRESS as string,
   validationRegistry: process.env.VALIDATION_REGISTRY_ADDRESS as string,
   bountyPool: process.env.BOUNTY_POOL_ADDRESS as string,
+  agentIdentityRegistry: process.env.AGENT_IDENTITY_REGISTRY_ADDRESS as string,
+  agentReputationRegistry: process.env.AGENT_REPUTATION_REGISTRY_ADDRESS as string,
+  platformEscrow: process.env.PLATFORM_ESCROW_ADDRESS as string,
 };
 
 // Validate that all contract addresses are set
@@ -78,6 +81,15 @@ export const validateContractAddresses = (): void => {
   }
   if (!contractAddresses.bountyPool) {
     missing.push('BOUNTY_POOL_ADDRESS');
+  }
+  if (!contractAddresses.agentIdentityRegistry) {
+    missing.push('AGENT_IDENTITY_REGISTRY_ADDRESS');
+  }
+  if (!contractAddresses.agentReputationRegistry) {
+    missing.push('AGENT_REPUTATION_REGISTRY_ADDRESS');
+  }
+  if (!contractAddresses.platformEscrow) {
+    missing.push('PLATFORM_ESCROW_ADDRESS');
   }
 
   if (missing.length > 0) {

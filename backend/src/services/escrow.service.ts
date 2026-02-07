@@ -1,45 +1,23 @@
 import { PrismaClient } from '@prisma/client';
-import { ethers } from 'ethers';
+import { PlatformEscrowClient } from '../blockchain/contracts/PlatformEscrowClient.js';
 
 const prisma = new PrismaClient();
 
-const PLATFORM_ESCROW_ABI = [
-  'function depositEscrow(uint256 amount) external',
-  'function depositEscrowFor(address agent, uint256 amount) external',
-  'function deductSubmissionFee(address agent, bytes32 findingId) external',
-  'function collectProtocolFee(address protocol, bytes32 protocolId) external',
-  'function withdrawEscrow(uint256 amount) external',
-  'function getEscrowBalance(address agent) external view returns (uint256)',
-  'function canSubmitFinding(address agent) external view returns (bool)',
-  'function getRemainingSubmissions(address agent) external view returns (uint256)',
-  'function submissionFee() external view returns (uint256)',
-  'function protocolRegistrationFee() external view returns (uint256)',
-  'event EscrowDeposited(address indexed agent, uint256 amount, uint256 newBalance)',
-  'event SubmissionFeeDeducted(address indexed agent, bytes32 indexed findingId, uint256 feeAmount, uint256 remainingBalance)',
-  'event ProtocolFeeCollected(address indexed protocol, bytes32 indexed protocolId, uint256 feeAmount)',
-];
+// Lazy-initialized contract client (avoids crash if env vars not set)
+let _escrowClient: PlatformEscrowClient | null = null;
+function getEscrowClient(): PlatformEscrowClient {
+  if (!_escrowClient) {
+    _escrowClient = new PlatformEscrowClient();
+  }
+  return _escrowClient;
+}
 
 export class EscrowService {
-  private provider: ethers.JsonRpcProvider;
-  private signer: ethers.Wallet | null = null;
-  private escrowAddress: string;
-  private usdcAddress: string;
-
-  constructor() {
-    this.escrowAddress = process.env.PLATFORM_ESCROW_ADDRESS || '';
-    this.usdcAddress = process.env.USDC_ADDRESS || '0x036CbD53842c5426634e7929541eC2318f3dCF7e';
-
-    this.provider = new ethers.JsonRpcProvider(
-      process.env.BASE_SEPOLIA_RPC_URL || 'https://sepolia.base.org'
-    );
-
-    const privateKey = process.env.PLATFORM_PRIVATE_KEY || process.env.PRIVATE_KEY;
-    if (privateKey) {
-      const formattedKey = privateKey.startsWith('0x') ? privateKey : `0x${privateKey}`;
-      this.signer = new ethers.Wallet(formattedKey, this.provider);
-    }
-  }
-
+  /**
+   * Deposit escrow — verifies on-chain USDC transfer before crediting balance.
+   * If txHash is provided, verifies the USDC transfer on-chain.
+   * If no txHash, credits balance directly (for backend-initiated deposits).
+   */
   async depositEscrow(walletAddress: string, amount: bigint, txHash?: string) {
     const agent = await prisma.agentIdentity.findUnique({
       where: { walletAddress: walletAddress.toLowerCase() },
@@ -48,6 +26,40 @@ export class EscrowService {
 
     if (!agent) {
       throw new Error(`Agent not found: ${walletAddress}`);
+    }
+
+    // Verify on-chain transfer if txHash provided
+    if (txHash) {
+      const client = getEscrowClient();
+      const verification = await client.verifyUsdcTransfer(
+        txHash,
+        client.getAddress(),
+        amount
+      );
+
+      if (!verification.valid) {
+        throw new Error(
+          `On-chain USDC transfer verification failed for tx ${txHash}. ` +
+          `Expected ${amount} USDC to ${client.getAddress()}.`
+        );
+      }
+
+      // Verify sender matches depositor
+      if (verification.sender.toLowerCase() !== walletAddress.toLowerCase()) {
+        throw new Error(
+          `Sender mismatch: tx sender ${verification.sender} does not match depositor ${walletAddress}`
+        );
+      }
+    }
+
+    // Check for replay: has this tx hash already been used?
+    if (txHash) {
+      const existingTx = await prisma.escrowTransaction.findFirst({
+        where: { txHash },
+      });
+      if (existingTx) {
+        throw new Error(`Transaction ${txHash} already used for a deposit (replay detected)`);
+      }
     }
 
     if (!agent.escrowBalance) {
@@ -82,6 +94,10 @@ export class EscrowService {
     return this.getEscrowBalance(walletAddress);
   }
 
+  /**
+   * Deduct submission fee — atomically checks balance and deducts.
+   * Returns the updated balance.
+   */
   async deductSubmissionFee(walletAddress: string, findingId: string) {
     const agent = await prisma.agentIdentity.findUnique({
       where: { walletAddress: walletAddress.toLowerCase() },
@@ -92,7 +108,7 @@ export class EscrowService {
       throw new Error(`Agent escrow not found: ${walletAddress}`);
     }
 
-    const submissionFee = BigInt(500000);
+    const submissionFee = BigInt(500000); // 0.5 USDC
 
     if (agent.escrowBalance.balance < submissionFee) {
       throw new Error(
@@ -100,41 +116,42 @@ export class EscrowService {
       );
     }
 
-    await prisma.agentEscrow.update({
-      where: { agentIdentityId: agent.id },
-      data: {
-        balance: { decrement: submissionFee },
-        totalDeducted: { increment: submissionFee },
-      },
-    });
-
-    await prisma.escrowTransaction.create({
-      data: {
-        agentEscrowId: agent.escrowBalance.id,
-        transactionType: 'SUBMISSION_FEE',
-        amount: submissionFee,
-        findingId,
-      },
-    });
+    // Use transaction to make deduction atomic
+    await prisma.$transaction([
+      prisma.agentEscrow.update({
+        where: { agentIdentityId: agent.id },
+        data: {
+          balance: { decrement: submissionFee },
+          totalDeducted: { increment: submissionFee },
+        },
+      }),
+      prisma.escrowTransaction.create({
+        data: {
+          agentEscrowId: agent.escrowBalance.id,
+          transactionType: 'SUBMISSION_FEE',
+          amount: submissionFee,
+          findingId,
+        },
+      }),
+    ]);
 
     return this.getEscrowBalance(walletAddress);
   }
 
+  /**
+   * Deduct submission fee on-chain AND in database (dual-write).
+   */
   async deductSubmissionFeeOnChain(walletAddress: string, findingId: string) {
-    if (!this.signer || !this.escrowAddress) {
-      throw new Error('Signer or escrow address not configured');
-    }
+    const client = getEscrowClient();
+    const result = await client.deductSubmissionFee(walletAddress, findingId);
 
-    const contract = new ethers.Contract(
-      this.escrowAddress,
-      PLATFORM_ESCROW_ABI,
-      this.signer
-    );
+    // Also update local database
+    await this.deductSubmissionFee(walletAddress, findingId);
 
-    const tx = await contract.deductSubmissionFee(walletAddress, findingId);
-    await tx.wait();
-
-    return this.deductSubmissionFee(walletAddress, findingId);
+    return {
+      ...await this.getEscrowBalance(walletAddress),
+      txHash: result.txHash,
+    };
   }
 
   async getEscrowBalance(walletAddress: string) {
@@ -165,17 +182,13 @@ export class EscrowService {
     };
   }
 
+  /**
+   * Get on-chain escrow balance (reads directly from contract).
+   */
   async getEscrowBalanceOnChain(walletAddress: string): Promise<bigint> {
-    if (!this.escrowAddress) return BigInt(0);
-
     try {
-      const contract = new ethers.Contract(
-        this.escrowAddress,
-        PLATFORM_ESCROW_ABI,
-        this.provider
-      );
-      const balance = await contract.getEscrowBalance(walletAddress);
-      return BigInt(balance.toString());
+      const client = getEscrowClient();
+      return await client.getBalance(walletAddress);
     } catch {
       return BigInt(0);
     }
@@ -203,32 +216,18 @@ export class EscrowService {
   }
 
   async getSubmissionFee(): Promise<bigint> {
-    if (!this.escrowAddress) return BigInt(500000);
-
     try {
-      const contract = new ethers.Contract(
-        this.escrowAddress,
-        PLATFORM_ESCROW_ABI,
-        this.provider
-      );
-      const fee = await contract.submissionFee();
-      return BigInt(fee.toString());
+      const client = getEscrowClient();
+      return await client.getSubmissionFee();
     } catch {
       return BigInt(500000);
     }
   }
 
   async getProtocolRegistrationFee(): Promise<bigint> {
-    if (!this.escrowAddress) return BigInt(1000000);
-
     try {
-      const contract = new ethers.Contract(
-        this.escrowAddress,
-        PLATFORM_ESCROW_ABI,
-        this.provider
-      );
-      const fee = await contract.protocolRegistrationFee();
-      return BigInt(fee.toString());
+      const client = getEscrowClient();
+      return await client.getProtocolRegistrationFee();
     } catch {
       return BigInt(1000000);
     }
