@@ -1,3 +1,4 @@
+import 'reflect-metadata';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -5,6 +6,7 @@ import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import http from 'http';
 import './config/security.js'; // Security startup guards - must be first
+import { initializeContainer } from './di/container.js';
 import apiRouter from './routes/index.js';
 import { config } from './config/env.js';
 import { requestId } from './middleware/requestId.js';
@@ -27,6 +29,9 @@ import type { Worker } from 'bullmq';
 
 // Setup process-level error handlers
 setupProcessErrorHandlers();
+
+// Initialize dependency injection container
+initializeContainer();
 
 const app = express();
 
