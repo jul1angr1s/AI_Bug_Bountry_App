@@ -20,7 +20,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signIn: () => Promise<void>;
+  signIn: () => Promise<User | null>;
   signOut: () => Promise<void>;
 }
 
@@ -163,6 +163,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Manually set user and session from backend response and Supabase
       if (backendUser) {
+        const mappedUser = mapSupabaseUserToUser({
+          id: backendUser.id,
+          email: `${backendUser.wallet_address}@wallet.local`,
+          user_metadata: {
+            wallet_address: backendUser.wallet_address,
+          },
+        } as any);
+
         setSession({
           access_token,
           refresh_token,
@@ -176,20 +184,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           expires_at: Math.floor(Date.now() / 1000) + 3600,
         } as any);
 
-        setUser(mapSupabaseUserToUser({
-          id: backendUser.id,
-          email: `${backendUser.wallet_address}@wallet.local`,
-          user_metadata: {
-            wallet_address: backendUser.wallet_address,
-          },
-        } as any));
+        setUser(mappedUser);
 
         // Sync auth cookie for SSE authentication
         await syncAuthCookie();
         console.log('Successfully signed in with SIWE');
+        console.log('User set:', mappedUser);
+
+        setLoading(false);
+        return mappedUser; // Return the user that was set
       }
 
       setLoading(false);
+      return null;
     } catch (error) {
       console.error('Sign in error:', error);
       setLoading(false);

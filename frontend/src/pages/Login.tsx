@@ -25,9 +25,18 @@ export default function Login() {
     try {
       setConnecting(true);
       setError(null);
-      await signIn();
-      toast.success('Successfully authenticated');
-      navigate(returnUrl);
+
+      // Sign in and get the returned user
+      const authenticatedUser = await signIn();
+
+      if (authenticatedUser) {
+        console.log('Navigation: User authenticated, navigating to:', returnUrl);
+        toast.success('Successfully authenticated');
+        // Navigate directly - don't wait for state propagation
+        navigate(returnUrl);
+      } else {
+        throw new Error('Authentication succeeded but user data not returned');
+      }
     } catch (err: any) {
       console.error('Login error:', err);
 
