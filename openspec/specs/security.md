@@ -92,3 +92,7 @@ The Researcher Agent MUST sanitize repository inputs and constrain execution to 
 #### Scenario: Repository includes unsafe path
 - **WHEN** a repository includes a path traversal or unsafe script
 - **THEN** the agent rejects the input and records a security error
+
+## Change Specifications
+
+- [Security Posture Hardening](../changes/security-posture-hardening/) - Remove auth bypass, CSRF protection, payment race condition fix, secrets management, security headers
