@@ -17,7 +17,7 @@ interface EventListenerStateData {
 interface EventListenerConfig {
   contractAddress: string;
   eventName: string;
-  abi: any[];
+  abi: ethers.InterfaceAbi;
   handler: (event: EventLog) => Promise<void>;
   fromBlock?: number;
 }
@@ -91,8 +91,9 @@ export class EventListenerService {
 
       // Reset retry counter on successful connection
       this.retryConfig.attempt = 0;
-    } catch (error: any) {
-      console.error('[EventListener] Failed to initialize provider:', error.message);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      console.error('[EventListener] Failed to initialize provider:', msg);
       throw error;
     }
   }
@@ -148,9 +149,10 @@ export class EventListenerService {
       });
 
       return state?.lastProcessedBlock ?? null;
-    } catch (error: any) {
-      console.error('[EventListener] Failed to get last processed block:', error.message);
-      throw new Error(`Failed to get last processed block: ${error.message}`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      console.error('[EventListener] Failed to get last processed block:', msg);
+      throw new Error(`Failed to get last processed block: ${msg}`);
     }
   }
 
@@ -184,9 +186,10 @@ export class EventListenerService {
       console.log(
         `[EventListener] Updated last processed block for ${eventName} at ${contractAddress}: ${blockNumber}`
       );
-    } catch (error: any) {
-      console.error('[EventListener] Failed to update last processed block:', error.message);
-      throw new Error(`Failed to update last processed block: ${error.message}`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      console.error('[EventListener] Failed to update last processed block:', msg);
+      throw new Error(`Failed to update last processed block: ${msg}`);
     }
   }
 
@@ -234,10 +237,11 @@ export class EventListenerService {
                 event.blockNumber
               );
             }
-          } catch (error: any) {
+          } catch (error) {
+            const msg = error instanceof Error ? error.message : String(error);
             console.error(
               `[EventListener] Failed to process historical event at block ${event.blockNumber}:`,
-              error.message
+              msg
             );
             // Continue processing other events
           }
@@ -245,9 +249,10 @@ export class EventListenerService {
       }
 
       console.log('[EventListener] Replay completed successfully');
-    } catch (error: any) {
-      console.error('[EventListener] Failed to replay events:', error.message);
-      throw new Error(`Failed to replay events: ${error.message}`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      console.error('[EventListener] Failed to replay events:', msg);
+      throw new Error(`Failed to replay events: ${msg}`);
     }
   }
 
@@ -330,10 +335,11 @@ export class EventListenerService {
               event.blockNumber
             );
           }
-        } catch (error: any) {
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : String(error);
           console.error(
             `[EventListener] Failed to process ${config.eventName} event:`,
-            error.message
+            msg
           );
           // Don't throw - continue listening for other events
         }
@@ -344,8 +350,9 @@ export class EventListenerService {
       this.listeners.set(listenerKey, contract);
 
       console.log(`[EventListener] Successfully started listening for ${config.eventName} events`);
-    } catch (error: any) {
-      console.error('[EventListener] Failed to start listening:', error.message);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      console.error('[EventListener] Failed to start listening:', msg);
       throw error;
     }
   }
@@ -401,8 +408,9 @@ export class EventListenerService {
         // For now, the server restart will handle this
 
         console.log('[EventListener] Reconnection successful');
-      } catch (reconnectError: any) {
-        console.error('[EventListener] Reconnection failed:', reconnectError.message);
+      } catch (reconnectError) {
+        const msg = reconnectError instanceof Error ? reconnectError.message : String(reconnectError);
+        console.error('[EventListener] Reconnection failed:', msg);
         // handleProviderError will be called again by the error event
       }
     }, delay);
@@ -444,8 +452,9 @@ export class EventListenerService {
       // No additional state saving needed here
 
       console.log('[EventListener] Shutdown completed successfully');
-    } catch (error: any) {
-      console.error('[EventListener] Error during shutdown:', error.message);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      console.error('[EventListener] Error during shutdown:', msg);
       throw error;
     }
   }
@@ -460,8 +469,9 @@ export class EventListenerService {
       try {
         await this.shutdown();
         process.exit(0);
-      } catch (error: any) {
-        console.error('[EventListener] Shutdown error:', error.message);
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        console.error('[EventListener] Shutdown error:', msg);
         process.exit(1);
       }
     };
@@ -598,7 +608,7 @@ export async function handleBountyReleasedEvent(event: EventLog): Promise<void> 
     });
 
     console.log(`[EventListener] Payment ${payment.id} reconciled successfully`);
-  } catch (error: any) {
+  } catch (error) {
     console.error('[EventListener] Failed to handle BountyReleased event:', error);
     throw error;
   }

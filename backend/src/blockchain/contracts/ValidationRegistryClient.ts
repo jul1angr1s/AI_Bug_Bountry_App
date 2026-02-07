@@ -2,6 +2,20 @@ import { ethers, Contract, ContractTransactionResponse } from 'ethers';
 import { getSigner, contractAddresses } from '../config.js';
 import ValidationRegistryABI from '../abis/ValidationRegistry.json' with { type: 'json' };
 
+interface RawOnChainValidation {
+    validationId: string;
+    protocolId: string;
+    findingId: string;
+    validatorAgent: string;
+    outcome: bigint;
+    severity: bigint;
+    vulnerabilityType: string;
+    executionLog: string;
+    proofHash: string;
+    timestamp: bigint;
+    exists: boolean;
+}
+
 export interface ValidationRecordResult {
   validationId: string;
   txHash: string;
@@ -100,7 +114,7 @@ export class ValidationRegistryClient {
       console.log(`[ValidationRegistry] Transaction confirmed in block ${receipt.blockNumber}`);
 
       // Parse the ValidationRecorded event to get validationId
-      const event = receipt.logs.find((log: any) => {
+      const event = receipt.logs.find((log) => {
         try {
           const parsed = this.contract.interface.parseLog(log);
           return parsed?.name === 'ValidationRecorded';
@@ -135,20 +149,22 @@ export class ValidationRegistryClient {
         blockNumber: receipt.blockNumber,
         timestamp,
       };
-    } catch (error: any) {
+    } catch (error) {
       console.error('[ValidationRegistry] Validation recording failed:', error);
 
       // Parse revert reason if available
-      if (error.data) {
+      const errObj = error as { data?: string; message?: string };
+      if (errObj.data) {
         try {
-          const decodedError = this.contract.interface.parseError(error.data);
+          const decodedError = this.contract.interface.parseError(errObj.data);
           console.error(`  Revert reason: ${decodedError?.name}`);
         } catch {
           // Ignore parsing errors
         }
       }
 
-      throw new Error(`Failed to record validation: ${error.message}`);
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to record validation: ${msg}`);
     }
   }
 
@@ -172,8 +188,9 @@ export class ValidationRegistryClient {
         timestamp: validation.timestamp,
         exists: validation.exists,
       };
-    } catch (error: any) {
-      throw new Error(`Failed to get validation: ${error.message}`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to get validation: ${msg}`);
     }
   }
 
@@ -184,7 +201,7 @@ export class ValidationRegistryClient {
     try {
       const validations = await this.contract.getProtocolValidations(protocolId);
 
-      return validations.map((v: any) => ({
+      return validations.map((v: RawOnChainValidation) => ({
         validationId: v.validationId,
         protocolId: v.protocolId,
         findingId: v.findingId,
@@ -197,8 +214,9 @@ export class ValidationRegistryClient {
         timestamp: v.timestamp,
         exists: v.exists,
       }));
-    } catch (error: any) {
-      throw new Error(`Failed to get protocol validations: ${error.message}`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to get protocol validations: ${msg}`);
     }
   }
 
@@ -222,8 +240,9 @@ export class ValidationRegistryClient {
         timestamp: validation.timestamp,
         exists: validation.exists,
       };
-    } catch (error: any) {
-      throw new Error(`Failed to get validation by finding: ${error.message}`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to get validation by finding: ${msg}`);
     }
   }
 
@@ -233,8 +252,9 @@ export class ValidationRegistryClient {
   async isFindingValidated(findingId: string): Promise<boolean> {
     try {
       return await this.contract.isFindingValidated(findingId);
-    } catch (error: any) {
-      throw new Error(`Failed to check finding validation: ${error.message}`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to check finding validation: ${msg}`);
     }
   }
 
@@ -245,7 +265,7 @@ export class ValidationRegistryClient {
     try {
       const validations = await this.contract.getConfirmedValidations(protocolId);
 
-      return validations.map((v: any) => ({
+      return validations.map((v: RawOnChainValidation) => ({
         validationId: v.validationId,
         protocolId: v.protocolId,
         findingId: v.findingId,
@@ -258,8 +278,9 @@ export class ValidationRegistryClient {
         timestamp: v.timestamp,
         exists: v.exists,
       }));
-    } catch (error: any) {
-      throw new Error(`Failed to get confirmed validations: ${error.message}`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to get confirmed validations: ${msg}`);
     }
   }
 
@@ -270,8 +291,9 @@ export class ValidationRegistryClient {
     try {
       const count = await this.contract.getTotalValidationCount();
       return Number(count);
-    } catch (error: any) {
-      throw new Error(`Failed to get validation count: ${error.message}`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to get validation count: ${msg}`);
     }
   }
 
@@ -281,8 +303,9 @@ export class ValidationRegistryClient {
   async isValidator(address: string): Promise<boolean> {
     try {
       return await this.contract.isValidator(address);
-    } catch (error: any) {
-      throw new Error(`Failed to check validator role: ${error.message}`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to check validator role: ${msg}`);
     }
   }
 

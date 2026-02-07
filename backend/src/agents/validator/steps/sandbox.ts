@@ -108,8 +108,8 @@ async function waitForAnvilReady(rpcUrl: string, maxAttempts = 30): Promise<void
 export async function deployToSandbox(
   provider: ethers.JsonRpcProvider,
   bytecode: string,
-  abi: any[],
-  constructorArgs: any[] = []
+  abi: ethers.InterfaceAbi,
+  constructorArgs: unknown[] = []
 ): Promise<{
   success: boolean;
   contractAddress?: string;

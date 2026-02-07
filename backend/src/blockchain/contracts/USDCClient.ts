@@ -63,8 +63,9 @@ export class USDCClient {
 
       const allowance = await this.contract.allowance(owner, spender);
       return allowance;
-    } catch (error: any) {
-      throw new Error(`Failed to get USDC allowance: ${error.message}`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to get USDC allowance: ${msg}`);
     }
   }
 
@@ -82,8 +83,9 @@ export class USDCClient {
 
       const balance = await this.contract.balanceOf(address);
       return balance;
-    } catch (error: any) {
-      throw new Error(`Failed to get USDC balance: ${error.message}`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to get USDC balance: ${msg}`);
     }
   }
 
@@ -120,9 +122,10 @@ export class USDCClient {
         gasLimit = await this.contract.approve.estimateGas(spender, amount);
         // Add 20% buffer to gas estimate
         gasLimit = (gasLimit * BigInt(120)) / BigInt(100);
-      } catch (error: any) {
+      } catch (error) {
         // Use default gas limit if estimation fails
-        console.warn('[USDCClient] Gas estimation failed, using default:', error.message);
+        const msg = error instanceof Error ? error.message : String(error);
+        console.warn('[USDCClient] Gas estimation failed, using default:', msg);
         gasLimit = BigInt(100000); // Standard ERC-20 approve gas limit
       }
 
@@ -133,8 +136,9 @@ export class USDCClient {
         chainId: chainConfig.chainId,
         gasLimit,
       };
-    } catch (error: any) {
-      throw new Error(`Failed to generate approval transaction: ${error.message}`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to generate approval transaction: ${msg}`);
     }
   }
 
@@ -155,8 +159,9 @@ export class USDCClient {
   parseUSDC(amount: string): bigint {
     try {
       return ethers.parseUnits(amount, this.decimals);
-    } catch (error: any) {
-      throw new Error(`Failed to parse USDC amount: ${error.message}`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to parse USDC amount: ${msg}`);
     }
   }
 

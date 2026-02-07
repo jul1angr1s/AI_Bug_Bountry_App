@@ -31,7 +31,7 @@ export interface ExecutionResult {
 export async function executeExploit(
   provider: ethers.JsonRpcProvider,
   contractAddress: string,
-  abi: any[],
+  abi: ethers.InterfaceAbi,
   proof: DecryptedProof
 ): Promise<ExecutionResult> {
   const executionLog: string[] = [];

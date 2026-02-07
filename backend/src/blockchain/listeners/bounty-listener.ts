@@ -211,8 +211,9 @@ async function handleBountyReleasedEvent(event: EventLog): Promise<void> {
     console.log(`  Paid At: ${updateData.paidAt.toISOString()}`);
     console.log(`  Reconciled: ${updateData.reconciled}`);
     console.log(`  Has Discrepancy: ${hasDiscrepancy}`);
-  } catch (error: any) {
-    console.error('[BountyListener] Failed to process BountyReleased event:', error.message);
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error('[BountyListener] Failed to process BountyReleased event:', msg);
     console.error('  Error details:', error);
     throw error;
   }

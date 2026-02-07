@@ -3,7 +3,7 @@ import { ethers } from 'ethers';
 import findFreePort from 'find-free-port';
 
 export interface DeployStepParams {
-  abi: any;
+  abi: ethers.InterfaceAbi;
   bytecode: string;
   contractName: string;
 }

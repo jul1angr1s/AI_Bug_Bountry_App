@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { Prisma } from '@prisma/client';
 import { getPrismaClient } from '../lib/prisma.js';
 
 const router = Router();
@@ -24,7 +25,7 @@ router.get('/', async (req, res) => {
     const skip = (pageNum - 1) * limitNum;
 
     // Build filter
-    const where: any = {};
+    const where: Prisma.FindingWhereInput = {};
     if (protocolId) {
       where.scan = {
         protocolId: protocolId as string,
@@ -75,7 +76,7 @@ router.get('/', async (req, res) => {
         totalPages: Math.ceil(total / limitNum),
       },
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('[ValidationController] listValidations error:', error);
     res.status(500).json({ error: 'Failed to list validations' });
   }

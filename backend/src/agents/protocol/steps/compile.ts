@@ -8,7 +8,7 @@ const execAsync = promisify(exec);
 export interface CompileStepResult {
   success: boolean;
   bytecode?: string;
-  abi?: any[];
+  abi?: Record<string, unknown>[];
   compilationOutput?: string;
   error?: string;
 }
@@ -156,7 +156,7 @@ mainnet = { key = "demo" }
  * Calculate a risk score based on contract complexity
  * This is a simplified version - in production, use static analysis tools
  */
-export function calculateRiskScore(bytecode: string, abi: any[]): number {
+export function calculateRiskScore(bytecode: string, abi: Record<string, unknown>[]): number {
   let score = 0;
 
   // Bytecode complexity (simplified)

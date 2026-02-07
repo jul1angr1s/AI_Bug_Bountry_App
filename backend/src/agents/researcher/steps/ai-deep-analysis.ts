@@ -1,6 +1,6 @@
 import { Severity } from '@prisma/client';
 import type { VulnerabilityFinding } from './analyze.js';
-import { getKimiClient } from '../../../lib/llm.js';
+import { getKimiClient, KimiLLMClient } from '../../../lib/llm.js';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
@@ -259,7 +259,7 @@ export async function executeAIDeepAnalysisStep(
  * Enhance a single Slither finding with AI-powered insights
  */
 async function enhanceFindingWithAI(
-  kimiClient: any,
+  kimiClient: KimiLLMClient,
   finding: VulnerabilityFinding,
   contractSource: string,
   contractName: string
@@ -312,7 +312,7 @@ Respond with ONLY the JSON object.`;
     );
 
     // Parse JSON response - extract from code blocks or plain text
-    let enhancement: any;
+    let enhancement: { description?: string; severity?: string; confidence?: number; remediation?: string };
 
     // Try to extract from JSON code block
     const codeBlockMatch = response.content.match(/```json\s*([\s\S]*?)\s*```/);
@@ -345,7 +345,7 @@ Respond with ONLY the JSON object.`;
  * Discover new vulnerabilities using AI analysis
  */
 async function discoverNewVulnerabilities(
-  kimiClient: any,
+  kimiClient: KimiLLMClient,
   contractSource: string,
   contractName: string,
   contractPath: string,
@@ -411,7 +411,7 @@ Respond with ONLY the JSON array.`;
     );
 
     // Extract JSON array from response
-    let newVulns: any[];
+    let newVulns: Array<{ vulnerabilityType?: string; severity?: string; description?: string; lineNumber?: number; confidence?: number; remediation?: string }>;
 
     // Try to extract from JSON code block
     const codeBlockMatch = response.content.match(/```json\s*([\s\S]*?)\s*```/);
@@ -434,8 +434,8 @@ Respond with ONLY the JSON array.`;
 
     // Convert to VulnerabilityFinding format
     const newFindings: VulnerabilityFinding[] = newVulns
-      .filter((v: any) => v.confidence >= 70) // Only high confidence
-      .map((v: any) => ({
+      .filter((v) => (v.confidence ?? 0) >= 70) // Only high confidence
+      .map((v) => ({
         vulnerabilityType: v.vulnerabilityType || 'UNKNOWN',
         severity: mapSeverity(v.severity) || Severity.MEDIUM,
         filePath: contractPath,
