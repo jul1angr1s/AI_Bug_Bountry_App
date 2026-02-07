@@ -53,7 +53,7 @@ router.post('/siwe', async (req: Request, res: Response, next: NextFunction): Pr
 
     try {
       // List all users to find by wallet address
-      const { data: listData } = await supabaseAdmin.auth.admin.listUsers();
+      const { data: listData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
 
       // Check if user with this wallet already exists
       const existingUser = listData.users.find(
@@ -91,9 +91,37 @@ router.post('/siwe', async (req: Request, res: Response, next: NextFunction): Pr
           },
         });
 
-        if (createError) throw createError;
-        userId = createData.user.id;
-        console.log('[Auth] Created new user:', userId);
+        if (createError) {
+          // Handle race condition: user exists but wasn't found in initial listUsers
+          if ((createError as any).code === 'email_exists') {
+            console.log('[Auth] User already exists, fetching existing user...');
+            const { data: retryList } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+            const foundUser = retryList.users.find(
+              (u) =>
+                u.email === userEmail ||
+                u.user_metadata?.wallet_address?.toLowerCase() === normalizedAddress
+            );
+            if (foundUser) {
+              await supabaseAdmin.auth.admin.updateUserById(foundUser.id, {
+                user_metadata: {
+                  ...foundUser.user_metadata,
+                  wallet_address: walletAddress,
+                  siwe_verified: true,
+                  verified_at: new Date().toISOString(),
+                },
+              });
+              userId = foundUser.id;
+              console.log('[Auth] Recovered existing user:', userId);
+            } else {
+              throw createError;
+            }
+          } else {
+            throw createError;
+          }
+        } else {
+          userId = createData.user.id;
+          console.log('[Auth] Created new user:', userId);
+        }
       }
     } catch (error) {
       console.error('[Auth] Supabase user operation failed:', error);
