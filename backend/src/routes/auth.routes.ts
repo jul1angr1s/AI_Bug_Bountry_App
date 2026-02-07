@@ -1,5 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { verifyMessage } from 'ethers';
+import jwt from 'jsonwebtoken';
 import { supabaseAdmin } from '../lib/supabase.js';
 import { z } from 'zod';
 
@@ -99,35 +100,72 @@ router.post('/siwe', async (req: Request, res: Response, next: NextFunction): Pr
       throw error;
     }
 
-    // Generate magic link token for this user
+    // Generate JWT tokens signed with Supabase JWT secret
+    // Both access_token and refresh_token are required by Supabase's setSession()
     let accessToken: string;
+    let refreshToken: string;
     try {
-      const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-        type: 'magiclink',
-        email: userEmail,
-      });
-
-      if (linkError) throw linkError;
-
-      // Extract token from magic link URL
-      // Format: https://<project>.supabase.co/auth/v1/verify?token=<token>&type=magiclink
-      const linkUrl = new URL(linkData.properties.action_link);
-      const token = linkUrl.searchParams.get('token');
-
-      if (!token) {
-        throw new Error('Failed to extract token from magic link');
+      const jwtSecret = process.env.SUPABASE_JWT_SECRET;
+      if (!jwtSecret) {
+        throw new Error('SUPABASE_JWT_SECRET not configured');
       }
 
-      accessToken = token;
-      console.log('[Auth] Generated session token for user:', userId);
+      const now = Math.floor(Date.now() / 1000);
+      const issuer = 'https://ekxbtdlnbellyhovgoxw.supabase.co/auth/v1';
+
+      // Create access token payload (short-lived, 1 hour)
+      const accessPayload = {
+        iss: issuer,
+        sub: userId,
+        aud: 'authenticated',
+        exp: now + 3600, // 1 hour expiry
+        iat: now,
+        email: userEmail,
+        email_verified: true,
+        phone_verified: false,
+        app_metadata: {
+          provider: 'siwe',
+          providers: ['siwe'],
+        },
+        user_metadata: {
+          wallet_address: walletAddress,
+          siwe_verified: true,
+          verified_at: new Date().toISOString(),
+        },
+        role: 'authenticated',
+      };
+
+      // Create refresh token payload (long-lived, 7 days)
+      const refreshPayload = {
+        iss: issuer,
+        sub: userId,
+        aud: 'refresh',
+        exp: now + 7 * 24 * 3600, // 7 days expiry
+        iat: now,
+        email: userEmail,
+        app_metadata: {
+          provider: 'siwe',
+          providers: ['siwe'],
+        },
+        user_metadata: {
+          wallet_address: walletAddress,
+          siwe_verified: true,
+          verified_at: new Date().toISOString(),
+        },
+      };
+
+      accessToken = jwt.sign(accessPayload, jwtSecret, { algorithm: 'HS256' });
+      refreshToken = jwt.sign(refreshPayload, jwtSecret, { algorithm: 'HS256' });
+      console.log('[Auth] Generated session tokens for user:', userId);
     } catch (error) {
       console.error('[Auth] Token generation failed:', error);
       throw error;
     }
 
-    // Return success response
+    // Return success response with both tokens required by setSession()
     res.json({
       access_token: accessToken,
+      refresh_token: refreshToken,
       user: {
         id: userId,
         wallet_address: walletAddress,

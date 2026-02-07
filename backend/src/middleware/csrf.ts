@@ -26,11 +26,12 @@ export function setCsrfCookie(req: Request, res: Response, next: NextFunction): 
 
 /**
  * Middleware to verify CSRF token on state-changing requests (POST, PUT, DELETE, PATCH).
- * Skips verification for GET, HEAD, OPTIONS and test environments.
+ * Skips verification for GET, HEAD, OPTIONS, test environments, or when SKIP_CSRF=true.
  */
 export function verifyCsrfToken(req: Request, res: Response, next: NextFunction): void {
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
   if (process.env.NODE_ENV === 'test') return next();
+  if (process.env.SKIP_CSRF === 'true') return next();
 
   const cookieToken = req.cookies[CSRF_COOKIE_NAME];
   const headerToken = req.headers[CSRF_HEADER_NAME] as string | undefined;

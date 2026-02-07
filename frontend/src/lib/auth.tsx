@@ -148,13 +148,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error(errorData.error || 'SIWE verification failed');
       }
 
-      const { access_token } = await verifyResponse.json();
+      const { access_token, refresh_token } = await verifyResponse.json();
       console.log('SIWE verification successful');
 
-      // Step 5: Set session using the verified token
+      // Step 5: Set session using the verified tokens
       const { data, error } = await supabase.auth.setSession({
         access_token,
-        refresh_token: '', // Magic link tokens don't have refresh tokens
+        refresh_token,
       });
 
       if (error) {
@@ -167,6 +167,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Sync auth cookie for SSE authentication
         await syncAuthCookie();
         console.log('Successfully signed in with SIWE');
+        setLoading(false);
+      } else {
+        throw new Error('Session not established - missing session or user data');
       }
     } catch (error) {
       console.error('Sign in error:', error);
