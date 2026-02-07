@@ -284,6 +284,43 @@ Each archived change should include an `ARCHIVE_REASON.md` file explaining:
 
 ---
 
+### 2026-02-06: code-quality-improvement
+**Reason**: Completed and fully implemented
+**Archived**: 2026-02-06
+**Status**: All 6 phases complete (PRs #99, #112)
+
+**Summary**: Eliminated 131 `any` types across 28 files, centralized error hierarchy into `backend/src/errors/` with domain-specific classes, migrated all 15 inline TODOs to GitHub Issues (#101-#111), created utility functions for error handling and query building, and configured ESLint with `@typescript-eslint/no-explicit-any` warning rule.
+
+**Key Outcomes**:
+- 131 `any` types eliminated (152 → 21 in deprecated file)
+- Error hierarchy: payment, blockchain, validation, protocol error classes
+- Utilities: `toErrorMessage()`, `toContractError()`, `buildPaymentWhereClause()`
+- 15 TODOs → 13 GitHub Issues (#101-#111)
+- ESLint 9 flat config with TypeScript rules
+- `npm run lint` / `npm run lint:strict` scripts
+
+**Related PRs**: #99, #112
+
+---
+
+### 2026-02-06: testing-qa-expansion
+**Reason**: Completed and fully implemented
+**Archived**: 2026-02-06
+**Status**: 302 tests across 8 files, CI pipeline (PRs #100, #112)
+
+**Summary**: Built comprehensive test infrastructure (mock database, blockchain, Redis helpers + payment/protocol fixtures) and wrote 302 unit tests covering all service layer and blockchain client modules. Created CI/CD pipeline with 5 parallel GitHub Actions jobs and Codecov integration.
+
+**Key Outcomes**:
+- 302 tests: payment service (55), protocol service (58), escrow service (34), BountyPoolClient (37), ValidationRegistryClient (32), USDCClient (29), ProtocolRegistryClient (29), PlatformEscrowClient (28)
+- Test helpers: test-database.ts, test-blockchain.ts, test-redis.ts
+- Fixtures: payment.fixtures.ts, protocol.fixtures.ts
+- CI: 5 parallel jobs (backend-unit, backend-integration, smart-contracts, frontend-unit, ai-tests)
+- Codecov integration with coverage thresholds
+
+**Related PRs**: #100, #112
+
+---
+
 ### 2026-02-06: funding-gate-protocol-flow
 **Reason**: Completed and fully implemented
 **Archived**: 2026-02-06
