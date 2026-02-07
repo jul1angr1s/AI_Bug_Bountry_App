@@ -1,6 +1,7 @@
-import { ethers, Contract, ContractTransactionResponse } from 'ethers';
+import { ethers, Contract, ContractTransactionResponse, type Log, type EventLog } from 'ethers';
 import { getSigner, contractAddresses, usdcConfig } from '../config.js';
 import BountyPoolABI from '../abis/BountyPool.json' with { type: 'json' };
+import type { RawBounty } from '../types/contracts.js';
 
 export interface BountyReleaseResult {
   bountyId: string;
@@ -80,9 +81,10 @@ export class BountyPoolClient {
       console.log(`[BountyPool] Deposit confirmed in block ${receipt.blockNumber}`);
 
       return receipt.hash;
-    } catch (error: any) {
-      console.error('[BountyPool] Deposit failed:', error);
-      throw new Error(`Failed to deposit bounty: ${error.message}`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      console.error('[BountyPool] Deposit failed:', msg);
+      throw new Error(`Failed to deposit bounty: ${msg}`);
     }
   }
 
@@ -123,9 +125,10 @@ export class BountyPoolClient {
       console.log(`[BountyPool] Transaction confirmed in block ${receipt.blockNumber}`);
 
       // Parse the BountyReleased event
-      const event = receipt.logs.find((log: any) => {
+      const event = receipt.logs.find((log: Log | EventLog) => {
         try {
-          const parsed = this.contract.interface.parseLog(log);
+          if (!('topics' in log)) return false;
+          const parsed = this.contract.interface.parseLog({ topics: log.topics as string[], data: log.data });
           return parsed?.name === 'BountyReleased';
         } catch {
           return false;
@@ -136,7 +139,7 @@ export class BountyPoolClient {
         throw new Error('BountyReleased event not found in transaction receipt');
       }
 
-      const parsedEvent = this.contract.interface.parseLog(event);
+      const parsedEvent = this.contract.interface.parseLog({ topics: (event as EventLog).topics as string[], data: (event as EventLog).data });
       if (!parsedEvent) {
         throw new Error('Failed to parse BountyReleased event');
       }
@@ -160,20 +163,21 @@ export class BountyPoolClient {
         amount,
         timestamp,
       };
-    } catch (error: any) {
-      console.error('[BountyPool] Bounty release failed:', error);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      console.error('[BountyPool] Bounty release failed:', msg);
 
       // Parse revert reason if available
-      if (error.data) {
+      if (error && typeof error === 'object' && 'data' in error) {
         try {
-          const decodedError = this.contract.interface.parseError(error.data);
+          const decodedError = this.contract.interface.parseError((error as { data: string }).data);
           console.error(`  Revert reason: ${decodedError?.name}`);
         } catch {
           // Ignore parsing errors
         }
       }
 
-      throw new Error(`Failed to release bounty: ${error.message}`);
+      throw new Error(`Failed to release bounty: ${msg}`);
     }
   }
 
@@ -184,8 +188,9 @@ export class BountyPoolClient {
     try {
       const amount = await this.contract.calculateBountyAmount(severity);
       return Number(ethers.formatUnits(amount, usdcConfig.decimals));
-    } catch (error: any) {
-      throw new Error(`Failed to calculate bounty amount: ${error.message}`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to calculate bounty amount: ${msg}`);
     }
   }
 
@@ -196,8 +201,9 @@ export class BountyPoolClient {
     try {
       const balance = await this.contract.getProtocolBalance(protocolId);
       return Number(ethers.formatUnits(balance, usdcConfig.decimals));
-    } catch (error: any) {
-      throw new Error(`Failed to get protocol balance: ${error.message}`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to get protocol balance: ${msg}`);
     }
   }
 
@@ -218,8 +224,9 @@ export class BountyPoolClient {
         timestamp: bounty.timestamp,
         paid: bounty.paid,
       };
-    } catch (error: any) {
-      throw new Error(`Failed to get bounty: ${error.message}`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to get bounty: ${msg}`);
     }
   }
 
@@ -230,7 +237,7 @@ export class BountyPoolClient {
     try {
       const bounties = await this.contract.getProtocolBounties(protocolId);
 
-      return bounties.map((b: any) => ({
+      return bounties.map((b: RawBounty) => ({
         bountyId: b.bountyId,
         protocolId: b.protocolId,
         validationId: b.validationId,
@@ -240,8 +247,9 @@ export class BountyPoolClient {
         timestamp: b.timestamp,
         paid: b.paid,
       }));
-    } catch (error: any) {
-      throw new Error(`Failed to get protocol bounties: ${error.message}`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to get protocol bounties: ${msg}`);
     }
   }
 
@@ -252,7 +260,7 @@ export class BountyPoolClient {
     try {
       const bounties = await this.contract.getResearcherBounties(researcherAddress);
 
-      return bounties.map((b: any) => ({
+      return bounties.map((b: RawBounty) => ({
         bountyId: b.bountyId,
         protocolId: b.protocolId,
         validationId: b.validationId,
@@ -262,8 +270,9 @@ export class BountyPoolClient {
         timestamp: b.timestamp,
         paid: b.paid,
       }));
-    } catch (error: any) {
-      throw new Error(`Failed to get researcher bounties: ${error.message}`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to get researcher bounties: ${msg}`);
     }
   }
 
@@ -274,8 +283,9 @@ export class BountyPoolClient {
     try {
       const total = await this.contract.getTotalBountiesPaid(protocolId);
       return Number(ethers.formatUnits(total, usdcConfig.decimals));
-    } catch (error: any) {
-      throw new Error(`Failed to get total bounties paid: ${error.message}`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to get total bounties paid: ${msg}`);
     }
   }
 
@@ -286,8 +296,9 @@ export class BountyPoolClient {
     try {
       const total = await this.contract.getResearcherEarnings(researcherAddress);
       return Number(ethers.formatUnits(total, usdcConfig.decimals));
-    } catch (error: any) {
-      throw new Error(`Failed to get researcher earnings: ${error.message}`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to get researcher earnings: ${msg}`);
     }
   }
 
@@ -298,8 +309,9 @@ export class BountyPoolClient {
     try {
       const amount = await this.contract.baseBountyAmount();
       return Number(ethers.formatUnits(amount, usdcConfig.decimals));
-    } catch (error: any) {
-      throw new Error(`Failed to get base bounty amount: ${error.message}`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to get base bounty amount: ${msg}`);
     }
   }
 
@@ -309,8 +321,9 @@ export class BountyPoolClient {
   async getBaseBountyAmountRaw(): Promise<bigint> {
     try {
       return await this.contract.baseBountyAmount();
-    } catch (error: any) {
-      throw new Error(`Failed to get base bounty amount: ${error.message}`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to get base bounty amount: ${msg}`);
     }
   }
 
@@ -320,8 +333,9 @@ export class BountyPoolClient {
   async calculateBountyAmountRaw(severity: BountySeverity): Promise<bigint> {
     try {
       return await this.contract.calculateBountyAmount(severity);
-    } catch (error: any) {
-      throw new Error(`Failed to calculate bounty amount: ${error.message}`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to calculate bounty amount: ${msg}`);
     }
   }
 
@@ -340,9 +354,10 @@ export class BountyPoolClient {
       console.log(`  Transaction sent: ${tx.hash}`);
 
       return tx;
-    } catch (error: any) {
-      console.error('[BountyPool] Update base amount failed:', error);
-      throw new Error(`Failed to update base bounty amount: ${error.message}`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      console.error('[BountyPool] Update base amount failed:', msg);
+      throw new Error(`Failed to update base bounty amount: ${msg}`);
     }
   }
 
@@ -367,9 +382,10 @@ export class BountyPoolClient {
       console.log(`  Transaction sent: ${tx.hash}`);
 
       return tx;
-    } catch (error: any) {
-      console.error('[BountyPool] Update multiplier failed:', error);
-      throw new Error(`Failed to update severity multiplier: ${error.message}`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      console.error('[BountyPool] Update multiplier failed:', msg);
+      throw new Error(`Failed to update severity multiplier: ${msg}`);
     }
   }
 
@@ -379,8 +395,9 @@ export class BountyPoolClient {
   async isPayer(address: string): Promise<boolean> {
     try {
       return await this.contract.isPayer(address);
-    } catch (error: any) {
-      throw new Error(`Failed to check payout role: ${error.message}`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to check payout role: ${msg}`);
     }
   }
 

@@ -8,7 +8,7 @@
   <em>From registration to payment in < 4 minutes. Zero human intervention.</em>
 </p>
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg?cache=1)](https://www.apache.org/licenses/LICENSE-2.0)
 [![Base Sepolia](https://img.shields.io/badge/Network-Base%20Sepolia-0052FF)](https://sepolia.basescan.org/)
 [![Powered by Kimi AI](https://img.shields.io/badge/AI-Kimi%202.5-FF5500)](https://www.moonshot.cn/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6)](https://www.typescriptlang.org/)
