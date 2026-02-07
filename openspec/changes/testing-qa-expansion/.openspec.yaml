@@ -1,11 +1,10 @@
 schema: spec-driven
 created: 2026-02-06
 title: Testing and QA Expansion
-status: in-progress
-pr: "#100"
+status: implemented
+pr: "#100, #101"
 description: Expand test coverage from <30% to 70%+ backend, 70%+ frontend, 90%+ contracts with TDD methodology, mock infrastructure, and CI enforcement
 notes: |
-  Phase 1 Week 1 complete (55 payment service tests, test infrastructure).
-  Phase 2 partial (37 BountyPoolClient tests). Phase 7 complete (CI pipeline).
-  Remaining: Week 2 (protocol/escrow tests), 4 more blockchain clients,
-  integration tests, frontend tests, smart contract tests, E2E tests.
+  302 tests across 8 test files. All service layer and blockchain client tests done.
+  Remaining for follow-up: integration tests, frontend tests (MSW/Playwright),
+  smart contract fuzz tests, E2E tests.

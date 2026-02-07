@@ -72,7 +72,7 @@ export async function decryptProof(
     };
 
     if (dbProof.encryptedPayload) {
-      // TODO: Implement actual decryption when encryption is enabled
+      // See GitHub Issue #111
       // For now, assume the payload is base64-encoded JSON
       try {
         const decoded = Buffer.from(dbProof.encryptedPayload, 'base64').toString('utf-8');
@@ -164,7 +164,7 @@ export function verifyResearcherSignature(
   signature: string,
   claimedResearcher: string
 ): boolean {
-  // TODO: Implement signature verification
+  // See GitHub Issue #111
   // For MVP, we skip this step
 
   console.log('[Validator/Decrypt] Signature verification skipped in MVP');

@@ -494,7 +494,7 @@ router.post(
     try {
       const { protocolId, recipientAddress, severity, justification } = req.body;
       
-      // TODO: Add admin role check here
+      // See GitHub Issue #108
       // For now, any authenticated user can propose
       // if (!req.user?.role || req.user.role !== 'ADMIN') {
       //   return res.status(403).json({

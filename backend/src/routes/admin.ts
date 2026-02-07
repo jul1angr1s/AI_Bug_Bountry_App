@@ -40,7 +40,7 @@ router.post('/knowledge-base/rebuild', requireAuth, requireAdmin, async (req, re
       },
     });
 
-    // TODO: Implement actual knowledge base rebuild logic
+    // See GitHub Issue #107
     // This should call a service method that:
     // - Reads markdown files from backend/knowledge_base/
     // - Generates embeddings for each document
