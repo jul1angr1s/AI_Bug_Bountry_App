@@ -19,12 +19,22 @@ export default function Payments() {
 
   const handleProposePayment = async (proposal: PaymentProposal) => {
     try {
-      await api.post('/payments/propose', proposal);
-      // Show success toast (you may want to add a toast library)
-      alert('Payment proposal submitted successfully!');
+      // api.post returns { data: backendResponse } where backendResponse = { data: proposal, message: string }
+      const response = await api.post('/payments/propose', proposal);
+      const proposalData = response.data?.data;
+
+      if (proposalData) {
+        alert(`Payment proposal submitted successfully!\n\nProposal ID: ${proposalData.id}\nAmount: ${proposalData.amount} USDC\nStatus: ${proposalData.status}`);
+      } else {
+        alert(`Error: ${response.data?.error?.message || 'Failed to submit proposal'}`);
+        throw new Error(response.data?.error?.message);
+      }
     } catch (error: any) {
       console.error('Error proposing payment:', error);
-      alert(`Error: ${error.response?.data?.error?.message || 'Failed to submit proposal'}`);
+      const errorMessage = error.response?.data?.error?.message
+        || error.message
+        || 'Failed to submit proposal. Make sure the backend is running.';
+      alert(`Error: ${errorMessage}`);
       throw error;
     }
   };

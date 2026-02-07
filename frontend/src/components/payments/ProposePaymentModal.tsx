@@ -1,10 +1,18 @@
 import { useState, useEffect, FormEvent } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { fetchProtocols } from '../../lib/api';
 
 export interface PaymentProposal {
   protocolId: string;
   recipientAddress: string;
   severity: 'HIGH' | 'MEDIUM' | 'LOW';
   justification: string;
+}
+
+interface Protocol {
+  id: string;
+  contractName: string;
+  status: string;
 }
 
 interface ProposePaymentModalProps {
@@ -22,6 +30,16 @@ export function ProposePaymentModal({ isOpen, onClose, onSubmit }: ProposePaymen
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<keyof PaymentProposal, string>>>({});
+
+  // Fetch available protocols for dropdown
+  const { data: protocolsResponse, isLoading: protocolsLoading } = useQuery({
+    queryKey: ['protocols-for-payment'],
+    queryFn: () => fetchProtocols({ status: 'ACTIVE' }),
+    enabled: isOpen,
+  });
+
+  // Extract protocols array from response (API returns { protocols: [...], pagination: {...} })
+  const protocols = protocolsResponse?.protocols || [];
 
   // Close on ESC key
   useEffect(() => {
@@ -141,24 +159,37 @@ export function ProposePaymentModal({ isOpen, onClose, onSubmit }: ProposePaymen
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-            {/* Protocol ID */}
+            {/* Protocol Selector */}
             <div className="flex flex-col gap-2">
               <label className="text-xs uppercase font-semibold text-slate-400 tracking-wider">
                 Protocol ID
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 z-10">
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
                   </svg>
                 </span>
-                <input
-                  type="text"
+                <select
                   value={formData.protocolId}
                   onChange={(e) => setFormData({ ...formData, protocolId: e.target.value })}
-                  className="w-full bg-background-dark border border-slate-700 rounded-lg pl-10 pr-4 py-3 text-white focus:border-accent-gold focus:ring-1 focus:ring-accent-gold outline-none transition-all placeholder:text-slate-600 font-mono text-sm"
-                  placeholder="e.g., PROTO-X99-BETA or UUID"
-                />
+                  disabled={protocolsLoading}
+                  className="w-full bg-background-dark border border-slate-700 rounded-lg pl-10 pr-10 py-3 text-white focus:border-accent-gold focus:ring-1 focus:ring-accent-gold outline-none transition-all appearance-none cursor-pointer text-sm disabled:opacity-50"
+                >
+                  <option value="">
+                    {protocolsLoading ? 'Loading protocols...' : 'Select a protocol'}
+                  </option>
+                  {protocols?.map((protocol: Protocol) => (
+                    <option key={protocol.id} value={protocol.id}>
+                      {protocol.contractName} ({protocol.id.slice(0, 8)}...)
+                    </option>
+                  ))}
+                </select>
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </span>
               </div>
               {errors.protocolId && (
                 <p className="text-red-400 text-xs">{errors.protocolId}</p>
