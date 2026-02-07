@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-02-06
+title: Security Posture Hardening
+description: Remediate 8 critical and 10 high-severity vulnerabilities blocking production deployment, raising security score from 2.1/5 to 4.0/5
