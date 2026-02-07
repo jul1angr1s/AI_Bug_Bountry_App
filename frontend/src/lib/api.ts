@@ -39,6 +39,7 @@ export async function checkBackendHealth(): Promise<{
     const response = await fetch(`${API_BASE_URL}/api/v1/health`, {
       method: 'GET',
       mode: 'cors',
+      credentials: 'include',
     });
 
     return {
@@ -136,6 +137,7 @@ export async function fetchProtocol(protocolId: string): Promise<any> {
   const headers = await getAuthHeaders();
   const response = await fetch(`${API_BASE_URL}/api/v1/protocols/${protocolId}`, {
     headers,
+    credentials: 'include',
   });
 
   if (!response.ok) {
@@ -191,7 +193,7 @@ export async function fetchVulnerabilities(
   const headers = await getAuthHeaders();
   const response = await fetch(
     `${API_BASE_URL}/api/v1/protocols/${protocolId}/vulnerabilities`,
-    { headers }
+    { headers, credentials: 'include' }
   );
 
   if (!response.ok) {
@@ -208,7 +210,7 @@ export async function fetchVulnerabilities(
  */
 export async function fetchAgents(): Promise<Agent[]> {
   const headers = await getAuthHeaders();
-  const response = await fetch(`${API_BASE_URL}/api/v1/agents`, { headers });
+  const response = await fetch(`${API_BASE_URL}/api/v1/agents`, { headers, credentials: 'include' });
 
   if (!response.ok) {
     throw new Error(`Failed to fetch agents: ${response.statusText}`);
@@ -224,7 +226,7 @@ export async function fetchAgents(): Promise<Agent[]> {
  */
 export async function fetchStats(): Promise<DashboardStats> {
   const headers = await getAuthHeaders();
-  const response = await fetch(`${API_BASE_URL}/api/v1/stats`, { headers });
+  const response = await fetch(`${API_BASE_URL}/api/v1/stats`, { headers, credentials: 'include' });
 
   if (!response.ok) {
     throw new Error(`Failed to fetch stats: ${response.statusText}`);
@@ -290,6 +292,7 @@ export async function createScan(request: CreateScanRequest): Promise<{ scanId: 
   const response = await fetch(`${API_BASE_URL}/api/v1/scans`, {
     method: 'POST',
     headers,
+    credentials: 'include',
     body: JSON.stringify(request),
   });
 
@@ -312,7 +315,7 @@ export async function fetchScans(protocolId?: string, limit: number = 10): Promi
 
   const response = await fetch(
     `${API_BASE_URL}/api/v1/scans?${params.toString()}`,
-    { headers }
+    { headers, credentials: 'include' }
   );
 
   if (!response.ok) {
@@ -329,6 +332,7 @@ export async function fetchScan(scanId: string): Promise<Scan> {
   const headers = await getAuthHeaders();
   const response = await fetch(`${API_BASE_URL}/api/v1/scans/${scanId}`, {
     headers,
+    credentials: 'include',
   });
 
   if (!response.ok) {
@@ -346,6 +350,7 @@ export async function cancelScan(scanId: string): Promise<{ id: string; state: s
   const response = await fetch(`${API_BASE_URL}/api/v1/scans/${scanId}`, {
     method: 'DELETE',
     headers,
+    credentials: 'include',
   });
 
   if (!response.ok) {
@@ -366,6 +371,7 @@ export async function fetchScanFindings(scanId: string): Promise<{
   const headers = await getAuthHeaders();
   const response = await fetch(`${API_BASE_URL}/api/v1/scans/${scanId}/findings`, {
     headers,
+    credentials: 'include',
   });
 
   if (!response.ok) {
@@ -462,6 +468,7 @@ export async function createProtocol(request: CreateProtocolRequest): Promise<Cr
     const response = await fetch(url, {
       method: 'POST',
       headers,
+      credentials: 'include',
       body: JSON.stringify(request),
     });
 
@@ -509,7 +516,7 @@ export async function fetchProtocols(params?: {
   if (params?.limit) queryParams.append('limit', params.limit.toString());
 
   const url = `${API_BASE_URL}/api/v1/protocols${queryParams.toString() ? `?${queryParams}` : ''}`;
-  const response = await fetch(url, { headers });
+  const response = await fetch(url, { headers, credentials: 'include' });
 
   if (!response.ok) {
     throw new Error(`Failed to fetch protocols: ${response.statusText}`);
@@ -529,6 +536,7 @@ export const api = {
     const headers = await getAuthHeaders();
     const response = await fetch(`${API_BASE_URL}/api/v1${url}`, {
       headers,
+      credentials: 'include',
     });
 
     if (!response.ok) {
@@ -544,6 +552,7 @@ export const api = {
     const response = await fetch(`${API_BASE_URL}/api/v1${url}`, {
       method: 'POST',
       headers,
+      credentials: 'include',
       body: body ? JSON.stringify(body) : undefined,
     });
 
@@ -560,6 +569,7 @@ export const api = {
     const response = await fetch(`${API_BASE_URL}/api/v1${url}`, {
       method: 'PUT',
       headers,
+      credentials: 'include',
       body: body ? JSON.stringify(body) : undefined,
     });
 
@@ -576,6 +586,7 @@ export const api = {
     const response = await fetch(`${API_BASE_URL}/api/v1${url}`, {
       method: 'DELETE',
       headers,
+      credentials: 'include',
     });
 
     if (!response.ok) {
@@ -620,7 +631,7 @@ export async function fetchUSDCAllowance(
   const headers = await getAuthHeaders();
   const response = await fetch(
     `${API_BASE_URL}/api/v1/payments/usdc/allowance?owner=${owner}&spender=${spender}`,
-    { headers }
+    { headers, credentials: 'include' }
   );
 
   if (!response.ok) {
@@ -642,7 +653,7 @@ export async function fetchUSDCBalance(
   const headers = await getAuthHeaders();
   const response = await fetch(
     `${API_BASE_URL}/api/v1/payments/usdc/balance?address=${address}`,
-    { headers }
+    { headers, credentials: 'include' }
   );
 
   if (!response.ok) {
@@ -664,6 +675,7 @@ export async function generateUSDCApprovalTx(
   const response = await fetch(`${API_BASE_URL}/api/v1/payments/approve`, {
     method: 'POST',
     headers,
+    credentials: 'include',
     body: JSON.stringify({ amount, spender }),
   });
 
@@ -701,7 +713,7 @@ export async function fetchLeaderboard(
   const headers = await getAuthHeaders();
   const response = await fetch(
     `${API_BASE_URL}/api/v1/payments/leaderboard?limit=${limit}`,
-    { headers }
+    { headers, credentials: 'include' }
   );
 
   if (!response.ok) {
@@ -757,7 +769,7 @@ export async function fetchPayments(
   if (params?.protocolId) queryParams.append('protocolId', params.protocolId);
 
   const url = `${API_BASE_URL}/api/v1/payments${queryParams.toString() ? `?${queryParams}` : ''}`;
-  const response = await fetch(url, { headers });
+  const response = await fetch(url, { headers, credentials: 'include' });
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: response.statusText }));
@@ -801,7 +813,7 @@ export async function fetchBountyPoolStatus(
   const headers = await getAuthHeaders();
   const response = await fetch(
     `${API_BASE_URL}/api/v1/protocols/${protocolId}/bounty-pool`,
-    { headers }
+    { headers, credentials: 'include' }
   );
 
   if (!response.ok) {
@@ -852,6 +864,7 @@ export async function verifyProtocolFunding(
     {
       method: 'POST',
       headers,
+      credentials: 'include',
     }
   );
 
@@ -877,6 +890,7 @@ export async function requestProtocolScan(
     {
       method: 'POST',
       headers,
+      credentials: 'include',
       body: JSON.stringify({ branch }),
     }
   );
@@ -903,6 +917,7 @@ export async function recordFundingTransaction(
     {
       method: 'POST',
       headers,
+      credentials: 'include',
       body: JSON.stringify({ txHash }),
     }
   );
@@ -925,7 +940,7 @@ export async function fetchFundingStatus(
   const headers = await getAuthHeaders();
   const response = await fetch(
     `${API_BASE_URL}/api/v1/protocols/${protocolId}/funding-status`,
-    { headers }
+    { headers, credentials: 'include' }
   );
 
   if (!response.ok) {
@@ -951,7 +966,7 @@ import type {
 
 export async function fetchAgentIdentities(): Promise<AgentIdentity[]> {
   const headers = await getAuthHeaders();
-  const response = await fetch(`${API_BASE_URL}/api/v1/agent-identities`, { headers });
+  const response = await fetch(`${API_BASE_URL}/api/v1/agent-identities`, { headers, credentials: 'include' });
   if (!response.ok) throw new Error(`Failed to fetch agent identities: ${response.statusText}`);
   const result = await response.json();
   return result.data || [];
@@ -959,7 +974,7 @@ export async function fetchAgentIdentities(): Promise<AgentIdentity[]> {
 
 export async function fetchAgentIdentity(id: string): Promise<AgentIdentity> {
   const headers = await getAuthHeaders();
-  const response = await fetch(`${API_BASE_URL}/api/v1/agent-identities/${id}`, { headers });
+  const response = await fetch(`${API_BASE_URL}/api/v1/agent-identities/${id}`, { headers, credentials: 'include' });
   if (!response.ok) throw new Error(`Failed to fetch agent identity: ${response.statusText}`);
   const result = await response.json();
   return result.data;
@@ -967,7 +982,7 @@ export async function fetchAgentIdentity(id: string): Promise<AgentIdentity> {
 
 export async function fetchAgentByWallet(walletAddress: string): Promise<AgentIdentity> {
   const headers = await getAuthHeaders();
-  const response = await fetch(`${API_BASE_URL}/api/v1/agent-identities/wallet/${walletAddress}`, { headers });
+  const response = await fetch(`${API_BASE_URL}/api/v1/agent-identities/wallet/${walletAddress}`, { headers, credentials: 'include' });
   if (!response.ok) throw new Error(`Failed to fetch agent: ${response.statusText}`);
   const result = await response.json();
   return result.data;
@@ -982,6 +997,7 @@ export async function registerAgent(
   const response = await fetch(`${API_BASE_URL}/api/v1/agent-identities/register`, {
     method: 'POST',
     headers,
+    credentials: 'include',
     body: JSON.stringify({ walletAddress, agentType, registerOnChain }),
   });
   if (!response.ok) {
@@ -994,7 +1010,7 @@ export async function registerAgent(
 
 export async function fetchAgentReputation(agentId: string): Promise<AgentReputation> {
   const headers = await getAuthHeaders();
-  const response = await fetch(`${API_BASE_URL}/api/v1/agent-identities/${agentId}/reputation`, { headers });
+  const response = await fetch(`${API_BASE_URL}/api/v1/agent-identities/${agentId}/reputation`, { headers, credentials: 'include' });
   if (!response.ok) throw new Error(`Failed to fetch reputation: ${response.statusText}`);
   const result = await response.json();
   return result.data;
@@ -1002,7 +1018,7 @@ export async function fetchAgentReputation(agentId: string): Promise<AgentReputa
 
 export async function fetchAgentFeedback(agentId: string): Promise<AgentFeedback[]> {
   const headers = await getAuthHeaders();
-  const response = await fetch(`${API_BASE_URL}/api/v1/agent-identities/${agentId}/feedback`, { headers });
+  const response = await fetch(`${API_BASE_URL}/api/v1/agent-identities/${agentId}/feedback`, { headers, credentials: 'include' });
   if (!response.ok) throw new Error(`Failed to fetch feedback: ${response.statusText}`);
   const result = await response.json();
   return result.data || [];
@@ -1010,7 +1026,7 @@ export async function fetchAgentFeedback(agentId: string): Promise<AgentFeedback
 
 export async function fetchAgentLeaderboard(limit = 10): Promise<AgentIdentity[]> {
   const headers = await getAuthHeaders();
-  const response = await fetch(`${API_BASE_URL}/api/v1/agent-identities/leaderboard?limit=${limit}`, { headers });
+  const response = await fetch(`${API_BASE_URL}/api/v1/agent-identities/leaderboard?limit=${limit}`, { headers, credentials: 'include' });
   if (!response.ok) throw new Error(`Failed to fetch leaderboard: ${response.statusText}`);
   const result = await response.json();
   return result.data || [];
@@ -1018,7 +1034,7 @@ export async function fetchAgentLeaderboard(limit = 10): Promise<AgentIdentity[]
 
 export async function fetchEscrowBalance(agentId: string): Promise<EscrowBalance> {
   const headers = await getAuthHeaders();
-  const response = await fetch(`${API_BASE_URL}/api/v1/agent-identities/${agentId}/escrow`, { headers });
+  const response = await fetch(`${API_BASE_URL}/api/v1/agent-identities/${agentId}/escrow`, { headers, credentials: 'include' });
   if (!response.ok) throw new Error(`Failed to fetch escrow balance: ${response.statusText}`);
   const result = await response.json();
   return result.data;
@@ -1033,6 +1049,7 @@ export async function depositEscrow(
   const response = await fetch(`${API_BASE_URL}/api/v1/agent-identities/${agentId}/escrow/deposit`, {
     method: 'POST',
     headers,
+    credentials: 'include',
     body: JSON.stringify({ amount, txHash }),
   });
   if (!response.ok) throw new Error(`Failed to deposit: ${response.statusText}`);
@@ -1042,7 +1059,7 @@ export async function depositEscrow(
 
 export async function fetchEscrowTransactions(agentId: string): Promise<EscrowTransaction[]> {
   const headers = await getAuthHeaders();
-  const response = await fetch(`${API_BASE_URL}/api/v1/agent-identities/${agentId}/escrow/transactions`, { headers });
+  const response = await fetch(`${API_BASE_URL}/api/v1/agent-identities/${agentId}/escrow/transactions`, { headers, credentials: 'include' });
   if (!response.ok) throw new Error(`Failed to fetch escrow transactions: ${response.statusText}`);
   const result = await response.json();
   return result.data || [];
@@ -1050,7 +1067,7 @@ export async function fetchEscrowTransactions(agentId: string): Promise<EscrowTr
 
 export async function fetchX402Payments(): Promise<X402PaymentEvent[]> {
   const headers = await getAuthHeaders();
-  const response = await fetch(`${API_BASE_URL}/api/v1/agent-identities/x402-payments`, { headers });
+  const response = await fetch(`${API_BASE_URL}/api/v1/agent-identities/x402-payments`, { headers, credentials: 'include' });
   if (!response.ok) throw new Error(`Failed to fetch x402 payments: ${response.statusText}`);
   const result = await response.json();
   return result.data || [];
@@ -1058,7 +1075,7 @@ export async function fetchX402Payments(): Promise<X402PaymentEvent[]> {
 
 export async function fetchAgentX402Payments(agentId: string): Promise<X402PaymentEvent[]> {
   const headers = await getAuthHeaders();
-  const response = await fetch(`${API_BASE_URL}/api/v1/agent-identities/${agentId}/x402-payments`, { headers });
+  const response = await fetch(`${API_BASE_URL}/api/v1/agent-identities/${agentId}/x402-payments`, { headers, credentials: 'include' });
   if (!response.ok) throw new Error(`Failed to fetch agent x402 payments: ${response.statusText}`);
   const result = await response.json();
   return result.data || [];
