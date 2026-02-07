@@ -1,5 +1,6 @@
 import { SiweMessage } from 'siwe';
 import { BrowserProvider, getAddress } from 'ethers';
+import { baseSepolia } from 'wagmi/chains';
 
 /**
  * Generate a SIWE message for signing
@@ -21,7 +22,7 @@ export async function createSiweMessage(
     statement,
     uri: origin,
     version: '1',
-    chainId: 1, // Ethereum mainnet - can be made configurable
+    chainId: baseSepolia.id, // Base Sepolia (84532) - matches wagmi config
     nonce,
   });
 

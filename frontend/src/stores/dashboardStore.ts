@@ -33,7 +33,7 @@ interface DashboardState {
   error: string | null;
 
   // Optimistic updates
-  optimisticUpdates: Map<string, OptimisticUpdate>;
+  optimisticUpdates: Record<string, OptimisticUpdate>;
 
   // Actions
   setProtocol: (protocol: Protocol) => void;
@@ -89,7 +89,7 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
   alerts: [],
   isLoading: false,
   error: null,
-  optimisticUpdates: new Map(),
+  optimisticUpdates: {},
 
   // Basic setters
   setProtocol: (protocol) => set({ selectedProtocol: protocol }),
@@ -107,13 +107,15 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
 
     if (!currentAgent) return updateId;
 
-    const optimisticUpdates = new Map(get().optimisticUpdates);
-    optimisticUpdates.set(updateId, {
-      id: updateId,
-      type: 'agent',
-      previousState: { ...currentAgent },
-      timestamp: Date.now(),
-    });
+    const optimisticUpdates = {
+      ...get().optimisticUpdates,
+      [updateId]: {
+        id: updateId,
+        type: 'agent',
+        previousState: { ...currentAgent },
+        timestamp: Date.now(),
+      },
+    };
 
     const agents = get().agents.map((a) =>
       a.id === agentId ? { ...a, ...updates } : a
@@ -130,13 +132,15 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
 
     if (!currentVuln) return updateId;
 
-    const optimisticUpdates = new Map(get().optimisticUpdates);
-    optimisticUpdates.set(updateId, {
-      id: updateId,
-      type: 'vulnerability',
-      previousState: { ...currentVuln },
-      timestamp: Date.now(),
-    });
+    const optimisticUpdates = {
+      ...get().optimisticUpdates,
+      [updateId]: {
+        id: updateId,
+        type: 'vulnerability',
+        previousState: { ...currentVuln },
+        timestamp: Date.now(),
+      },
+    };
 
     const vulnerabilities = get().vulnerabilities.map((v) =>
       v.id === vulnId ? { ...v, ...updates } : v
@@ -151,13 +155,15 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
     const updateId = `stats-${Date.now()}`;
     const currentStats = get().stats;
 
-    const optimisticUpdates = new Map(get().optimisticUpdates);
-    optimisticUpdates.set(updateId, {
-      id: updateId,
-      type: 'stats',
-      previousState: { ...currentStats },
-      timestamp: Date.now(),
-    });
+    const optimisticUpdates = {
+      ...get().optimisticUpdates,
+      [updateId]: {
+        id: updateId,
+        type: 'stats',
+        previousState: { ...currentStats },
+        timestamp: Date.now(),
+      },
+    };
 
     const stats = { ...currentStats, ...updates };
     set({ stats, optimisticUpdates });
@@ -166,11 +172,10 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
 
   // Rollback optimistic update
   rollbackOptimisticUpdate: (updateId) => {
-    const update = get().optimisticUpdates.get(updateId);
+    const update = get().optimisticUpdates[updateId];
     if (!update) return;
 
-    const optimisticUpdates = new Map(get().optimisticUpdates);
-    optimisticUpdates.delete(updateId);
+    const { [updateId]: _, ...optimisticUpdates } = get().optimisticUpdates;
 
     switch (update.type) {
       case 'agent': {
@@ -199,8 +204,7 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
 
   // Confirm optimistic update
   confirmOptimisticUpdate: (updateId) => {
-    const optimisticUpdates = new Map(get().optimisticUpdates);
-    optimisticUpdates.delete(updateId);
+    const { [updateId]: _, ...optimisticUpdates } = get().optimisticUpdates;
     set({ optimisticUpdates });
   },
 
@@ -296,6 +300,6 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
       alerts: [],
       isLoading: false,
       error: null,
-      optimisticUpdates: new Map(),
+      optimisticUpdates: {},
     }),
 }));
