@@ -1,6 +1,5 @@
-import { API_BASE_URL } from './api';
-
 const CSRF_COOKIE_NAME = 'X-CSRF-Token';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 
 /**
  * Read CSRF token from cookie
