@@ -71,3 +71,7 @@ Production:
 ├── Base Mainnet - All contracts
 └── Backup RPC endpoints
 ```
+
+## Change Specifications
+
+- [Backend Architecture Hardening](../changes/backend-architecture-hardening/) - tsyringe DI, payment service decomposition, type safety, structured logging
