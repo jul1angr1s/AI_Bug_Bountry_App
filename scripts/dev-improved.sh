@@ -63,6 +63,7 @@ required_vars=(
   "SUPABASE_URL"
   "SUPABASE_ANON_KEY"
   "SUPABASE_SERVICE_ROLE_KEY"
+  "SUPABASE_JWT_SECRET"
 )
 
 for var in "${required_vars[@]}"; do
@@ -96,6 +97,64 @@ for var in "${deprecated_vars[@]}"; do
   fi
 done
 echo "✓ No deprecated security variables detected"
+
+# Validate blockchain / X.402 configuration (warnings, not fatal)
+echo ""
+echo "=== Blockchain & X.402 Configuration ==="
+echo ""
+
+blockchain_vars=(
+  "BASE_SEPOLIA_RPC_URL"
+  "PRIVATE_KEY"
+  "BOUNTY_POOL_ADDRESS"
+  "AGENT_IDENTITY_REGISTRY_ADDRESS"
+  "AGENT_REPUTATION_REGISTRY_ADDRESS"
+)
+
+blockchain_ready=true
+for var in "${blockchain_vars[@]}"; do
+  if [ -z "${!var:-}" ]; then
+    echo "⚠️  WARNING: $var is not set (on-chain features will use demo mode)"
+    blockchain_ready=false
+  fi
+done
+if [ "$blockchain_ready" = true ]; then
+  echo "✓ Blockchain environment variables configured"
+fi
+
+# X.402 payment gate configuration
+SKIP_X402="${SKIP_X402_PAYMENT_GATE:-true}"
+if [ "$SKIP_X402" = "false" ]; then
+  echo "💳 X.402 payment gate: ENABLED (live on-chain payments)"
+  if [ -z "${PLATFORM_WALLET_ADDRESS:-}" ]; then
+    echo "❌ ERROR: PLATFORM_WALLET_ADDRESS is required when X.402 gate is enabled"
+    echo "   Set to the wallet that receives protocol registration fees"
+    exit 1
+  fi
+  echo "  ✓ PLATFORM_WALLET_ADDRESS: ${PLATFORM_WALLET_ADDRESS:0:10}...${PLATFORM_WALLET_ADDRESS: -6}"
+else
+  echo "💳 X.402 payment gate: DISABLED (protocols register for free)"
+  if [ -n "${PLATFORM_WALLET_ADDRESS:-}" ]; then
+    echo "  ℹ️  PLATFORM_WALLET_ADDRESS is set but gate is skipped"
+  fi
+fi
+
+# CSRF security posture
+SKIP_CSRF="${SKIP_CSRF:-}"
+if [ "$SKIP_CSRF" = "true" ]; then
+  echo "⚠️  WARNING: CSRF protection is DISABLED (SKIP_CSRF=true)"
+  echo "   This should only be used for testing"
+else
+  echo "🔒 CSRF protection: ENABLED"
+fi
+
+# On-chain registration mode
+SKIP_ONCHAIN="${SKIP_ONCHAIN_REGISTRATION:-true}"
+if [ "$SKIP_ONCHAIN" = "false" ]; then
+  echo "⛓️  On-chain registration: ENABLED (real NFT minting)"
+else
+  echo "⛓️  On-chain registration: DISABLED (database only)"
+fi
 
 # Check npm dependencies
 if [ ! -d "$ROOT_DIR/backend/node_modules" ]; then
@@ -307,21 +366,37 @@ echo ""
 echo "=== Validating Services ==="
 echo ""
 
-echo "🔌 Validating Redis connectivity from host..."
+echo "🔌 Validating Redis connectivity..."
 REDIS_PASSWORD="${REDIS_PASSWORD:-redis_dev_2024}"
+redis_verified=false
+
+# Try native redis-cli first
 if command -v redis-cli >/dev/null 2>&1; then
   if redis-cli -h localhost -p 6379 -a "$REDIS_PASSWORD" ping >/dev/null 2>&1; then
-    echo "✓ Redis: Connection verified from host"
-  else
-    echo "❌ ERROR: Cannot connect to Redis from host machine"
-    echo "   Host: localhost:6379"
-    echo "   Password: ${REDIS_PASSWORD:0:5}***"
-    echo "   Make sure Docker containers are healthy"
-    exit 1
+    echo "✓ Redis: Connection verified from host (redis-cli)"
+    redis_verified=true
   fi
-else
-  echo "⚠️  redis-cli not found, skipping host connectivity check"
-  echo "   Install redis-cli for better validation: brew install redis"
+fi
+
+# Fallback: use docker exec to test Redis inside the container
+if [ "$redis_verified" = false ]; then
+  redis_container=$(docker compose -f "$COMPOSE_FILE" ps -q redis 2>/dev/null || true)
+  if [ -n "$redis_container" ]; then
+    if docker exec "$redis_container" redis-cli -a "$REDIS_PASSWORD" ping >/dev/null 2>&1; then
+      echo "✓ Redis: Connection verified via Docker exec"
+      redis_verified=true
+    else
+      echo "❌ ERROR: Redis container is running but not responding to PING"
+      echo "   Password: ${REDIS_PASSWORD:0:5}***"
+      exit 1
+    fi
+  fi
+fi
+
+if [ "$redis_verified" = false ]; then
+  echo "⚠️  WARNING: Could not verify Redis connectivity"
+  echo "   Neither redis-cli nor Docker exec succeeded"
+  echo "   Backend may fail to connect to Redis"
 fi
 
 # ==============================================
@@ -388,6 +463,27 @@ else
 fi
 
 # ==============================================
+# Demo Seed Data (optional)
+# ==============================================
+
+if [ "${SEED_DEMO_DATA:-0}" = "1" ]; then
+  echo ""
+  echo "🌱 Seeding demo data (agents, payments, reputation, escrow)..."
+  if [ -f "$ROOT_DIR/backend/scripts/seed-demo-data.ts" ]; then
+    if (cd "$ROOT_DIR/backend" && npx tsx scripts/seed-demo-data.ts); then
+      echo "✓ Demo data seeded successfully"
+    else
+      echo "⚠️  WARNING: Demo seed script failed (continuing anyway)"
+    fi
+  else
+    echo "⚠️  WARNING: seed-demo-data.ts not found at backend/scripts/"
+  fi
+else
+  echo ""
+  echo "⏭️  Skipping demo seed data (use SEED_DEMO_DATA=1 to seed)"
+fi
+
+# ==============================================
 # Start Services
 # ==============================================
 
@@ -423,7 +519,7 @@ fi
 
 # Start Researcher Worker (CHANGED: Default to 0 to avoid conflicts)
 if [ "${START_RESEARCHER_WORKER:-0}" = "1" ]; then
-  if rg -q '"researcher:worker"' "$ROOT_DIR/backend/package.json" 2>/dev/null; then
+  if grep -q '"researcher:worker"' "$ROOT_DIR/backend/package.json" 2>/dev/null; then
     echo "🔬 Starting standalone researcher worker..."
     echo "⚠️  WARNING: This will create a duplicate worker (server.ts already starts one)"
     (cd "$ROOT_DIR/backend" && npm run researcher:worker) &
@@ -520,6 +616,73 @@ if [ "${START_BACKEND:-1}" = "1" ]; then
   fi
 fi
 
+# ==============================================
+# API Endpoint Validation (post-startup)
+# ==============================================
+
+if [ "${START_BACKEND:-1}" = "1" ] && command -v curl >/dev/null 2>&1; then
+  echo ""
+  echo "=== API Endpoint Validation ==="
+  echo ""
+
+  # Wait for health endpoint to confirm backend is ready
+  backend_ready=false
+  for i in {1..10}; do
+    if curl -sf "http://localhost:3000/api/v1/health" >/dev/null 2>&1; then
+      backend_ready=true
+      break
+    fi
+    sleep 1
+  done
+
+  if [ "$backend_ready" = true ]; then
+    # Test CSRF token endpoint
+    csrf_response=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:3000/api/v1/csrf-token" 2>/dev/null)
+    if [ "$csrf_response" = "200" ]; then
+      echo "  ✓ CSRF token endpoint: OK"
+    else
+      echo "  ⚠️  CSRF token endpoint: HTTP $csrf_response"
+    fi
+
+    # Test agent identities endpoint
+    agents_response=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:3000/api/v1/agent-identities" 2>/dev/null)
+    if [ "$agents_response" = "200" ]; then
+      echo "  ✓ Agent identities endpoint: OK"
+    else
+      echo "  ⚠️  Agent identities endpoint: HTTP $agents_response"
+    fi
+
+    # Test X.402 payments endpoint
+    x402_response=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:3000/api/v1/agent-identities/x402-payments" 2>/dev/null)
+    if [ "$x402_response" = "200" ]; then
+      echo "  ✓ X.402 payments endpoint: OK"
+    else
+      echo "  ⚠️  X.402 payments endpoint: HTTP $x402_response"
+    fi
+
+    # Test leaderboard endpoint
+    leaderboard_response=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:3000/api/v1/agent-identities/leaderboard" 2>/dev/null)
+    if [ "$leaderboard_response" = "200" ]; then
+      echo "  ✓ Leaderboard endpoint: OK"
+    else
+      echo "  ⚠️  Leaderboard endpoint: HTTP $leaderboard_response"
+    fi
+
+    # Verify CSRF is enforced on state-changing routes (POST without token should fail)
+    csrf_enforced=$(curl -s -o /dev/null -w "%{http_code}" -X POST "http://localhost:3000/api/v1/agent-identities/register" \
+      -H "Content-Type: application/json" -d '{}' 2>/dev/null)
+    if [ "$csrf_enforced" = "403" ]; then
+      echo "  ✓ CSRF enforcement: Active (POST without token → 403)"
+    elif [ "$csrf_enforced" = "401" ]; then
+      echo "  ✓ CSRF enforcement: Auth-first (POST without auth → 401)"
+    else
+      echo "  ⚠️  CSRF enforcement: Unexpected response $csrf_enforced (expected 403)"
+    fi
+  else
+    echo "  ⚠️  Backend not ready, skipping endpoint validation"
+  fi
+fi
+
 echo ""
 echo "======================================"
 echo "✨ Dev stack is running!"
@@ -533,6 +696,19 @@ echo ""
 echo "🐳 Docker Services:"
 echo "  • Postgres: localhost:5432"
 echo "  • Redis:    localhost:6379"
+echo ""
+echo "⚙️  Configuration:"
+SKIP_X402="${SKIP_X402_PAYMENT_GATE:-true}"
+SKIP_ONCHAIN="${SKIP_ONCHAIN_REGISTRATION:-true}"
+SKIP_CSRF_VAL="${SKIP_CSRF:-}"
+echo "  • X.402 Payment Gate: $([ "$SKIP_X402" = "false" ] && echo "ENABLED" || echo "DISABLED")"
+echo "  • On-Chain Registration: $([ "$SKIP_ONCHAIN" = "false" ] && echo "ENABLED" || echo "DISABLED")"
+echo "  • CSRF Protection: $([ "$SKIP_CSRF_VAL" = "true" ] && echo "DISABLED" || echo "ENABLED")"
+echo ""
+echo "🔗 Key Endpoints:"
+echo "  • Agents:       http://localhost:3000/api/v1/agent-identities"
+echo "  • X.402 Pay:    http://localhost:3000/api/v1/agent-identities/x402-payments"
+echo "  • Leaderboard:  http://localhost:3000/api/v1/agent-identities/leaderboard"
 echo ""
 echo "Press Ctrl+C to stop dev servers"
 echo "(Docker services will keep running)"
