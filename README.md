@@ -70,7 +70,13 @@ graph LR
     subgraph Validator["✅ Validator Agent"]
         V1[Confirms Exploits]
         V2[Records Validation]
-        V3[💰 USDC RELEASED<br/>500 USDC]
+        V3[✅ VALIDATED<br/>Exploit Confirmed]
+    end
+
+    subgraph Payment["💰 Payment Agent"]
+        PM1[Calculates Bounty]
+        PM2[Releases USDC]
+        PM3[✅ PAYMENT COMPLETE<br/>500 USDC]
     end
 
     P1 --> P2 --> P3
@@ -78,14 +84,18 @@ graph LR
     R1 --> R2 --> R3
     R3 --> V1
     V1 --> V2 --> V3
+    V3 --> PM1
+    PM1 --> PM2 --> PM3
 
     style Protocol fill:#3B82F6,stroke:#1E40AF,stroke-width:3px,color:#fff
     style Researcher fill:#8B5CF6,stroke:#7C3AED,stroke-width:3px,color:#fff
     style Validator fill:#10B981,stroke:#059669,stroke-width:3px,color:#fff
+    style Payment fill:#F59E0B,stroke:#D97706,stroke-width:3px,color:#fff
 
     style P3 fill:#10B981,stroke:#059669,stroke-width:2px,color:#fff
     style R3 fill:#F59E0B,stroke:#D97706,stroke-width:2px,color:#fff
-    style V3 fill:#FFD700,stroke:#FFA500,stroke-width:2px,color:#000
+    style V3 fill:#10B981,stroke:#059669,stroke-width:2px,color:#fff
+    style PM3 fill:#FFD700,stroke:#FFA500,stroke-width:2px,color:#000
 ```
 
 ### 7-Step Real-Time Progress Tracking
@@ -195,6 +205,10 @@ This platform has completed all development phases including comprehensive testi
 - ✨ **Platform Escrow**: USDC escrow with on-chain deposit verification, replay prevention, and atomic fee deduction
 - ✨ **6 Smart Contracts**: ProtocolRegistry, ValidationRegistry, BountyPool + AgentIdentityRegistry, AgentReputationRegistry, PlatformEscrow
 - ✨ **AI Integration**: Kimi 2.5 (Moonshot AI) achieving 6x vulnerability detection improvement
+- ✨ **SIWE Server-Side Verification**: ethers.js `verifyMessage()` with JWT tokens (1h access / 7d refresh), eliminating client-only trust
+- ✨ **BullMQ Validator Migration**: Redis Pub/Sub → BullMQ queue consumer for LLM validator, guaranteed delivery with retries (PR #118)
+- ✨ **Redis-Backed Rate Limiting**: Per-endpoint limits (60-300 req/min), `X-RateLimit-*` response headers, fail-open degradation
+- ✨ **Post-Registration Flow Fixes**: Resolved 401 spam, false scan modal, and missing funding redirect (PR #117)
 
 ---
 
@@ -202,11 +216,11 @@ This platform has completed all development phases including comprehensive testi
 
 The AI Bug Bounty Platform automates the complete vulnerability discovery and reward lifecycle using AI agents:
 
-### The Three-Agent System
+### The Four-Agent System
 
 <table>
 <tr>
-<td width="33%" align="center">
+<td width="25%" align="center">
 
 ### 🛡️ Protocol Agent
 **The Gatekeeper**
@@ -216,7 +230,7 @@ Validates repository structure, compiles Solidity contracts, registers protocols
 **Tech**: GitHub API, Foundry, ethers.js
 
 </td>
-<td width="33%" align="center">
+<td width="25%" align="center">
 
 ### 🔬 Researcher Agent
 **The Detective**
@@ -226,7 +240,7 @@ Deploys contracts to Anvil, runs Slither + Kimi 2.5 AI, discovers 6x more vulner
 **Tech**: Slither, Kimi AI, Docker
 
 </td>
-<td width="33%" align="center">
+<td width="25%" align="center">
 
 ### ✅ Validator Agent
 **The Judge**
@@ -234,6 +248,16 @@ Deploys contracts to Anvil, runs Slither + Kimi 2.5 AI, discovers 6x more vulner
 Spawns isolated sandboxes, executes exploit proofs, records validation on-chain
 
 **Tech**: Anvil, ethers.js, AI proof analysis
+
+</td>
+<td width="25%" align="center">
+
+### 💰 Payment Agent
+**The Banker**
+
+Listens for validation events, calculates severity multipliers, releases USDC bounties automatically
+
+**Tech**: BullMQ, ethers.js, USDC
 
 </td>
 </tr>
@@ -563,6 +587,7 @@ graph TB
             PA[🛡️ Protocol Agent<br/>Validation & Registration]
             RA[🔬 Researcher Agent<br/>Vulnerability Discovery]
             VA[✅ Validator Agent<br/>Exploit Verification]
+            PMA[💰 Payment Agent<br/>USDC Automation]
         end
 
         Queue[📋 BullMQ Queues<br/>Redis]
@@ -592,6 +617,7 @@ graph TB
     Queue --> PA
     Queue --> RA
     Queue --> VA
+    Queue --> PMA
 
     PA --> GH
     RA --> GH
@@ -601,7 +627,7 @@ graph TB
 
     PA -->|ethers.js| PR
     VA -->|ethers.js| VR
-    VA -->|ethers.js| BP
+    PMA -->|Release| BP
     API -->|Agent Reg| AIR
     VA -->|Feedback| ARR
     API -->|Escrow| PE
@@ -610,6 +636,7 @@ graph TB
 
     PR -.->|Events| WSServer
     VR -.->|Events| WSServer
+    VR -.->|Trigger| Queue
     BP -.->|Events| WSServer
 
     style Frontend fill:#3B82F6,stroke:#1E40AF,stroke-width:3px,color:#fff
@@ -1347,13 +1374,17 @@ console.log(`Block: ${result.blockNumber}`);
 ✅ **Immutable Records** - Validation records cannot be modified
 
 **Backend:**
-✅ **CSRF Protection** - Double-submit cookie pattern with frontend integration
+✅ **CSRF Protection** - Double-submit cookie pattern with `crypto.randomBytes(32)`, timing-safe comparison via `crypto.timingSafeEqual()`
 ✅ **Helmet Security Headers** - CSP, HSTS, X-Frame-Options, Permissions-Policy
 ✅ **Pino Structured Logging** - PII redaction paths, correlation IDs, no console.log
 ✅ **Secrets Management** - Abstracted provider (EnvSecretsProvider in dev, AWS Secrets Manager in prod)
 ✅ **Atomic Payment Locking** - Idempotency keys prevent race conditions and double payments
 ✅ **Auth Bypass Removed** - DEV_AUTH_BYPASS eliminated from all middleware
-✅ **Sandboxed Execution** - Isolated Anvil environments for exploit testing
+✅ **Sandboxed Execution** - Isolated Anvil environments with path traversal prevention, code pattern detection, and resource limits
+✅ **Redis-Backed Rate Limiting** - Per-endpoint limits (60-300 req/min), `X-RateLimit-*` headers, fail-open degradation on Redis failure
+✅ **Zod Input Validation** - Runtime schema validation on all API inputs with field-level error responses
+✅ **SIWE Server-Side Verification** - ethers.js `verifyMessage()` with JWT tokens (1h access / 7d refresh), race condition handling for concurrent auth flows
+✅ **Sandbox Security Hardening** - Path traversal prevention, dangerous code pattern detection, process resource limits
 
 ### Audit Status
 
@@ -1553,7 +1584,7 @@ Imagine a world where:
 - Production Guides: 4 comprehensive documents (Production, Security, Troubleshooting, Backup/Recovery)
 
 **Development Quality:**
-- PRs Merged: 18+ major PRs (implementation phases)
+- PRs Merged: 118+ PRs (implementation phases + security hardening)
 - PR Size Limit: 1,500 lines (enforced via GitHub Actions)
 - Automated Size Checks: ✅ Active
 - OpenSpec Changes: 16+ archived (100% complete)

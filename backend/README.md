@@ -4,7 +4,7 @@
 ### *The Neural Network Powering Autonomous Security*
 
 <p align="center">
-  <strong>Three AI agents. One mission: Secure Web3.</strong><br/>
+  <strong>Four AI agents. One mission: Secure Web3.</strong><br/>
   <em>Node.js + Express + BullMQ + Kimi 2.5 AI + Smart Contracts</em>
 </p>
 
@@ -43,6 +43,7 @@ This isn't just another Node.js backend. It's an **autonomous agent orchestratio
 - **📡 Real-Time Streaming** - WebSocket + SSE push every state change to frontend
 - **💰 Payment Automation** - Event-driven USDC releases with reconciliation
 - **🔒 Typed Messaging** - BullMQ + Zod schemas for validated inter-agent communication
+- **🔄 Validator Queue Migration** - LLM validator migrated from Redis Pub/Sub to BullMQ queue consumer with guaranteed delivery (PR #118)
 
 ---
 
@@ -54,6 +55,7 @@ This isn't just another Node.js backend. It's an **autonomous agent orchestratio
 - [⚙️ Agent System](#️-agent-system)
 - [🚀 Quick Start](#-quick-start)
 - [📡 API Reference](#-api-reference)
+- [🔒 Security Middleware](#-security-middleware)
 - [🧪 Testing](#-testing)
 - [🐳 Deployment](#-deployment)
 - [🤝 Contributing](#-contributing)
@@ -745,6 +747,8 @@ const worker = new Worker('validation-jobs', async (job) => {
 
 **Tech Stack**: BullMQ, Zod, ioredis
 
+> **Migration Complete (PR #118)**: The LLM validator (`llm-worker.ts`) has been fully migrated from Redis Pub/Sub to BullMQ queue consumption. All inter-agent communication now uses BullMQ with Zod-validated schemas, providing guaranteed delivery, automatic retries with exponential backoff, and job metrics. The legacy `redis.subscribe('PROOF_SUBMISSION')` pattern has been eliminated.
+
 ---
 
 ### 💰 Payment Agent: The Banker
@@ -1083,6 +1087,73 @@ socket.on('payment:released', (data) => {
 ```
 
 **Event Types**: `protocol:*`, `scan:*`, `validation:*`, `payment:*`
+
+---
+
+## 🔒 Security Middleware
+
+### Request Lifecycle
+
+Every API request passes through a 9-step middleware stack in this order:
+
+1. **CORS** - Origin whitelist (`FRONTEND_URL`), credentials allowed
+2. **Helmet** - CSP, HSTS, X-Frame-Options, Permissions-Policy headers
+3. **Cookie Parser** - Parse `csrf_token` and `auth_token` cookies
+4. **JSON Body Parser** - 10KB limit, strict content-type
+5. **Rate Limiter** - Redis-backed per-endpoint throttling
+6. **CSRF Protection** - Double-submit cookie validation (state-changing routes)
+7. **Authentication** - Supabase JWT verification via `Authorization` header
+8. **Zod Validation** - Request body/params/query schema validation
+9. **Route Handler** - Business logic execution
+
+### CSRF Protection
+
+Implements the **double-submit cookie pattern** with timing-safe comparison:
+
+- **Token Generation**: `crypto.randomBytes(32).toString('hex')` on `GET /api/v1/auth/csrf-token`
+- **Cookie**: `csrf_token` set as `httpOnly`, `sameSite: 'strict'`, `secure` in production
+- **Validation**: `X-CSRF-Token` header compared against cookie using `crypto.timingSafeEqual()`
+- **Scope**: Applied to all `POST`, `PUT`, `PATCH`, `DELETE` routes
+
+### Rate Limiting
+
+Redis-backed rate limiting with per-endpoint configuration:
+
+| Endpoint Pattern | Limit | Window |
+|-----------------|-------|--------|
+| `POST /auth/*` | 60 req | 1 min |
+| `POST /protocols` | 120 req | 1 min |
+| `POST /protocols/:id/scan` | 60 req | 1 min |
+| Default API routes | 300 req | 1 min |
+
+- **Response Headers**: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`
+- **Fail-Open**: If Redis is unavailable, requests are allowed through with a logged warning
+
+### Input Validation
+
+All API inputs validated with **Zod schemas** at the middleware layer:
+
+- Field-level error messages returned as `400 Bad Request`
+- Strips unknown fields (`strict()` mode)
+- Type coercion for query parameters (string → number, string → boolean)
+
+### SIWE Server-Side Verification
+
+Authentication uses **Sign-In with Ethereum** with full server-side verification:
+
+- **Signature Verification**: `ethers.verifyMessage(message, signature)` confirms wallet ownership
+- **JWT Tokens**: 1-hour access token + 7-day refresh token issued on successful verification
+- **Race Condition Handling**: Supabase user lookup with retry on `email_exists` collision (PR #114)
+- **Cookie Sync**: Auth token synced to cookies for SSE endpoints (EventSource can't send headers)
+
+### Sandbox Execution Security
+
+The Validator Agent's sandbox environment includes multiple security layers:
+
+- **Path Traversal Prevention**: Exploit proof file paths validated against allowed directories
+- **Code Pattern Detection**: Dangerous patterns (`process.exit`, `require('child_process')`, `eval`) rejected before execution
+- **Resource Limits**: Anvil sandbox processes run with memory and CPU constraints
+- **Network Isolation**: Each validation gets a fresh Anvil instance on a random port with no shared state
 
 ---
 

@@ -182,9 +182,11 @@ The application uses **Web3 wallet authentication** via Sign-In with Ethereum (S
 1. **Login Page** (`/login`) - Dedicated authentication entry point with Thunder Security branding
 2. **Wallet Connection** - Connect via MetaMask, WalletConnect, or Coinbase Wallet (powered by Wagmi v3)
 3. **SIWE Message Signing** - Sign a cryptographic message to prove wallet ownership
-4. **Supabase Session** - Backend validates signature and creates authenticated session
-5. **JWT Token** - Session token synced to cookies for SSE authentication
-6. **Automatic Redirect** - After authentication, redirected to intended destination
+4. **Server-Side Verification** - Backend verifies signature using `ethers.verifyMessage()` (not client-only trust)
+5. **JWT Token Issuance** - 1-hour access token + 7-day refresh token issued on successful verification
+6. **CSRF Token Fetch** - Auto-fetches CSRF token from `/api/v1/auth/csrf-token` and includes `X-CSRF-Token` header on all state-changing requests
+7. **Cookie Sync** - Auth token synced to cookies for SSE endpoints (EventSource can't send custom headers)
+8. **Automatic Redirect** - After authentication, redirected to intended destination
 
 **Protected Routes:**
 
@@ -213,6 +215,31 @@ Located in `frontend/src/lib/wagmi.ts`:
 - Supports MetaMask (injected) and Coinbase Wallet
 - WalletConnect connector only added when `VITE_WALLETCONNECT_PROJECT_ID` env var is set (no insecure fallback)
 - Enables payment components to use wagmi hooks for contract interactions
+
+---
+
+## 🔒 Security
+
+### Client-Side Security Patterns
+
+The frontend implements several security patterns to protect against common web vulnerabilities:
+
+**CSRF Protection (Double-Submit Cookie):**
+- On app initialization, fetches a CSRF token from `GET /api/v1/auth/csrf-token`
+- Token is stored in a `csrf_token` cookie by the backend (`httpOnly`, `sameSite: 'strict'`)
+- All state-changing requests (`POST`, `PUT`, `PATCH`, `DELETE`) include the token in the `X-CSRF-Token` header
+- The API client (`api.ts`) automatically reads the cookie and attaches the header
+
+**Credentials & Cookie Policy:**
+- All `fetch` calls use `credentials: 'include'` to send cookies cross-origin
+- Required for CSRF cookie and auth token cookie transmission to the backend
+- CORS on the backend is configured to accept credentials from the frontend origin
+
+**Auth Cookie Synchronization (SSE Workaround):**
+- The `EventSource` API (used for Server-Sent Events) cannot send custom `Authorization` headers
+- The auth system syncs the JWT access token to an `auth_token` cookie via `syncAuthCookie()`
+- The backend reads this cookie as a fallback when no `Authorization` header is present
+- Cookie sync is triggered after sign-in, token refresh, and session recovery
 
 ---
 
