@@ -159,6 +159,22 @@ export default function PaymentRequiredModal({
     }
   }, [isOpen]);
 
+  // Auto-transfer after approval
+  useEffect(() => {
+    if (isApproveConfirmed && step === 'approved' && recipientAddress) {
+      // Small delay to let allowance update
+      const timer = setTimeout(() => {
+        transferWrite({
+          address: USDC_ADDRESS,
+          abi: ERC20_ABI,
+          functionName: 'transfer',
+          args: [recipientAddress, amountBigInt],
+        });
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [isApproveConfirmed, step, recipientAddress, amountBigInt, transferWrite]);
+
   if (!isOpen) return null;
 
   const formattedAmount = paymentTerms
@@ -173,7 +189,10 @@ export default function PaymentRequiredModal({
     `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 
   const handleApprove = () => {
-    if (!recipientAddress) return;
+    if (!recipientAddress) {
+      setError('Missing payment recipient address. Please close and retry.');
+      return;
+    }
     setError(null);
 
     approveWrite({
@@ -185,7 +204,10 @@ export default function PaymentRequiredModal({
   };
 
   const handleTransfer = () => {
-    if (!recipientAddress) return;
+    if (!recipientAddress) {
+      setError('Missing payment recipient address. Please close and retry.');
+      return;
+    }
     setError(null);
 
     transferWrite({
@@ -203,15 +225,6 @@ export default function PaymentRequiredModal({
       handleApprove();
     }
   };
-
-  // Auto-transfer after approval
-  useEffect(() => {
-    if (isApproveConfirmed && step === 'approved') {
-      // Small delay to let allowance update
-      const timer = setTimeout(() => handleTransfer(), 500);
-      return () => clearTimeout(timer);
-    }
-  }, [isApproveConfirmed, step]);
 
   const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target === e.currentTarget && step === 'idle') {

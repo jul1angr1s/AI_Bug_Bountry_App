@@ -479,11 +479,12 @@ export async function createProtocol(request: CreateProtocolRequest): Promise<Cr
       console.log('[API] x.402 Payment Required:', paymentTerms);
       const x402Error = new Error('Payment required');
       (x402Error as any).status = 402;
+      const x402 = paymentTerms.x402 || {};
       (x402Error as any).paymentTerms = {
-        amount: '1000000', // 1 USDC in base units
+        amount: x402.amount || '1000000',
         asset: 'USDC',
         chain: 'base-sepolia',
-        recipient: paymentTerms.accepts?.payTo || '',
+        recipient: x402.recipient || '',
         memo: paymentTerms.description || 'Protocol registration fee',
         expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
       };
