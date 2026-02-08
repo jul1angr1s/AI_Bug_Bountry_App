@@ -1041,6 +1041,9 @@ npm run test:integration
 # Run E2E demonstration workflow test
 npm run test:e2e
 
+# Run regression tests against live server (46 tests)
+npm run test:regression
+
 # Run AI tests only (requires API keys)
 npm run test:ai
 
@@ -1054,8 +1057,35 @@ npm run lint
   - BountyPoolClient (37), ValidationRegistryClient (32), USDCClient (29), ProtocolRegistryClient (29), PlatformEscrowClient (28)
 - **Integration Tests**: 36 test cases (payment flow, reconciliation, USDC approval, validator agent, WebSocket events)
 - **E2E Tests**: Complete demonstration workflow test with mocked blockchain and LLM
+- **Regression Tests**: 46 HTTP-level tests using native `fetch()` against a running backend (see below)
 - **AI Integration Tests**: Kimi 2.5 API + full pipeline (100% pass rate)
 - **Test Infrastructure**: Mock database (Prisma), mock blockchain (ethers.js), mock Redis (in-memory), payment + protocol fixtures
+
+### Regression E2E Tests (Vitest + fetch)
+
+HTTP-level regression tests that validate API response shapes against a live backend at `http://localhost:3000`. These catch serialization bugs (BigInt as `{}`, Date as `[object Object]`), missing CSRF enforcement, and broken auth guards.
+
+```bash
+# Requires backend + Redis + Postgres running
+cd backend
+npm run test:regression
+```
+
+| Test File | Tests | Coverage |
+|-----------|-------|----------|
+| `health.test.ts` | 5 | `/health`, `/health/detailed`, `/health/services`, `/metrics`, `X-API-Version` header |
+| `csrf.test.ts` | 6 | CSRF token fetch, cookie setting, format validation, POST rejection |
+| `agent-identities.test.ts` | 10 | List, get by ID, wallet lookup, type filter, leaderboard, BigInt/Date serialization |
+| `reputation.test.ts` | 5 | Reputation shape, feedback history, Date/BigInt serialization |
+| `escrow.test.ts` | 5 | Escrow balance (BigInt fields), transaction history |
+| `x402-payments.test.ts` | 8 | Payment amounts (BigInt), status enums, txHash, Date serialization |
+| `auth-protection.test.ts` | 7 | 401 on protected routes, 200 on public agent-identity routes |
+
+**Key regression guards:**
+- BigInt fields serialized as strings (catches `Do not know how to serialize a BigInt`)
+- Date fields as ISO 8601 strings (catches `{}` serialization)
+- No `[object Object]` in any response field
+- All tests are **read-only** and safe to run against a seeded dev stack
 
 ### Frontend Tests
 
@@ -1076,6 +1106,29 @@ npm test -- --coverage
 - **E2E Tests**: 13 comprehensive test cases for demonstration workflow
 - **Component Tests**: UI component testing with mocked APIs
 - **Integration Tests**: WebSocket and API integration testing
+
+### Playwright E2E Tests (with Screenshots)
+
+Browser-based E2E tests with automatic screenshot capture on every test run.
+
+```bash
+# Run all Playwright tests (3 spec files, 19 tests across 3 browsers)
+npx playwright test
+
+# Run with visible browser
+npx playwright test --headed
+
+# View HTML report with screenshots
+npx playwright show-report
+```
+
+**Screenshot capture:**
+- **Automatic**: `screenshot: 'on'` captures a screenshot after every test (saved in `test-results/`)
+- **Explicit**: Named screenshots at key UI states (e.g., `login-page.png`, `react-app-initialized.png`)
+- **Video**: Captured on first retry for debugging flaky tests
+- **Trace**: Playwright trace viewer available on first retry
+
+Screenshots are saved to `test-results/screenshots/` with descriptive names for visual regression verification.
 
 ---
 
@@ -1570,6 +1623,8 @@ Imagine a world where:
 - Contract Tests: 87 functions (1,681 lines) - 100% function coverage
 - Backend Integration Tests: 36 test cases (payment flow, reconciliation, validator, WebSocket)
 - Backend E2E Tests: Complete demonstration workflow with mocked blockchain/LLM
+- Backend Regression Tests: 46 HTTP-level tests (health, CSRF, agent-identities, escrow, x402, auth guards)
+- Playwright E2E Tests: 19 browser tests across 3 browsers with automatic screenshot capture
 - Frontend E2E Tests: 13 test cases for full user journey
 - AI Integration Tests: Kimi 2.5 API + full pipeline (100% pass rate)
 - CI/CD: 5 parallel GitHub Actions jobs with Codecov integration
@@ -1750,7 +1805,7 @@ cd AI_Bug_Bountry_App
 ![GitHub watchers](https://img.shields.io/github/watchers/jul1angr1s/AI_Bug_Bountry_App?style=social)
 
 **Code**: 26,000+ lines (TypeScript + Solidity)
-**Tests**: 302 unit + 87 contract + 36 integration + 49 E2E
+**Tests**: 302 unit + 87 contract + 36 integration + 46 regression + 49 E2E
 **CI/CD**: 5 parallel GitHub Actions jobs with Codecov
 **Smart Contracts**: 6 deployed on Base Sepolia (3 platform + 3 agent)
 **Architecture**: tsyringe DI, decomposed services, ESLint enforced

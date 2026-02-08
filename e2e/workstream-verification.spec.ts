@@ -250,6 +250,8 @@ test.describe('Frontend: Protected Routes Redirect to Login', () => {
     // Should redirect to login or show login page
     const url = page.url();
     expect(url).toContain('/login');
+
+    await page.screenshot({ path: 'test-results/screenshots/root-redirect-to-login.png', fullPage: true });
   });
 
   test('/x402-payments redirects to login with returnUrl', async ({ page }) => {
@@ -261,6 +263,8 @@ test.describe('Frontend: Protected Routes Redirect to Login', () => {
     // Should preserve the return URL
     expect(url).toContain('returnUrl');
     expect(url).toContain('x402-payments');
+
+    await page.screenshot({ path: 'test-results/screenshots/x402-payments-redirect.png', fullPage: true });
   });
 
   test('/agents redirects to login with returnUrl', async ({ page }) => {
@@ -270,6 +274,8 @@ test.describe('Frontend: Protected Routes Redirect to Login', () => {
     const url = page.url();
     expect(url).toContain('/login');
     expect(url).toContain('returnUrl');
+
+    await page.screenshot({ path: 'test-results/screenshots/agents-redirect.png', fullPage: true });
   });
 
   test('/protocols/register redirects to login', async ({ page }) => {
@@ -278,6 +284,8 @@ test.describe('Frontend: Protected Routes Redirect to Login', () => {
 
     const url = page.url();
     expect(url).toContain('/login');
+
+    await page.screenshot({ path: 'test-results/screenshots/protocols-register-redirect.png', fullPage: true });
   });
 
   test('Login page renders correctly', async ({ page }) => {
@@ -289,6 +297,8 @@ test.describe('Frontend: Protected Routes Redirect to Login', () => {
     expect(pageContent).toBeTruthy();
     // Should have the page loaded (not a blank page)
     expect(pageContent!.length).toBeGreaterThan(50);
+
+    await page.screenshot({ path: 'test-results/screenshots/login-page.png', fullPage: true });
   });
 });
 
@@ -304,6 +314,8 @@ test.describe('Frontend: Build & Load Verification', () => {
     // Should have a valid HTML document
     const title = await page.title();
     expect(title).toBeTruthy();
+
+    await page.screenshot({ path: 'test-results/screenshots/frontend-html-served.png', fullPage: true });
   });
 
   test('Frontend loads without critical JavaScript errors', async ({ page }) => {
@@ -329,6 +341,8 @@ test.describe('Frontend: Build & Load Verification', () => {
     );
 
     expect(criticalErrors.length).toBe(0);
+
+    await page.screenshot({ path: 'test-results/screenshots/frontend-no-js-errors.png', fullPage: true });
   });
 
   test('Frontend React app initializes successfully', async ({ page }) => {
@@ -342,5 +356,7 @@ test.describe('Frontend: Build & Load Verification', () => {
     // The root should have content (React rendered something)
     const rootContent = await root.textContent();
     expect(rootContent!.length).toBeGreaterThan(0);
+
+    await page.screenshot({ path: 'test-results/screenshots/react-app-initialized.png', fullPage: true });
   });
 });

@@ -16,6 +16,7 @@
     "test:ai": "vitest run --testNamePattern='.*\\.ai\\.test\\.ts$'",
     "test:integration": "vitest run tests/integration",
     "test:e2e": "vitest run tests/e2e",
+    "test:regression": "vitest run tests/e2e/regression",
     "test:watch": "vitest watch",
     "test:coverage": "vitest run --coverage",
     "prisma:generate": "prisma generate",
