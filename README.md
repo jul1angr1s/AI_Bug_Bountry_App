@@ -126,32 +126,41 @@ graph LR
 ### Dashboard
 Real-time overview with agent status, bounty pool, and recent vulnerabilities.
 
-![Dashboard](frontend/docs/screenshots/dashboard.png)
+![Dashboard](project/UI/dashboard1.png)
 
 ### Protocols
 Protocol list with security scores, status filters, and one-click registration.
 
-![Protocols](frontend/docs/screenshots/protocols.png)
+![Protocols](project/UI/protocols1.png)
 
-### Protocol Detail
-Deep-dive into a registered protocol with scans, findings, and payment tabs.
+### Agents
+AI agent management with researcher and validator registration, reputation scoring, and escrow balances.
 
-![Protocol Detail](frontend/docs/screenshots/protocol-detail.png)
+![Agents](project/UI/agents1.png)
 
 ### Scan Findings
 AI-discovered vulnerabilities with severity badges, confidence scores, and detailed descriptions.
 
-![Scan Findings](frontend/docs/screenshots/scan-findings.png)
+![Scan Findings](project/UI/scans1.png)
+
+![Scan Details](project/UI/scans2.png)
 
 ### Validations
 Proof validation results powered by Kimi 2.5 LLM — VALIDATED or REJECTED per finding.
 
-![Validations](frontend/docs/screenshots/validations.png)
+![Validations](project/UI/validations1.png)
 
 ### USDC Payments & Rewards
 Bounty tracking with payout distribution by severity, top earners leaderboard, and recent payouts.
 
-![Payments](frontend/docs/screenshots/payments.png)
+![Payments Overview](project/UI/payments1.png)
+
+![Payment Details](project/UI/payments2.png)
+
+### x.402 Payment Gating
+HTTP 402 protocol registration gate with Coinbase x.402 facilitator integration for instant USDC payments.
+
+![x.402 Payments](project/UI/x402paymets.png)
 
 </div>
 
