@@ -1,8 +1,10 @@
+import { Shield } from 'lucide-react';
 import type { AgentReputation } from '../../types/dashboard';
 
 interface ReputationScoreCardProps {
   reputation: AgentReputation | null | undefined;
   isLoading: boolean;
+  isOnChain?: boolean;
 }
 
 function CircularProgress({ score }: { score: number }) {
@@ -63,7 +65,7 @@ function LoadingSkeleton() {
   );
 }
 
-export default function ReputationScoreCard({ reputation, isLoading }: ReputationScoreCardProps) {
+export default function ReputationScoreCard({ reputation, isLoading, isOnChain }: ReputationScoreCardProps) {
   if (isLoading) {
     return <LoadingSkeleton />;
   }
@@ -86,6 +88,14 @@ export default function ReputationScoreCard({ reputation, isLoading }: Reputatio
 
       <div className="flex flex-col items-center gap-6">
         <CircularProgress score={reputation.reputationScore} />
+
+        {/* On-chain verification indicator */}
+        {isOnChain && (
+          <div className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-3 py-1">
+            <Shield className="h-3.5 w-3.5 text-emerald-400" />
+            <span className="text-xs font-medium text-emerald-400">Score verified on blockchain</span>
+          </div>
+        )}
 
         <div className="flex w-full justify-around border-t border-gray-700 pt-4">
           <div className="flex flex-col items-center">

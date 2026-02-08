@@ -87,6 +87,8 @@ app.get('/api/v1/csrf-token', getCsrfTokenEndpoint);
 app.use('/api/v1/protocols', verifyCsrfToken);
 app.use('/api/v1/payments', verifyCsrfToken);
 app.use('/api/v1/funding', verifyCsrfToken);
+app.use('/api/v1/agent-identities', verifyCsrfToken);
+app.use('/api/v1/scans', verifyCsrfToken);
 
 app.use('/api/v1', apiRouter);
 

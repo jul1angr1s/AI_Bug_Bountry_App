@@ -1,5 +1,7 @@
 import { ExternalLink } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import type { AgentIdentity } from '../../types/dashboard';
+import { getExplorerTxUrl, truncateHash } from '../../lib/utils';
 
 interface AgentRegistryTableProps {
   agents: AgentIdentity[];
@@ -7,14 +9,6 @@ interface AgentRegistryTableProps {
 }
 
 export function AgentRegistryTable({ agents, isLoading }: AgentRegistryTableProps) {
-  const truncateAddress = (address: string) => {
-    return `${address.slice(0, 6)}...${address.slice(-4)}`;
-  };
-
-  const getBasescanUrl = (txHash: string) => {
-    return `https://sepolia.basescan.org/tx/${txHash}`;
-  };
-
   // Generate gradient for avatar based on wallet address
   const getGradient = (address: string) => {
     const colors = [
@@ -67,13 +61,14 @@ export function AgentRegistryTable({ agents, isLoading }: AgentRegistryTableProp
               <th className="px-6 py-4">NFT ID</th>
               <th className="px-6 py-4">Score</th>
               <th className="px-6 py-4">Status</th>
-              <th className="px-6 py-4 text-center">TX</th>
+              <th className="px-6 py-4 text-center">Verification</th>
+              <th className="px-6 py-4 text-center">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-800 text-sm">
             {agents.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-6 py-16 text-center text-gray-500">
+                <td colSpan={7} className="px-6 py-16 text-center text-gray-500">
                   <div className="flex flex-col items-center gap-2">
                     <div className="size-12 rounded-full bg-gray-800 flex items-center justify-center">
                       <svg
@@ -107,7 +102,7 @@ export function AgentRegistryTable({ agents, isLoading }: AgentRegistryTableProp
                         className={`size-9 rounded-full bg-gradient-to-tr ${getGradient(agent.walletAddress)} shrink-0`}
                       ></div>
                       <span className="font-mono text-xs text-white font-medium">
-                        {truncateAddress(agent.walletAddress)}
+                        {truncateHash(agent.walletAddress)}
                       </span>
                     </div>
                   </td>
@@ -145,32 +140,57 @@ export function AgentRegistryTable({ agents, isLoading }: AgentRegistryTableProp
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    {agent.isActive ? (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
-                        <span className="size-1.5 rounded-full bg-emerald-400"></span>
-                        Active
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-500/15 text-gray-400 border border-gray-500/20">
-                        <span className="size-1.5 rounded-full bg-gray-500"></span>
-                        Inactive
-                      </span>
-                    )}
+                    <div>
+                      {agent.isActive ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+                          <span className="size-1.5 rounded-full bg-emerald-400"></span>
+                          Active
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-500/15 text-gray-400 border border-gray-500/20">
+                          <span className="size-1.5 rounded-full bg-gray-500"></span>
+                          Inactive
+                        </span>
+                      )}
+                      {agent.onChainTxHash ? (
+                        <p className="text-[10px] text-emerald-500 mt-1">Verified on blockchain</p>
+                      ) : (
+                        <p className="text-[10px] text-gray-600 mt-1">Database only</p>
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-4 text-center">
                     {agent.onChainTxHash ? (
                       <a
-                        href={getBasescanUrl(agent.onChainTxHash)}
+                        href={getExplorerTxUrl(agent.onChainTxHash)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-gray-400 hover:text-white transition-colors inline-flex items-center justify-center"
+                        className="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 transition-colors text-xs"
                         title="View on BaseScan"
                       >
-                        <ExternalLink className="w-4 h-4" />
+                        Verify on chain
+                        <ExternalLink className="w-3 h-3" />
                       </a>
                     ) : (
-                      <span className="text-gray-600">-</span>
+                      <span className="text-gray-600 text-xs">-</span>
                     )}
+                  </td>
+                  <td className="px-6 py-4 text-center">
+                    <div className="flex items-center justify-center gap-2">
+                      <Link
+                        to={`/agents/${agent.id}/reputation`}
+                        className="text-xs text-gray-400 hover:text-white transition-colors"
+                      >
+                        Reputation
+                      </Link>
+                      <span className="text-gray-700">|</span>
+                      <Link
+                        to={`/agents/${agent.id}/escrow`}
+                        className="text-xs text-gray-400 hover:text-white transition-colors"
+                      >
+                        Escrow
+                      </Link>
+                    </div>
                   </td>
                 </tr>
               ))

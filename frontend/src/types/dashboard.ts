@@ -1,6 +1,6 @@
 export type SeverityLevel = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'INFO';
 export type AgentStatus = 'ONLINE' | 'OFFLINE' | 'SCANNING' | 'ERROR';
-export type AgentType = 'Protocol' | 'Researcher' | 'Validator';
+export type AgentType = 'Protocol' | 'Researcher' | 'Validator' | 'Payment';
 export type PaymentStatus = 'COMPLETED' | 'PENDING' | 'FAILED';
 
 export interface Vulnerability {

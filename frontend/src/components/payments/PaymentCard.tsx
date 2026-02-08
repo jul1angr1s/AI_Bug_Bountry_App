@@ -1,4 +1,5 @@
 import { ExternalLink, CheckCircle, Clock, XCircle } from 'lucide-react';
+import { getExplorerTxUrl } from '../../lib/utils';
 
 interface PaymentCardProps {
   payment: {
@@ -39,7 +40,7 @@ export default function PaymentCard({ payment }: PaymentCardProps) {
   };
 
   const basescanUrl = payment.txHash
-    ? `https://sepolia.basescan.org/tx/${payment.txHash}`
+    ? getExplorerTxUrl(payment.txHash)
     : null;
 
   return (

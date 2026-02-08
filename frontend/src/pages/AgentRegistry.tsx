@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Users, UserPlus } from 'lucide-react';
+import { Users, UserPlus, Shield, Star } from 'lucide-react';
 import { useAgentIdentities } from '../hooks/useAgentIdentities';
 import { useAgentLeaderboard } from '../hooks/useReputation';
 import { AgentRegistryTable } from '../components/agents/AgentRegistryTable';
@@ -13,11 +13,28 @@ export default function AgentRegistry() {
   const { data: agents, isLoading, refetch } = useAgentIdentities();
   const { data: leaderboard, isLoading: leaderboardLoading } = useAgentLeaderboard();
 
-  const handleRegister = async (data: { walletAddress: string; agentType: AgentIdentityType }) => {
-    await registerAgent(data.walletAddress, data.agentType);
+  const handleRegister = async (data: { walletAddress: string; agentType: AgentIdentityType; registerOnChain?: boolean }) => {
+    await registerAgent(data.walletAddress, data.agentType, data.registerOnChain);
     await refetch();
     setIsModalOpen(false);
   };
+
+  // Compute stats from agents array
+  const totalAgents = agents?.length || 0;
+  const activeAgents = agents?.filter((a) => a.isActive).length || 0;
+  const onChainVerified = agents?.filter((a) => !!a.onChainTxHash).length || 0;
+  const avgReputation = totalAgents > 0
+    ? Math.round(
+        (agents?.reduce((sum, a) => sum + (a.reputation?.reputationScore ?? 0), 0) || 0) / totalAgents
+      )
+    : 0;
+
+  const stats = [
+    { label: 'Total Agents', value: totalAgents, icon: Users, color: 'text-blue-400', bg: 'bg-blue-500/10' },
+    { label: 'Active Agents', value: activeAgents, icon: Shield, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+    { label: 'On-Chain Verified', value: onChainVerified, icon: Shield, color: 'text-purple-400', bg: 'bg-purple-500/10' },
+    { label: 'Avg. Reputation', value: avgReputation, icon: Star, color: 'text-yellow-400', bg: 'bg-yellow-500/10' },
+  ];
 
   return (
     <div className="space-y-6">
@@ -33,6 +50,27 @@ export default function AgentRegistry() {
           <UserPlus className="w-4 h-4" />
           Register Agent
         </button>
+      </div>
+
+      {/* Summary Stat Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {stats.map((stat) => {
+          const Icon = stat.icon;
+          return (
+            <div
+              key={stat.label}
+              className="rounded-lg border border-gray-700 bg-gray-800 p-4"
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <div className={`p-1.5 rounded-lg ${stat.bg}`}>
+                  <Icon className={`w-4 h-4 ${stat.color}`} />
+                </div>
+                <span className="text-xs text-gray-400">{stat.label}</span>
+              </div>
+              <p className="text-lg font-bold text-white">{stat.value}</p>
+            </div>
+          );
+        })}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAccount } from 'wagmi';
 import { ExternalLink, ArrowDown, ArrowUp, Loader2, Wallet } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, getExplorerTxUrl } from '@/lib/utils';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import {
   fetchBountyPoolStatus,
@@ -167,7 +167,7 @@ export const BountyPoolStatus: React.FC<BountyPoolStatusProps> = ({
    * Get Basescan transaction URL
    */
   const getBasescanUrl = (txHash: string): string => {
-    return `https://sepolia.basescan.org/tx/${txHash}`;
+    return getExplorerTxUrl(txHash);
   };
 
   /**

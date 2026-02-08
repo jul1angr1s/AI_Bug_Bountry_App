@@ -99,7 +99,9 @@ export function RecentPaymentsTable({ payments, isLoading, onViewAll }: RecentPa
   };
 
   const getBasescanUrl = (txHash: string) => {
-    return `https://sepolia.basescan.org/tx/${txHash}`;
+    // Using centralized explorer URL utility
+    const EXPLORER_BASE_URL = import.meta.env.VITE_EXPLORER_BASE_URL || 'https://sepolia.basescan.org';
+    return `${EXPLORER_BASE_URL}/tx/${txHash}`;
   };
 
   // Generate gradient for avatar

@@ -1,5 +1,6 @@
 import type { EscrowTransaction } from '../../types/dashboard';
 import { ArrowUpCircle, ArrowDownCircle, ExternalLink } from 'lucide-react';
+import { getExplorerTxUrl } from '../../lib/utils';
 
 interface EscrowTransactionListProps {
   transactions: EscrowTransaction[];
@@ -134,12 +135,12 @@ export function EscrowTransactionList({ transactions, isLoading }: EscrowTransac
                     <td className="px-4 py-4">
                       {tx.txHash ? (
                         <a
-                          href={`https://sepolia.basescan.org/tx/${tx.txHash}`}
+                          href={getExplorerTxUrl(tx.txHash)}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center space-x-1 text-sm text-blue-400 hover:text-blue-300 transition-colors"
                         >
-                          <span>View</span>
+                          <span>Verify on chain</span>
                           <ExternalLink className="h-3 w-3" />
                         </a>
                       ) : (

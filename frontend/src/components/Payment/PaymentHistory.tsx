@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Check, Clock, X, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, getExplorerTxUrl } from '@/lib/utils';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { fetchPayments } from '@/lib/api';
 import SeverityBadge from '@/components/shared/SeverityBadge';
@@ -50,7 +50,7 @@ const formatAmount = (amount: string): string => {
  * Get Basescan transaction URL
  */
 const getBasescanUrl = (txHash: string): string => {
-  return `https://sepolia.basescan.org/tx/${txHash}`;
+  return getExplorerTxUrl(txHash);
 };
 
 /**

@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useChainId } from 'wagmi';
 import { parseUnits, keccak256, toHex } from 'viem';
-import { cn } from '@/lib/utils';
+import { cn, getExplorerTxUrl } from '@/lib/utils';
 import { MaterialIcon } from '../shared/MaterialIcon';
 import { USDCApprovalFlow } from '../Payment/USDCApprovalFlow';
 import {
@@ -412,7 +412,7 @@ export const FundingGate: React.FC<FundingGateProps> = ({
                 <div>
                   <p className="text-sm text-blue-400">Confirming transaction...</p>
                   <a
-                    href={`https://sepolia.basescan.org/tx/${txHash}`}
+                    href={getExplorerTxUrl(txHash)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-xs text-blue-300 underline"

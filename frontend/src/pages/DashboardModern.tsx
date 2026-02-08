@@ -144,7 +144,7 @@ export default function DashboardModern() {
   // Transform agents data for ModernAgentCard
   const modernAgents = agents?.map(agent => ({
     id: agent.id,
-    type: agent.type as 'Protocol' | 'Researcher' | 'Validator',
+    type: agent.type as 'Protocol' | 'Researcher' | 'Validator' | 'Payment',
     status: agent.status === 'ONLINE' ? 'active' as const : agent.status === 'ERROR' ? 'error' as const : 'idle' as const,
     scansCompleted: agent.scansCompleted || 0,
     uptime: '99.9%',

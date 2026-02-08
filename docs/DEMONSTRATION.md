@@ -2,148 +2,177 @@
 
 ## Overview
 
-This guide walks you through the complete end-to-end workflow of the AI Bug Bounty Platform. The flow now includes **ERC-8004 agent identity/reputation scoring** and **x.402 payment gating** — agents must register on-chain before operating, researchers must fund escrow before submitting findings, and protocol registration requires a USDC payment.
+This guide walks you through the complete end-to-end workflow of the AI Bug Bounty Platform (Thunder Security). The platform uses **ERC-8004 agent identity/reputation scoring** and **X.402 payment gating** with live on-chain USDC transactions on Base Sepolia. Every transaction is verifiable on the blockchain explorer.
 
 ## Architecture Overview
 
 ```
 ┌─────────────┐     ┌──────────────┐     ┌───────────────┐     ┌──────────────┐
-│  Register    │────▶│ x.402 Gate   │────▶│ Protocol      │────▶│ Scan Created │
+│  Register    │────>│ X.402 Gate   │────>│ Protocol      │────>│ Scan Created │
 │  Protocol    │     │ (1 USDC fee) │     │ Registered    │     │ Automatically│
 └─────────────┘     └──────────────┘     └───────────────┘     └──────┬───────┘
                                                                       │
 ┌─────────────┐     ┌──────────────┐     ┌───────────────┐           │
-│ Researcher   │────▶│ Escrow Gate  │────▶│ Finding       │◀──────────┘
+│ Researcher   │────>│ Escrow Gate  │────>│ Finding       │<──────────┘
 │ Agent Scans  │     │ (0.5 USDC)   │     │ Submitted     │
 └─────────────┘     └──────────────┘     └───────┬───────┘
                                                   │
-┌─────────────┐     ┌──────────────┐     ┌───────▼───────┐
-│ Validator    │────▶│ AI Validates │────▶│ Reputation    │
+┌─────────────┐     ┌──────────────┐     ┌───────v───────┐
+│ Validator    │────>│ AI Validates │────>│ Reputation    │
 │ Agent        │     │ + Score      │     │ Updated       │
 └─────────────┘     └──────────────┘     └───────┬───────┘
                                                   │
-┌─────────────┐     ┌──────────────┐     ┌───────▼───────┐
-│ Payment      │────▶│ BountyPool   │────▶│ USDC Paid     │
+┌─────────────┐     ┌──────────────┐     ┌───────v───────┐
+│ Payment      │────>│ BountyPool   │────>│ USDC Paid     │
 │ Worker       │     │ releaseBounty│     │ On-Chain      │
 └─────────────┘     └──────────────┘     └───────────────┘
 ```
 
+## Agent Types
+
+The platform runs 4 BullMQ agent workers:
+
+| Agent | Purpose | Capabilities |
+|-------|---------|-------------|
+| **Protocol** | Manages smart contract registrations | GitHub integration, on-chain registration, status tracking |
+| **Researcher** | Autonomous vulnerability scanner | Slither analysis, AI deep analysis, exploit proof generation |
+| **Validator** | Independent exploit verification | Sandbox deployment, proof replay, reputation scoring |
+| **Payment** | Processes USDC bounty payments | USDC transfers, bounty calculation, on-chain settlement |
+
 ## Prerequisites
 
 - Node.js >= 20
-- PostgreSQL database
-- Redis server (with auth: `redis-cli -a redis_dev_2024 ping`)
-- Kimi 2.5 API key (Moonshot AI)
-- Base Sepolia testnet access
+- PostgreSQL database running
+- Redis via Docker (`docker ps | grep redis`)
+- Base Sepolia testnet access (Alchemy RPC)
+- MetaMask wallet with Base Sepolia USDC + ETH for gas
 - Foundry installed (`forge`, `cast`, `anvil`)
-- Payer wallet funded with ETH (>= 0.01 ETH for gas)
-- BountyPool funded with USDC (>= 50 USDC for demo)
 
 ## Deployed Contracts (Base Sepolia - Chain 84532)
 
 | Contract | Address | Purpose |
 |----------|---------|---------|
+| ProtocolRegistry | `0xc7DF730cf661a306a9aEC93D7180da6f6Da23235` | Protocol registration |
+| ValidationRegistry | `0x8fBE5E9B0C17Cb606091e5050529CE99baB7744d` | Validation records |
+| BountyPool | `0x6D0bA6dA342c4ce75281Ea90c71017BC94A397b0` | Bounty payouts |
 | AgentIdentityRegistry | `0x59932bDf3056D88DC07cb320263419B8ec1e942d` | ERC-8004 soulbound agent NFTs |
 | AgentReputationRegistry | `0x8160aB516366FfaAb6C239524D35963058Feb850` | On-chain reputation scoring |
 | PlatformEscrow | `0x33e5eE00985F96b482370c948d1c63c0AA4bD1ab` | Escrow deposits + fee deduction |
-| BountyPool | `0x6D0bA6dA342c4ce75281Ea90c71017BC94A397b0` | Bounty payouts to researchers |
 | USDC (Base Sepolia) | `0x036CbD53842c5426634e7929541eC2318f3dCF7e` | Payment token |
 
-## Environment Setup
+## Wallet Configuration (Two-Wallet Setup)
 
-### Backend `.env`
+The backend uses two wallets to separate concerns:
 
-```bash
-# Database
-DATABASE_URL=postgresql://user:password@localhost:5432/bugbounty
+| Wallet | Env Var | Address | Role |
+|--------|---------|---------|------|
+| Deployer/Payer | `PRIVATE_KEY` | `0x43793B3d9F23FAC1df54d715Cb215b8A50e710c3` | Contract admin, has PAYOUT_ROLE on BountyPool |
+| Platform Receiver | `PRIVATE_KEY2` | `0x6b26F796b7C494a65ca42d29EF13E9eF1CeCE166` | Receives X.402 protocol registration fees |
 
-# Server
-FRONTEND_URL=http://localhost:5173
-PORT=3000
-NODE_ENV=development
+**Important**: `PLATFORM_WALLET_ADDRESS` must be set to the `PRIVATE_KEY2` wallet (not the deployer). This ensures the payer (user's MetaMask) and receiver are always different wallets for valid on-chain transfers.
 
-# Blockchain (Base Sepolia)
-PRIVATE_KEY=0x...your_private_key
-BASE_SEPOLIA_RPC_URL=https://base-sepolia.g.alchemy.com/v2/YOUR_KEY
-BASESCAN_API_KEY=your_basescan_key
-
-# ERC-8004 Agent Contracts
-AGENT_IDENTITY_REGISTRY_ADDRESS=0x59932bDf3056D88DC07cb320263419B8ec1e942d
-AGENT_REPUTATION_REGISTRY_ADDRESS=0x8160aB516366FfaAb6C239524D35963058Feb850
-
-# x.402 Payment Gating
-PLATFORM_ESCROW_ADDRESS=0x33e5eE00985F96b482370c948d1c63c0AA4bD1ab
-PLATFORM_WALLET_ADDRESS=0x...your_platform_wallet
-USDC_ADDRESS=0x036CbD53842c5426634e7929541eC2318f3dCF7e
-SKIP_X402_PAYMENT_GATE=true  # Set to 'false' for full payment enforcement
-
-# BountyPool
-BOUNTY_POOL_ADDRESS=0x6D0bA6dA342c4ce75281Ea90c71017BC94A397b0
-SKIP_ONCHAIN_REGISTRATION=true  # Set to 'false' for on-chain protocol registration
-
-# AI/LLM (Kimi 2.5)
-MOONSHOT_API_KEY=your_moonshot_api_key
-KIMI_API_URL=https://api.moonshot.cn/v1
-KIMI_MODEL=moonshot-v1-32k
-
-# Redis
-REDIS_URL=redis://:redis_dev_2024@localhost:6379
 ```
-
-### Frontend `.env`
-
-```bash
-VITE_API_URL=http://localhost:3000/api/v1
+User's MetaMask (payer) --[1 USDC]--> PLATFORM_WALLET (0x6b26...166)
+                                      ^
+                                      |
+                        Coinbase Facilitator verifies transfer
+                                      |
+                                      v
+                        Backend records X402PaymentRequest with real txHash
+                        Frontend shows payment on /x402-payments with BaseScan link
 ```
 
 ## Starting the Application
 
-### Terminal 1: Backend
+### Terminal 1: Redis (Docker)
+
+```bash
+# Redis runs via Docker - verify it's up
+docker ps | grep thunder-redis
+# Expected: thunder-redis ... Up ... (healthy)
+
+# Test connection
+docker exec thunder-redis redis-cli -a redis_dev_2024 ping
+# Expected: PONG
+```
+
+### Terminal 2: Backend
 
 ```bash
 cd backend
 npm install
-npx prisma migrate dev    # Creates all tables including ERC-8004/x402 models
+npx prisma migrate dev
 npm run dev
+# Verify: curl http://localhost:3000/api/v1/health
+# Expected: {"status":"ok","services":{"database":"ok","redis":"ok","eventListener":"ok"}}
 ```
 
-### Terminal 2: Frontend
+### Terminal 3: Frontend
 
 ```bash
 cd frontend
 npm install
 npm run dev
+# Open: http://localhost:5173
 ```
 
-### Terminal 3: Redis (verify)
+## Quick Start with Demo Data
+
+To populate the platform with realistic demo data for management presentations:
 
 ```bash
-redis-cli -a redis_dev_2024 ping
-# Expected: PONG
+npx tsx backend/scripts/seed-demo-data.ts
 ```
+
+This creates:
+- 2 agent identities (1 RESEARCHER, 1 VALIDATOR) with on-chain tx hashes
+- Reputation records (researcher: score 85, validator: score 92)
+- 4 feedback entries (3 on-chain, 1 off-chain)
+- 3 X.402 payment records (2 COMPLETED, 1 PENDING)
+- 1 escrow account with 5 USDC balance and 2 transactions
+
+Verify seeded data:
+```bash
+# Agent identities with reputation
+curl -s http://localhost:3000/api/v1/agent-identities | python3 -m json.tool
+
+# X.402 payment records
+curl -s http://localhost:3000/api/v1/agent-identities/x402-payments | python3 -m json.tool
+
+# Leaderboard
+curl -s http://localhost:3000/api/v1/agent-identities/leaderboard | python3 -m json.tool
+```
+
+## Authentication
+
+The platform uses **SIWE (Sign-In with Ethereum)** authentication:
+
+1. Connect MetaMask wallet on the `/login` page
+2. Sign a message to prove wallet ownership
+3. Backend verifies signature and issues a JWT session
+4. All protected routes require authentication (redirects to `/login` with return URL)
+
+**CSRF Protection**: All state-changing requests (POST, PUT, DELETE) require a CSRF token. The frontend handles this automatically by fetching a token from `GET /api/v1/csrf-token` and including it in the `x-csrf-token` header plus the `X-CSRF-Token` cookie.
 
 ## End-to-End Demonstration
 
-### Step 1: Register Agent Identities
+### Step 1: Register Agent Identities (ERC-8004)
 
-Before any operations, register the researcher and validator agents in the ERC-8004 registry.
+Navigate to `/agents` and click **"Register Agent"**.
 
-#### Via Frontend
+The registration modal includes an **on-chain toggle**:
+- **Off**: Agent is registered in the database only ("Database only" indicator)
+- **On**: Agent is registered on-chain via ERC-8004, minting a soulbound NFT ("Verified on blockchain" indicator with BaseScan link)
 
-1. Navigate to `http://localhost:5173/agents`
-2. Click **"Register Agent"** button
-3. Fill in:
-   - **Wallet Address**: `0x...researcher_wallet` (the wallet that will scan)
-   - **Agent Type**: `RESEARCHER`
-4. Click **"Register Agent"**
-5. Repeat for the validator:
-   - **Wallet Address**: `0x...validator_wallet`
-   - **Agent Type**: `VALIDATOR`
+The Agent Registry page shows:
+- **4 stat cards**: Total Agents, Active Agents, On-Chain Verified, Average Reputation Score
+- **Table columns**: Wallet, Type, Status (with verification indicator), Verification (BaseScan link), Actions (Reputation/Escrow links)
+- **Verification indicators**: Green "Verified on blockchain" for on-chain agents, gray "Database only" otherwise
 
-#### Via API (cURL)
+#### Via API
 
 ```bash
-# Register researcher agent
+# Register researcher agent (with on-chain ERC-8004)
 curl -X POST http://localhost:3000/api/v1/agent-identities/register \
   -H "Content-Type: application/json" \
   -d '{
@@ -152,126 +181,63 @@ curl -X POST http://localhost:3000/api/v1/agent-identities/register \
     "registerOnChain": true
   }'
 
-# Register validator agent
-curl -X POST http://localhost:3000/api/v1/agent-identities/register \
-  -H "Content-Type: application/json" \
-  -d '{
-    "walletAddress": "0xYOUR_VALIDATOR_WALLET",
-    "agentType": "VALIDATOR",
-    "registerOnChain": true
-  }'
+# Verify registration
+curl -s http://localhost:3000/api/v1/agent-identities | python3 -m json.tool
 ```
-
-#### Verify Registration
-
-```bash
-# Check all registered agents
-curl http://localhost:3000/api/v1/agent-identities
-
-# Check on-chain registration
-cast call 0x59932bDf3056D88DC07cb320263419B8ec1e942d \
-  "isRegistered(address)(bool)" \
-  0xYOUR_RESEARCHER_WALLET \
-  --rpc-url $BASE_SEPOLIA_RPC_URL
-```
-
-**Frontend**: Navigate to `/agents` to see both agents in the registry table with their NFT IDs, type badges, and active status.
 
 ### Step 2: Fund Researcher Escrow
 
-The researcher needs USDC in escrow to submit findings (0.5 USDC per submission).
+Navigate to `/agents/:researcher_id/escrow`.
 
-#### Via Frontend
-
-1. Navigate to `http://localhost:5173/agents/:researcher_id/escrow`
-2. Click **"Deposit"**
-3. Enter amount (e.g., `5` USDC for 10 submissions)
-4. Confirm the deposit
-
-#### Via API
+The Escrow Dashboard shows:
+- Current balance, total deposited, total deducted
+- Remaining submissions (balance / 0.5 USDC submission fee)
+- Transaction history with "Verify on chain" links for each transaction
 
 ```bash
-# Deposit 5 USDC (5000000 in 6-decimal USDC units) to researcher escrow
-curl -X POST http://localhost:3000/api/v1/agent-identities/RESEARCHER_ID/escrow/deposit \
+# Deposit 5 USDC (= 10 submissions)
+curl -X POST http://localhost:3000/api/v1/agent-identities/AGENT_ID/escrow/deposit \
   -H "Content-Type: application/json" \
-  -d '{
-    "amount": "5000000",
-    "txHash": "0x...optional_onchain_tx_hash"
-  }'
+  -d '{"amount": "5000000", "txHash": "0x...optional_onchain_tx_hash"}'
+
+# Check balance
+curl -s http://localhost:3000/api/v1/agent-identities/AGENT_ID/escrow | python3 -m json.tool
+# Expected: {"balance":"5000000","totalDeposited":"5000000","remainingSubmissions":10,...}
 ```
 
-#### Verify Escrow Balance
+### Step 3: Register Protocol (X.402 Payment Gate)
 
+Navigate to `/protocols/register` and fill in the protocol details.
+
+**Current configuration**: `SKIP_X402_PAYMENT_GATE=false` (live payment gate enabled).
+
+When you submit the registration:
+
+1. Backend returns **HTTP 402 Payment Required** with payment terms
+2. Frontend catches the 402 and displays the **PaymentRequiredModal**
+3. The modal shows:
+   - Payment amount: 1.00 USDC
+   - Network: Base Sepolia
+   - Recipient: Platform wallet address
+4. User clicks **"Approve USDC"** (ERC-20 approval via MetaMask)
+5. User clicks **"Pay"** (USDC transfer via MetaMask)
+6. Modal shows the transaction hash with a "Verify on chain" BaseScan link
+7. Frontend retries the protocol registration with the `payment-signature` header
+8. Backend verifies the payment via the Coinbase X.402 facilitator
+9. `X402PaymentRequest` record is created with the real txHash
+10. Protocol registration proceeds
+
+The payment appears on the `/x402-payments` page with:
+- **4 stat cards**: Total Payments, Total Volume (USDC), Confirmed, Processing
+- **Payment timeline**: Each payment shows type, plain-language description, amount, status label, and "Verify on chain" link
+
+#### Demo Mode (skip payment gate)
+
+To skip the payment gate for testing:
 ```bash
-# Check escrow balance
-curl http://localhost:3000/api/v1/agent-identities/RESEARCHER_ID/escrow
-
-# Expected response:
-# {
-#   "balance": "5000000",
-#   "totalDeposited": "5000000",
-#   "totalDeducted": "0",
-#   "remainingSubmissions": 10,
-#   "submissionFee": "500000"
-# }
+# In backend/.env:
+SKIP_X402_PAYMENT_GATE=true
 ```
-
-**Frontend**: The Escrow Dashboard at `/agents/:id/escrow` shows balance, remaining submissions, deposit history, and transaction list.
-
-### Step 3: Register Protocol (x.402 Payment Gate)
-
-Protocol registration is gated by the x.402 payment protocol. When `SKIP_X402_PAYMENT_GATE=false`, registering a protocol requires a 1 USDC payment.
-
-#### With Payment Gate Disabled (Demo Mode)
-
-If `SKIP_X402_PAYMENT_GATE=true` in `.env`, the gate is skipped and registration proceeds normally:
-
-1. Navigate to `http://localhost:5173/protocols/register`
-2. Fill in:
-   - **Protocol Name**: Thunder Loan Protocol
-   - **GitHub URL**: `https://github.com/Cyfrin/2023-11-Thunder-Loan`
-   - **Branch**: main
-   - **Contract Path**: `src/protocol/ThunderLoan.sol`
-3. Click **"Register Protocol"**
-
-#### With Payment Gate Enabled
-
-When `SKIP_X402_PAYMENT_GATE=false`:
-
-1. The initial `POST /api/v1/protocols` returns **HTTP 402 Payment Required**
-2. The response body contains x.402 payment terms:
-   ```json
-   {
-     "error": "Payment Required",
-     "x402": {
-       "version": "1.0",
-       "amount": "1000000",
-       "asset": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
-       "chain": "base-sepolia",
-       "recipient": "0xYOUR_PLATFORM_WALLET",
-       "memo": "Protocol registration fee",
-       "expiresAt": "2026-02-05T..."
-     },
-     "instructions": {
-       "step1": "Approve USDC spending for the platform escrow contract",
-       "step2": "Include X-Payment-Receipt header with transaction hash",
-       "step3": "Retry the request with payment proof"
-     }
-   }
-   ```
-3. The frontend's **PaymentRequiredModal** intercepts the 402 and displays the payment terms
-4. User pays 1 USDC on-chain (USDC transfer to platform wallet)
-5. Retry the request with the transaction hash:
-   ```bash
-   curl -X POST http://localhost:3000/api/v1/protocols \
-     -H "Content-Type: application/json" \
-     -H "X-Payment-Receipt: 0xYOUR_TX_HASH" \
-     -d '{ "name": "Thunder Loan", "githubUrl": "..." }'
-   ```
-6. The middleware verifies the tx on-chain (parses USDC Transfer event, checks recipient and amount)
-7. Registration proceeds
-
-**Frontend**: The payment event appears in the x.402 Payment Timeline at `/x402-payments`.
 
 ### Step 4: Automated Scanning (Researcher Agent)
 
@@ -281,57 +247,29 @@ The Researcher Agent:
 1. Clones the GitHub repository
 2. Deploys to a local Anvil fork
 3. Runs Slither static analysis
-4. Performs AI deep analysis
+4. Performs AI deep analysis (Kimi k.25)
 5. Generates exploit proof-of-concept code
 6. Creates Finding records
+7. Deducts 0.5 USDC from researcher escrow per submission
 
-**x.402 Finding Submission Gate**: Each finding submission checks the researcher's escrow balance. If `SKIP_X402_PAYMENT_GATE=false` and balance < 0.5 USDC, the submission returns HTTP 402 with instructions to deposit more funds.
-
-After each successful scan, 0.5 USDC is deducted from the researcher's escrow:
-
-```
-[Scans] Submission fee deducted for researcher 0x..., scan abc-123
-```
-
-**Monitor Progress**:
-- Navigate to `/scans` to see real-time scan progress
-- Navigate to `/agents/:researcher_id/escrow` to see SUBMISSION_FEE deductions in the transaction list
-- Backend console shows scan stages and fee deductions
-
-**Expected Duration**: < 60 seconds
+**Monitor**: Navigate to `/scans` for real-time progress. Check `/agents/:id/escrow` for SUBMISSION_FEE deductions.
 
 ### Step 5: Proof Validation (Validator Agent + Reputation)
 
 The Validator Agent automatically:
-1. Fetches proof from Finding record
-2. Analyzes proof with Kimi 2.5 LLM
-3. Evaluates technical correctness, attack vector validity, severity
-4. Calculates confidence score (0-100%)
-5. Updates Finding status (VALIDATED/REJECTED)
-6. **Records reputation feedback** for the researcher agent
+1. Analyzes proof with Kimi k.25 LLM
+2. Evaluates technical correctness, attack vector, severity
+3. Calculates confidence score (0-100%)
+4. Updates Finding status (VALIDATED/REJECTED)
+5. Records reputation feedback for the researcher
 
-#### Reputation Update Flow
-
-When validation completes, the system:
-1. Dynamically resolves researcher and validator identities from the `AgentIdentity` table
-2. Calls `reputationService.recordFeedback()` with the validation outcome
-3. Maps severity to feedback type:
-   - `CRITICAL` → `CONFIRMED_CRITICAL`
-   - `HIGH` → `CONFIRMED_HIGH`
-   - `MEDIUM` → `CONFIRMED_MEDIUM`
-   - `LOW` → `CONFIRMED_LOW`
-   - `INFO` → `CONFIRMED_INFORMATIONAL`
-   - Rejected → `REJECTED`
-4. Updates the researcher's on-chain reputation score
-
-**Monitor Progress**:
-- Navigate to `/agents/:researcher_id/reputation` to see:
-  - Reputation score (0-100) with circular progress
-  - Confirmed/rejected counts
-  - Feedback history with severity badges
-- Navigate to `/agents` to see the **Reputation Leaderboard** (ranked by score)
-
-**Expected Duration**: < 60 seconds
+The Reputation Tracker at `/agents/:id/reputation` shows:
+- Reputation score (0-100) with circular progress indicator
+- "Score verified on blockchain" badge when agent has on-chain registration
+- Confirmed/rejected/inconclusive counts
+- Feedback history with on-chain/off-chain verification indicators:
+  - Green dot + "On-chain" for feedback recorded on the blockchain
+  - Gray dot + "Off-chain" for database-only feedback
 
 ### Step 6: Payment Processing (BountyPool)
 
@@ -342,30 +280,34 @@ If the finding is validated, the Payment Worker:
 4. Monitors transaction confirmation
 5. Updates Payment record with txHash
 
-**Monitor Progress**:
-- Navigate to `/payments` to see status: PENDING → PROCESSING → COMPLETED
-- Transaction hash links directly to Basescan
+**Monitor**: Navigate to `/payments` to see status progression and BaseScan links.
 
-**Expected Duration**: < 30 seconds
+### Step 7: Verify Results
 
-### Step 7: Verify Results End-to-End
+#### Frontend Verification Pages
 
-#### 7.1 Frontend Pages
-
-| Page | URL | What to Check |
-|------|-----|---------------|
-| Dashboard | `/` | Total protocols, vulnerabilities, payments, agent status |
-| Agent Registry | `/agents` | Both agents registered, NFT IDs, reputation scores, leaderboard |
-| Escrow Dashboard | `/agents/:id/escrow` | Balance after fee deductions, transaction history |
-| Reputation Tracker | `/agents/:id/reputation` | Score, confirmed/rejected counts, feedback events |
-| x.402 Payments | `/x402-payments` | Payment requests (PENDING/COMPLETED), tx hashes |
-| Protocols | `/protocols` | Protocol card with ACTIVE status |
+| Page | URL | What to Verify |
+|------|-----|----------------|
+| Dashboard | `/` | Agent cards with capabilities, all 4 agent types displayed |
+| Agent Registry | `/agents` | Stat cards, verification indicators, "Verify on chain" links |
+| Reputation Tracker | `/agents/:id/reputation` | Score, on-chain badge, feedback with on-chain/off-chain indicators |
+| Escrow Dashboard | `/agents/:id/escrow` | Balance, transaction history with "Verify on chain" links |
+| X.402 Payments | `/x402-payments` | Stat cards, payment timeline with plain-language descriptions |
+| Protocols | `/protocols` | Protocol list with ACTIVE status |
 | Scans | `/scans` | Scan progress and findings |
-| Payments | `/payments` | USDC payouts with Basescan links |
+| Payments | `/payments` | USDC payouts with BaseScan links |
 
-#### 7.2 On-Chain Verification
+All "Verify on chain" links open the transaction on `sepolia.basescan.org` for independent verification.
+
+#### On-Chain Verification
 
 ```bash
+# Check agent is registered on-chain (ERC-8004)
+cast call 0x59932bDf3056D88DC07cb320263419B8ec1e942d \
+  "isRegistered(address)(bool)" \
+  0xRESEARCHER_ADDRESS \
+  --rpc-url $BASE_SEPOLIA_RPC_URL
+
 # Check researcher's USDC balance (bounty received)
 cast call 0x036CbD53842c5426634e7929541eC2318f3dCF7e \
   "balanceOf(address)(uint256)" \
@@ -377,50 +319,50 @@ cast call 0x036CbD53842c5426634e7929541eC2318f3dCF7e \
   "balanceOf(address)(uint256)" \
   0x6D0bA6dA342c4ce75281Ea90c71017BC94A397b0 \
   --rpc-url $BASE_SEPOLIA_RPC_URL
-
-# Check agent is registered on-chain (ERC-8004)
-cast call 0x59932bDf3056D88DC07cb320263419B8ec1e942d \
-  "isRegistered(address)(bool)" \
-  0xRESEARCHER_ADDRESS \
-  --rpc-url $BASE_SEPOLIA_RPC_URL
-
-# Check PlatformEscrow balance for researcher
-cast call 0x33e5eE00985F96b482370c948d1c63c0AA4bD1ab \
-  "getEscrowBalance(address)(uint256)" \
-  0xRESEARCHER_ADDRESS \
-  --rpc-url $BASE_SEPOLIA_RPC_URL
 ```
 
-#### 7.3 Basescan Links
+#### BaseScan Links
 
 | What | URL Pattern |
 |------|------------|
 | Transaction | `https://sepolia.basescan.org/tx/<TX_HASH>` |
-| Agent Wallet | `https://sepolia.basescan.org/address/<WALLET>#tokentxns` |
-| AgentIdentityRegistry | `https://sepolia.basescan.org/address/0x59932bDf3056D88DC07cb320263419B8ec1e942d#events` |
-| AgentReputationRegistry | `https://sepolia.basescan.org/address/0x8160aB516366FfaAb6C239524D35963058Feb850#events` |
-| PlatformEscrow | `https://sepolia.basescan.org/address/0x33e5eE00985F96b482370c948d1c63c0AA4bD1ab#events` |
-| BountyPool | `https://sepolia.basescan.org/address/0x6D0bA6dA342c4ce75281Ea90c71017BC94A397b0#events` |
+| Agent Wallet | `https://sepolia.basescan.org/address/<WALLET>` |
+| AgentIdentityRegistry | `https://sepolia.basescan.org/address/0x59932bDf3056D88DC07cb320263419B8ec1e942d` |
+| BountyPool | `https://sepolia.basescan.org/address/0x6D0bA6dA342c4ce75281Ea90c71017BC94A397b0` |
 
-#### 7.4 Database Verification
+#### Database Verification
 
 ```bash
-# Open Prisma Studio to inspect all tables
 cd backend && npx prisma studio
-
-# Tables to inspect:
-# - AgentIdentity: registered agents with wallet, type, NFT ID
-# - AgentReputation: score, confirmed/rejected counts
-# - AgentFeedback: individual validation feedback events
-# - AgentEscrow: current escrow balance per agent
-# - EscrowTransaction: deposit/submission_fee/withdrawal records
-# - X402PaymentRequest: all 402 payment events (PENDING/COMPLETED)
-# - Protocol, Scan, Finding, Validation, Payment: core workflow tables
+# Tables: AgentIdentity, AgentReputation, AgentFeedback, AgentEscrow,
+#          EscrowTransaction, X402PaymentRequest, Protocol, Scan, Finding, Payment
 ```
+
+## E2E Testing
+
+Playwright tests verify the full stack. Run with:
+
+```bash
+# All workstream verification tests (19 tests)
+npx playwright test e2e/workstream-verification.spec.ts --project=chromium
+
+# CSRF tests
+npx playwright test e2e/protocol-registration-csrf.spec.ts --project=chromium
+
+# All E2E tests
+npx playwright test --project=chromium
+```
+
+**Test coverage**:
+- Backend API endpoints (health, agent identities, X.402 payments, reputation, feedback, escrow, leaderboard)
+- BigInt/Date serialization correctness
+- X.402 payment gate (auth-before-gate, CSRF token flow)
+- Protected route redirects (all pages redirect to `/login` with `returnUrl`)
+- Frontend build verification (HTML serving, no JS errors, React initialization)
 
 ## Payment Amounts
 
-### Bounty Payouts (BountyPool → Researcher)
+### Bounty Payouts (BountyPool -> Researcher)
 
 | Severity | USDC Amount |
 |----------|-------------|
@@ -430,70 +372,64 @@ cd backend && npx prisma studio
 | LOW | 1 USDC |
 | INFO | 0.25 USDC |
 
-### Platform Fees (x.402)
+### Platform Fees (X.402)
 
 | Action | USDC Amount | Mechanism |
 |--------|-------------|-----------|
-| Protocol Registration | 1 USDC | Direct USDC transfer to platform wallet (x.402) |
+| Protocol Registration | 1 USDC | USDC transfer to platform wallet via X.402 facilitator |
 | Finding Submission | 0.5 USDC | Deducted from researcher escrow balance |
 
-## Quick Demo Mode vs Full Mode
+## Configuration Modes
 
-| Setting | Demo Mode (default) | Full Mode |
-|---------|--------------------:|----------:|
-| `SKIP_X402_PAYMENT_GATE` | `true` | `false` |
-| Protocol registration | Free | 1 USDC via x.402 |
-| Finding submission | Free | 0.5 USDC from escrow |
-| Receipt verification | Skipped | On-chain USDC Transfer event parsing |
+| Setting | Current Default | Alternative |
+|---------|:--------------:|:-----------:|
+| `SKIP_X402_PAYMENT_GATE` | `false` (live) | `true` (skip) |
 | `SKIP_ONCHAIN_REGISTRATION` | `true` | `false` |
-| Protocol on-chain ID | Derived from DB ID | Real on-chain registration |
-
-To run the full payment-gated flow:
-
-```bash
-# In backend/.env, set:
-SKIP_X402_PAYMENT_GATE=false
-PLATFORM_WALLET_ADDRESS=0xYOUR_WALLET  # Must be set for receipt verification
-```
+| `SKIP_CSRF` | `false` | `true` (testing only) |
 
 ## API Endpoints
+
+### Authentication & Security
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/auth/siwe` | Sign-In with Ethereum |
+| GET | `/api/v1/csrf-token` | Get CSRF token |
+| GET | `/api/v1/health` | Service health check |
 
 ### Agent Identities (ERC-8004)
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/v1/agent-identities` | List all agents |
-| POST | `/api/v1/agent-identities/register` | Register new agent |
+| GET | `/api/v1/agent-identities` | List all agents with reputation |
+| POST | `/api/v1/agent-identities/register` | Register new agent (optional on-chain) |
+| GET | `/api/v1/agent-identities/x402-payments` | All X.402 payment records |
 | GET | `/api/v1/agent-identities/leaderboard` | Reputation leaderboard |
 | GET | `/api/v1/agent-identities/wallet/:address` | Get agent by wallet |
 | GET | `/api/v1/agent-identities/type/:type` | Get agents by type |
-| GET | `/api/v1/agent-identities/:id` | Get agent by ID |
-| GET | `/api/v1/agent-identities/:id/reputation` | Agent reputation score |
-| GET | `/api/v1/agent-identities/:id/feedback` | Agent feedback history |
+| GET | `/api/v1/agent-identities/:id` | Get agent details |
+| GET | `/api/v1/agent-identities/:id/reputation` | Reputation score and stats |
+| GET | `/api/v1/agent-identities/:id/feedback` | Feedback history (on-chain/off-chain) |
+| GET | `/api/v1/agent-identities/:id/escrow` | Escrow balance |
+| POST | `/api/v1/agent-identities/:id/escrow/deposit` | Deposit USDC to escrow |
+| GET | `/api/v1/agent-identities/:id/escrow/transactions` | Escrow transaction history |
+| GET | `/api/v1/agent-identities/:id/x402-payments` | Agent's X.402 payments |
 | POST | `/api/v1/agent-identities/:id/deactivate` | Deactivate agent |
 
-### Escrow
+### Protocols (X.402 gated)
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/v1/agent-identities/:id/escrow` | Get escrow balance |
-| POST | `/api/v1/agent-identities/:id/escrow/deposit` | Deposit USDC |
-| GET | `/api/v1/agent-identities/:id/escrow/transactions` | Transaction history |
-
-### x.402 Payments
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/v1/agent-identities/x402-payments` | All x.402 payment events |
-| GET | `/api/v1/agent-identities/:id/x402-payments` | Per-agent payment events |
-
-### Core Platform
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/v1/protocols` | Register protocol (x.402 gated) |
-| GET | `/api/v1/protocols` | List protocols |
+| POST | `/api/v1/protocols` | Register protocol (returns 402 if gate enabled) |
+| GET | `/api/v1/protocols` | List protocols (auth required) |
 | GET | `/api/v1/protocols/:id` | Protocol details |
+| POST | `/api/v1/protocols/:id/fund` | Fund bounty pool |
+| GET | `/api/v1/protocols/:id/registration-progress` | SSE progress stream |
+
+### Scans, Validations & Payments
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
 | POST | `/api/v1/scans` | Create scan (escrow gated) |
 | GET | `/api/v1/scans` | List scans |
 | GET | `/api/v1/scans/:id` | Scan details |
@@ -501,152 +437,74 @@ PLATFORM_WALLET_ADDRESS=0xYOUR_WALLET  # Must be set for receipt verification
 | GET | `/api/v1/validations` | List validations |
 | GET | `/api/v1/payments` | List payments |
 | GET | `/api/v1/payments/:id` | Payment details |
-| GET | `/api/v1/payments/stats` | Payment statistics |
 | POST | `/api/v1/payments/:id/retry` | Retry failed payment |
 
 ## Troubleshooting
 
-### x.402 Payment Gate Issues
+### X.402 Payment Gate Issues
 
-#### "Payment Required" (402) on Protocol Registration
+**"Payment Required" (402) on Protocol Registration**
 
-**Cause**: `SKIP_X402_PAYMENT_GATE=false` and no valid payment receipt provided.
+This is expected behavior when `SKIP_X402_PAYMENT_GATE=false`. The frontend handles this with the PaymentRequiredModal. If testing via curl:
 
-**Solutions**:
 ```bash
-# Option 1: Skip the gate for demo
-# In backend/.env:
-SKIP_X402_PAYMENT_GATE=true
-
-# Option 2: Provide a valid USDC payment
-# 1. Transfer 1 USDC to PLATFORM_WALLET_ADDRESS on Base Sepolia
-# 2. Include tx hash in the retry request:
-curl -X POST http://localhost:3000/api/v1/protocols \
-  -H "X-Payment-Receipt: 0xYOUR_TX_HASH" \
-  -H "Content-Type: application/json" \
-  -d '{ ... }'
+# Skip the gate for API testing
+# In backend/.env: SKIP_X402_PAYMENT_GATE=true
 ```
 
-#### "Insufficient Escrow Balance" (402) on Scan Creation
-
-**Cause**: Researcher's escrow balance < 0.5 USDC.
-
-**Solutions**:
-```bash
-# Option 1: Skip the gate
-SKIP_X402_PAYMENT_GATE=true
-
-# Option 2: Deposit to escrow
-curl -X POST http://localhost:3000/api/v1/agent-identities/AGENT_ID/escrow/deposit \
-  -H "Content-Type: application/json" \
-  -d '{ "amount": "5000000" }'
-```
-
-#### "Researcher wallet address is required" (400)
-
-**Cause**: `POST /scans` called without `researcherAddress` when payment gate is active.
-
-**Solution**: Include `researcherAddress` in the request body:
-```bash
-curl -X POST http://localhost:3000/api/v1/scans \
-  -H "Content-Type: application/json" \
-  -d '{
-    "protocolId": "...",
-    "researcherAddress": "0xYOUR_RESEARCHER_WALLET"
-  }'
-```
+**Self-payment error**: If the user's MetaMask address matches `PLATFORM_WALLET_ADDRESS`, the USDC transfer will fail. Ensure they are different wallets.
 
 ### Agent Registration Issues
 
-#### "Agent already registered with wallet"
+**"Agent already registered with wallet"**: The wallet already has an AgentIdentity record.
 
-**Cause**: Wallet address already has an AgentIdentity record.
-
-**Solution**:
 ```bash
-# Check existing registration
-curl http://localhost:3000/api/v1/agent-identities/wallet/0xYOUR_WALLET
+curl -s http://localhost:3000/api/v1/agent-identities/wallet/0xYOUR_WALLET | python3 -m json.tool
 ```
 
-### Common Infrastructure Issues
-
-#### Database Connection
+### Infrastructure Issues
 
 ```bash
+# Check all services
+curl -s http://localhost:3000/api/v1/health | python3 -m json.tool
+
+# Redis via Docker
+docker exec thunder-redis redis-cli -a redis_dev_2024 ping
+
+# Database
 pg_isready -h localhost -p 5432
-# If not running: brew services start postgresql@14
-```
 
-#### Redis Connection
-
-```bash
-redis-cli -a redis_dev_2024 ping
-# Expected: PONG
-# If not running: brew services start redis
-```
-
-#### Insufficient Gas
-
-```bash
-cast balance 0xYOUR_WALLET --rpc-url $BASE_SEPOLIA_RPC_URL
-# Need >= 0.01 ETH
-# Faucet: https://www.coinbase.com/faucets/base-ethereum-sepolia-faucet
-```
-
-#### BountyPool Not Funded
-
-```bash
-# Check pool balance
-cast call 0x036CbD53842c5426634e7929541eC2318f3dCF7e \
-  "balanceOf(address)(uint256)" \
-  0x6D0bA6dA342c4ce75281Ea90c71017BC94A397b0 \
-  --rpc-url $BASE_SEPOLIA_RPC_URL
+# BountyPool balance
+npx tsx backend/scripts/check-pool-balance.ts
 
 # Fund pool if needed
-cd backend && npx tsx scripts/fund-bounty-pool.ts 50
+npx tsx backend/scripts/fund-bounty-pool.ts 50
 ```
 
 ## Pre-Flight Checklist
 
-```bash
-# Run diagnostic script
-./scripts/diagnose-payment.sh
-
-# Or verify manually:
-```
-
+- [ ] Docker Redis running (`docker ps | grep thunder-redis`)
 - [ ] PostgreSQL running (`pg_isready`)
-- [ ] Redis running with auth (`redis-cli -a redis_dev_2024 ping`)
-- [ ] Database migrations applied (`npx prisma migrate dev`)
-- [ ] Backend `.env` configured with all contract addresses
-- [ ] Payer wallet has ETH for gas (>= 0.01 ETH)
-- [ ] BountyPool funded with USDC (>= 50 USDC)
-- [ ] Agent identities registered (researcher + validator)
-- [ ] Researcher escrow funded (if `SKIP_X402_PAYMENT_GATE=false`)
-- [ ] Backend health check passes (`curl http://localhost:3000/health/detailed`)
-
-## Performance Benchmarks
-
-| Step | Duration |
-|------|----------|
-| Agent Registration | < 10s |
-| Escrow Deposit | < 10s |
-| Protocol Registration (with x.402) | < 30s |
-| Protocol Analysis | < 60s |
-| Vulnerability Scan + Fee Deduction | < 60s |
-| Proof Validation + Reputation Update | < 60s |
-| Payment Processing | < 30s |
-| **Total End-to-End** | **< 5 minutes** |
+- [ ] Database migrations applied (`cd backend && npx prisma migrate dev`)
+- [ ] Backend running (`curl http://localhost:3000/api/v1/health`)
+- [ ] Frontend running (`http://localhost:5173`)
+- [ ] `PLATFORM_WALLET_ADDRESS` set to PRIVATE_KEY2 wallet in `backend/.env`
+- [ ] `SKIP_X402_PAYMENT_GATE=false` for live X.402 demo
+- [ ] Demo data seeded (`npx tsx backend/scripts/seed-demo-data.ts`)
+- [ ] User's MetaMask has Base Sepolia USDC + ETH for gas
+- [ ] User's MetaMask address differs from `PLATFORM_WALLET_ADDRESS`
+- [ ] E2E tests pass (`npx playwright test e2e/workstream-verification.spec.ts --project=chromium`)
 
 ## Recommended Demo Flow
 
-1. **Start services** (backend + frontend + Redis)
-2. **Register agents** at `/agents` (researcher + validator)
-3. **Fund escrow** at `/agents/:id/escrow` (5 USDC = 10 submissions)
-4. **Register protocol** at `/protocols/register` (Thunder Loan)
-5. **Watch scan** progress at `/scans`
-6. **Check reputation** updates at `/agents/:id/reputation`
-7. **Verify payment** at `/payments` (click Basescan link)
-8. **Review x.402 events** at `/x402-payments`
-9. **Check leaderboard** at `/agents` (reputation ranking)
-10. **Verify on-chain** with `cast` commands above
+1. **Start services** (Redis Docker, backend, frontend)
+2. **Seed demo data** (`npx tsx backend/scripts/seed-demo-data.ts`)
+3. **Connect wallet** on `/login` page (SIWE authentication)
+4. **Show Agent Registry** at `/agents` -- stat cards, verification indicators, "Verify on chain" links
+5. **Show Reputation** at `/agents/:id/reputation` -- score, on-chain badge, feedback history
+6. **Show Escrow** at `/agents/:id/escrow` -- balance, transaction history with chain verification
+7. **Show X.402 Payments** at `/x402-payments` -- stat cards, payment timeline, plain-language descriptions
+8. **Register protocol** at `/protocols/register` -- PaymentRequiredModal appears, pay 1 USDC, verify on BaseScan
+9. **Watch scan** progress at `/scans`
+10. **Verify payment** at `/payments` -- click BaseScan link for on-chain proof
+11. **Show Dashboard** at `/` -- all 4 agent types with capabilities and descriptions

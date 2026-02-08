@@ -7,6 +7,7 @@ import {
   useReadContract,
 } from 'wagmi';
 import { formatUnits } from 'viem';
+import { getExplorerTxUrl, truncateHash as truncateHashUtil } from '../../lib/utils';
 
 // Base Sepolia USDC contract address
 const USDC_ADDRESS = '0x036CbD53842c5426634e7929541eC2318f3dCF7e' as const;
@@ -317,12 +318,12 @@ export default function PaymentRequiredModal({
           <div className="mb-4 flex items-center gap-2 rounded-lg bg-blue-500/10 border border-blue-500/30 p-3">
             <span className="text-sm text-blue-400">TX:</span>
             <a
-              href={`https://sepolia.basescan.org/tx/${transferTxHash}`}
+              href={getExplorerTxUrl(transferTxHash)}
               target="_blank"
               rel="noopener noreferrer"
               className="text-sm font-mono text-blue-300 hover:text-blue-200 flex items-center gap-1"
             >
-              {truncateAddress(transferTxHash)}
+              {truncateHashUtil(transferTxHash)}
               <ExternalLink className="h-3 w-3" />
             </a>
           </div>

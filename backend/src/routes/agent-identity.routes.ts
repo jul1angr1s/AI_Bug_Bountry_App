@@ -9,6 +9,22 @@ const prisma = new PrismaClient();
 
 const router = Router();
 
+// Helper to convert BigInt values to strings for JSON serialization
+function serializeBigInts(obj: unknown): unknown {
+  if (obj === null || obj === undefined) return obj;
+  if (typeof obj === 'bigint') return obj.toString();
+  if (obj instanceof Date) return obj.toISOString();
+  if (Array.isArray(obj)) return obj.map(serializeBigInts);
+  if (typeof obj === 'object') {
+    const result: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
+      result[key] = serializeBigInts(value);
+    }
+    return result;
+  }
+  return obj;
+}
+
 const RegisterAgentSchema = z.object({
   walletAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
   agentType: z.enum(['RESEARCHER', 'VALIDATOR']),
@@ -34,7 +50,7 @@ router.get('/', async (req: Request, res: Response) => {
 
     res.json({
       success: true,
-      data: agents,
+      data: serializeBigInts(agents),
     });
   } catch (error) {
     console.error('List agents error:', error);
@@ -63,10 +79,10 @@ router.post('/register', async (req: Request, res: Response) => {
 
     res.status(201).json({
       success: true,
-      data: {
+      data: serializeBigInts({
         agentIdentity,
         onChain: onChainResult || null,
-      },
+      }),
     });
   } catch (error) {
     console.error('Agent registration error:', error);
@@ -109,7 +125,7 @@ router.get('/leaderboard', async (req: Request, res: Response) => {
 
     res.json({
       success: true,
-      data: leaderboard,
+      data: serializeBigInts(leaderboard),
     });
   } catch (error) {
     console.error('Get leaderboard error:', error);
@@ -136,7 +152,7 @@ router.get('/wallet/:walletAddress', async (req: Request, res: Response) => {
 
     res.json({
       success: true,
-      data: agent,
+      data: serializeBigInts(agent),
     });
   } catch (error) {
     console.error('Get agent error:', error);
@@ -163,7 +179,7 @@ router.get('/type/:agentType', async (req: Request, res: Response) => {
 
     res.json({
       success: true,
-      data: agents,
+      data: serializeBigInts(agents),
     });
   } catch (error) {
     console.error('Get agents by type error:', error);
@@ -194,7 +210,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 
     res.json({
       success: true,
-      data: agent,
+      data: serializeBigInts(agent),
     });
   } catch (error) {
     console.error('Get agent error:', error);
@@ -221,7 +237,7 @@ router.get('/:id/reputation', async (req: Request, res: Response) => {
 
     res.json({
       success: true,
-      data: reputation,
+      data: serializeBigInts(reputation),
     });
   } catch (error) {
     console.error('Get reputation error:', error);
@@ -249,7 +265,7 @@ router.get('/:id/feedback', async (req: Request, res: Response) => {
 
     res.json({
       success: true,
-      data: feedbacks,
+      data: serializeBigInts(feedbacks),
     });
   } catch (error) {
     console.error('Get feedback error:', error);

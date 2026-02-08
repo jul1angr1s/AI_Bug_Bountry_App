@@ -66,7 +66,23 @@ MCP-powered AI agents using Kimi k.25 for inference. Three specialized agent typ
 - Update ERC-8004 registry (triggers payment)
 - Update scan status in real-time
 
-### 4. Frontend QA Agent
+### 4. Payment Agent
+**Purpose**: Processes USDC bounty payments and escrow operations
+
+**Capabilities**:
+- `USDC transfers` - Execute on-chain USDC payments via BountyPool contract
+- `Bounty calculation` - Calculate payouts by severity (Critical/High/Medium/Low)
+- `On-chain settlement` - Submit and verify Base Sepolia transactions
+- `Payment tracking` - Record payment status and transaction hashes
+
+**Responsibilities**:
+- Process bounty payouts from BountyPool contract
+- Calculate severity-based payment amounts
+- Execute USDC transfers to researcher wallets
+- Track payment state (PENDING → PROCESSING → COMPLETED/FAILED)
+- Support demo mode fallback when pool is unfunded
+
+### 5. Frontend QA Agent
 **Purpose**: Automated frontend debugging and UI verification
 
 **MCP Tools**:
@@ -85,7 +101,7 @@ MCP-powered AI agents using Kimi k.25 for inference. Three specialized agent typ
 
 ## Agent-to-Agent Communication
 
-**Message Bus**: Redis PubSub
+**Message Bus**: BullMQ (Redis-backed job queues)
 
 **Message Types**:
 - `SCAN_REQUEST` - PA/Scheduler → RA

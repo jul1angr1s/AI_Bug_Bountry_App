@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { parseUnits } from 'viem';
-import { cn } from '@/lib/utils';
+import { cn, getExplorerTxUrl } from '@/lib/utils';
 import {
   fetchUSDCAllowance,
   generateUSDCApprovalTx,
@@ -235,7 +235,7 @@ export const USDCApprovalFlow: React.FC<USDCApprovalFlowProps> = ({
    * Basescan transaction URL
    */
   const getBasescanUrl = (hash: string): string => {
-    return `https://sepolia.basescan.org/tx/${hash}`;
+    return getExplorerTxUrl(hash);
   };
 
   /**

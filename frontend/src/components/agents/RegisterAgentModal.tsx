@@ -1,15 +1,16 @@
 import { useState, useEffect } from 'react';
-import { X, UserPlus } from 'lucide-react';
+import { X, UserPlus, Shield } from 'lucide-react';
 
 interface RegisterAgentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: { walletAddress: string; agentType: 'RESEARCHER' | 'VALIDATOR' }) => Promise<void>;
+  onSubmit: (data: { walletAddress: string; agentType: 'RESEARCHER' | 'VALIDATOR'; registerOnChain?: boolean }) => Promise<void>;
 }
 
 export function RegisterAgentModal({ isOpen, onClose, onSubmit }: RegisterAgentModalProps) {
   const [walletAddress, setWalletAddress] = useState('');
   const [agentType, setAgentType] = useState<'RESEARCHER' | 'VALIDATOR'>('RESEARCHER');
+  const [registerOnChain, setRegisterOnChain] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,6 +30,7 @@ export function RegisterAgentModal({ isOpen, onClose, onSubmit }: RegisterAgentM
     if (!isOpen) {
       setWalletAddress('');
       setAgentType('RESEARCHER');
+      setRegisterOnChain(false);
       setError(null);
       setIsSubmitting(false);
     }
@@ -60,7 +62,7 @@ export function RegisterAgentModal({ isOpen, onClose, onSubmit }: RegisterAgentM
     setError(null);
 
     try {
-      await onSubmit({ walletAddress, agentType });
+      await onSubmit({ walletAddress, agentType, registerOnChain });
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to register agent. Please try again.');
@@ -200,6 +202,33 @@ export function RegisterAgentModal({ isOpen, onClose, onSubmit }: RegisterAgentM
                   </div>
                 </label>
               </div>
+            </div>
+
+            {/* On-Chain Registration Toggle */}
+            <div className="flex flex-col gap-2">
+              <label
+                className="flex items-center justify-between px-4 py-3 rounded-lg border border-gray-700 bg-gray-800 cursor-pointer hover:border-gray-600 transition-all"
+                onClick={() => setRegisterOnChain(!registerOnChain)}
+              >
+                <div className="flex items-center gap-3">
+                  <Shield className={`w-5 h-5 ${registerOnChain ? 'text-emerald-400' : 'text-gray-500'}`} />
+                  <div>
+                    <p className="text-sm font-medium text-white">Register on blockchain (ERC-8004)</p>
+                    <p className="text-xs text-gray-500">Mints a soulbound NFT as proof of identity</p>
+                  </div>
+                </div>
+                <div
+                  className={`relative w-11 h-6 rounded-full transition-colors ${
+                    registerOnChain ? 'bg-emerald-500' : 'bg-gray-600'
+                  }`}
+                >
+                  <div
+                    className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${
+                      registerOnChain ? 'translate-x-5' : 'translate-x-0.5'
+                    }`}
+                  ></div>
+                </div>
+              </label>
             </div>
 
             {/* Actions */}

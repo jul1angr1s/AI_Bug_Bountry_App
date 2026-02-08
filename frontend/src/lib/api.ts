@@ -1,7 +1,6 @@
 import { supabase } from './supabase';
 import { getCsrfToken } from './csrf';
 import type {
-  Protocol,
   Agent,
   Vulnerability,
   DashboardStats,
@@ -462,7 +461,7 @@ export async function createProtocol(request: CreateProtocolRequest): Promise<Cr
     const headers = await getMutationHeaders();
     const url = `${API_BASE_URL}/api/v1/protocols`;
 
-    console.log('[API] Creating protocol:', request.name);
+    console.log('[API] Creating protocol:', request.contractName);
     console.log('[API] Request URL:', url);
 
     const response = await fetch(url, {
@@ -473,6 +472,23 @@ export async function createProtocol(request: CreateProtocolRequest): Promise<Cr
     });
 
     console.log('[API] Response status:', response.status, response.statusText);
+
+    // Handle x.402 Payment Required response
+    if (response.status === 402) {
+      const paymentTerms = await response.json().catch(() => ({}));
+      console.log('[API] x.402 Payment Required:', paymentTerms);
+      const x402Error = new Error('Payment required');
+      (x402Error as any).status = 402;
+      (x402Error as any).paymentTerms = {
+        amount: '1000000', // 1 USDC in base units
+        asset: 'USDC',
+        chain: 'base-sepolia',
+        recipient: paymentTerms.accepts?.payTo || '',
+        memo: paymentTerms.description || 'Protocol registration fee',
+        expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+      };
+      throw x402Error;
+    }
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
@@ -499,6 +515,28 @@ export async function createProtocol(request: CreateProtocolRequest): Promise<Cr
     }
     throw error;
   }
+}
+
+/**
+ * Retry protocol creation with x.402 payment signature
+ */
+export async function retryCreateProtocolWithPayment(
+  request: CreateProtocolRequest,
+  paymentTxHash: string
+): Promise<CreateProtocolResponse> {
+  const headers = await getMutationHeaders();
+  const response = await fetch(`${API_BASE_URL}/api/v1/protocols`, {
+    method: 'POST',
+    headers: { ...headers, 'payment-signature': paymentTxHash },
+    credentials: 'include',
+    body: JSON.stringify(request),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.message || response.statusText);
+  }
+  const data = await response.json();
+  return data.data || data;
 }
 
 /**

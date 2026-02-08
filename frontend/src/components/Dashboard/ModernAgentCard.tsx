@@ -2,10 +2,11 @@ import React from 'react';
 import { GlowCard } from '@/components/shared/GlowCard';
 import { MaterialIcon } from '@/components/shared/MaterialIcon';
 import { PulseIndicator } from '@/components/shared/PulseIndicator';
+import { AGENT_DESCRIPTIONS } from '@/lib/utils';
 
 interface Agent {
   id: string;
-  type: 'Protocol' | 'Researcher' | 'Validator';
+  type: 'Protocol' | 'Researcher' | 'Validator' | 'Payment';
   status: 'active' | 'idle' | 'error';
   scansCompleted?: number;
   uptime?: string;
@@ -19,12 +20,14 @@ const agentIcons: Record<string, string> = {
   Protocol: 'developer_board',
   Researcher: 'bug_report',
   Validator: 'verified',
+  Payment: 'payments',
 };
 
 const agentColors: Record<string, 'cyan' | 'purple' | 'blue' | 'green'> = {
   Protocol: 'blue',
   Researcher: 'cyan',
   Validator: 'green',
+  Payment: 'purple',
 };
 
 export const ModernAgentCard: React.FC<ModernAgentCardProps> = ({ agent }) => {
@@ -71,6 +74,27 @@ export const ModernAgentCard: React.FC<ModernAgentCardProps> = ({ agent }) => {
                 style={{ width: `${progress}%` }}
               />
             </div>
+          </div>
+        )}
+
+        {/* Description */}
+        {AGENT_DESCRIPTIONS[agent.type] && (
+          <p className="text-xs text-gray-400 mb-2 line-clamp-2">
+            {AGENT_DESCRIPTIONS[agent.type].description}
+          </p>
+        )}
+
+        {/* Capability Tags */}
+        {AGENT_DESCRIPTIONS[agent.type]?.capabilities && (
+          <div className="flex flex-wrap gap-1 mb-3">
+            {AGENT_DESCRIPTIONS[agent.type].capabilities.slice(0, 3).map((cap) => (
+              <span
+                key={cap}
+                className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-navy-700/60 text-gray-400 border border-navy-600/40"
+              >
+                {cap}
+              </span>
+            ))}
           </div>
         )}
 

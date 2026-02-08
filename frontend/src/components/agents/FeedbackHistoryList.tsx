@@ -1,4 +1,5 @@
 import type { AgentFeedback, FeedbackType } from '../../types/dashboard';
+import { formatDate, truncateHash } from '../../lib/utils';
 
 interface FeedbackHistoryListProps {
   feedbacks: AgentFeedback[];
@@ -13,21 +14,6 @@ const feedbackBadgeConfig: Record<FeedbackType, { bg: string; text: string; labe
   CONFIRMED_INFORMATIONAL: { bg: 'bg-gray-700', text: 'text-gray-300', label: 'Informational' },
   REJECTED: { bg: 'bg-red-900/50', text: 'text-red-400', label: 'Rejected' },
 };
-
-function truncate(value: string, startLen = 6, endLen = 4): string {
-  if (value.length <= startLen + endLen + 3) return value;
-  return `${value.slice(0, startLen)}...${value.slice(-endLen)}`;
-}
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
 
 function SkeletonRow() {
   return (
@@ -47,7 +33,7 @@ export default function FeedbackHistoryList({ feedbacks, isLoading }: FeedbackHi
       <table className="min-w-full divide-y divide-gray-700">
         <thead className="bg-gray-900">
           <tr>
-            {['Type', 'Validator', 'Finding', 'On-Chain ID', 'Date'].map((h) => (
+            {['Type', 'Validator', 'Finding', 'Verification', 'Date'].map((h) => (
               <th
                 key={h}
                 className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400"
@@ -90,16 +76,23 @@ export default function FeedbackHistoryList({ feedbacks, isLoading }: FeedbackHi
                     </span>
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-sm font-mono text-gray-300">
-                    {truncate(validatorAddr)}
+                    {truncateHash(validatorAddr)}
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-sm font-mono text-gray-300">
-                    {fb.findingId ? truncate(fb.findingId) : <span className="text-gray-500">-</span>}
+                    {fb.findingId ? truncateHash(fb.findingId) : <span className="text-gray-500">-</span>}
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm font-mono text-gray-300">
+                  <td className="whitespace-nowrap px-4 py-3 text-sm">
                     {fb.onChainFeedbackId ? (
-                      truncate(fb.onChainFeedbackId)
+                      <span className="inline-flex items-center gap-1.5 text-xs">
+                        <span className="size-2 rounded-full bg-emerald-400"></span>
+                        <span className="text-emerald-400 font-medium">On-chain</span>
+                        <span className="font-mono text-gray-500">{truncateHash(fb.onChainFeedbackId)}</span>
+                      </span>
                     ) : (
-                      <span className="text-gray-500">-</span>
+                      <span className="inline-flex items-center gap-1.5 text-xs">
+                        <span className="size-2 rounded-full bg-gray-500"></span>
+                        <span className="text-gray-500">Off-chain</span>
+                      </span>
                     )}
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-400">

@@ -1,5 +1,13 @@
 import type { X402PaymentEvent } from '../../types/dashboard';
 import { Shield, Search, ExternalLink } from 'lucide-react';
+import {
+  getExplorerTxUrl,
+  truncateHash,
+  formatUSDC,
+  formatDate,
+  X402_DESCRIPTIONS,
+  PAYMENT_STATUS_LABELS,
+} from '../../lib/utils';
 
 interface X402PaymentTimelineProps {
   payments: X402PaymentEvent[];
@@ -13,40 +21,31 @@ const statusBadge: Record<X402PaymentEvent['status'], { bg: string; text: string
   FAILED: { bg: 'bg-red-900/50', text: 'text-red-300' },
 };
 
-function formatUSDC(amount: string): string {
-  const value = Number(amount) / 1e6;
-  return `${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })} USDC`;
-}
-
-function truncateAddress(address: string): string {
-  if (address.length <= 10) return address;
-  return `${address.slice(0, 6)}...${address.slice(-4)}`;
-}
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
 function RequestTypeCell({ type }: { type: X402PaymentEvent['requestType'] }) {
+  const desc = X402_DESCRIPTIONS[type];
   if (type === 'PROTOCOL_REGISTRATION') {
     return (
-      <span className="inline-flex items-center gap-1.5 text-gray-300">
-        <Shield className="h-4 w-4 text-blue-400" />
-        Protocol Registration
-      </span>
+      <div>
+        <span className="inline-flex items-center gap-1.5 text-gray-300">
+          <Shield className="h-4 w-4 text-blue-400" />
+          {desc?.label || 'Protocol Registration'}
+        </span>
+        {desc?.description && (
+          <p className="text-[11px] text-gray-500 mt-0.5">{desc.description}</p>
+        )}
+      </div>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1.5 text-gray-300">
-      <Search className="h-4 w-4 text-purple-400" />
-      Finding Submission
-    </span>
+    <div>
+      <span className="inline-flex items-center gap-1.5 text-gray-300">
+        <Search className="h-4 w-4 text-purple-400" />
+        {desc?.label || 'Finding Submission'}
+      </span>
+      {desc?.description && (
+        <p className="text-[11px] text-gray-500 mt-0.5">{desc.description}</p>
+      )}
+    </div>
   );
 }
 
@@ -68,7 +67,7 @@ export default function X402PaymentTimeline({ payments, isLoading }: X402Payment
       <table className="min-w-full divide-y divide-gray-700">
         <thead className="bg-gray-900">
           <tr>
-            {['Type', 'Requester', 'Amount', 'Status', 'TX', 'Date'].map((h) => (
+            {['Type', 'Requester', 'Amount', 'Status', 'Verification', 'Date'].map((h) => (
               <th
                 key={h}
                 className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400"
@@ -98,13 +97,14 @@ export default function X402PaymentTimeline({ payments, isLoading }: X402Payment
           {!isLoading &&
             payments.map((p) => {
               const badge = statusBadge[p.status];
+              const statusLabel = PAYMENT_STATUS_LABELS[p.status];
               return (
                 <tr key={p.id} className="hover:bg-gray-750 transition-colors">
-                  <td className="whitespace-nowrap px-4 py-3 text-sm">
+                  <td className="px-4 py-3 text-sm">
                     <RequestTypeCell type={p.requestType} />
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-sm font-mono text-gray-300">
-                    {truncateAddress(p.requesterAddress)}
+                    {truncateHash(p.requesterAddress)}
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-sm text-white">
                     {formatUSDC(p.amount)}
@@ -112,23 +112,24 @@ export default function X402PaymentTimeline({ payments, isLoading }: X402Payment
                   <td className="whitespace-nowrap px-4 py-3 text-sm">
                     <span
                       className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${badge.bg} ${badge.text}`}
+                      title={statusLabel?.description}
                     >
-                      {p.status}
+                      {statusLabel?.label || p.status}
                     </span>
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-sm">
                     {p.txHash ? (
                       <a
-                        href={`https://sepolia.basescan.org/tx/${p.txHash}`}
+                        href={getExplorerTxUrl(p.txHash)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 transition-colors"
                       >
-                        {truncateAddress(p.txHash)}
+                        Verify on chain
                         <ExternalLink className="h-3 w-3" />
                       </a>
                     ) : (
-                      <span className="text-gray-500">-</span>
+                      <span className="text-gray-500">Pending</span>
                     )}
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-400">

@@ -56,6 +56,31 @@ Authentication: Bearer JWT or Wallet Signature
 | GET | /payments/:id | Get payment details |
 | POST | /payments/:id/retry | Retry failed payment |
 
+### Agent Identity Routes (ERC-8004)
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /agent-identities | List all agents with reputation |
+| POST | /agent-identities/register | Register new agent (optional on-chain ERC-8004) |
+| GET | /agent-identities/x402-payments | List all X.402 payment records |
+| GET | /agent-identities/leaderboard | Ranked researcher leaderboard |
+| GET | /agent-identities/wallet/:addr | Get agent by wallet address |
+| GET | /agent-identities/type/:type | Get agents by type (RESEARCHER/VALIDATOR) |
+| GET | /agent-identities/:id | Get agent details with escrow |
+| GET | /agent-identities/:id/reputation | Get reputation score and stats |
+| GET | /agent-identities/:id/feedback | Get on-chain/off-chain feedback history |
+| GET | /agent-identities/:id/escrow | Get escrow balance and stats |
+| GET | /agent-identities/:id/escrow/transactions | Get escrow transaction history |
+| POST | /agent-identities/:id/escrow/deposit | Deposit to agent escrow |
+| GET | /agent-identities/:id/x402-payments | Get agent's X.402 payments |
+| POST | /agent-identities/:id/deactivate | Deactivate agent |
+
+### X.402 Payment Gate
+Protocol registration (`POST /protocols`) is gated by the X.402 payment protocol when `SKIP_X402_PAYMENT_GATE=false`. The middleware:
+1. Returns HTTP 402 with payment terms (1 USDC on Base Sepolia)
+2. Client pays via USDC transfer to platform wallet
+3. Client retries with `payment-signature` header containing txHash
+4. Facilitator verifies payment, middleware records `X402PaymentRequest`
+
 ### Agent Routes (Admin)
 | Method | Path | Description |
 |--------|------|-------------|

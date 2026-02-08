@@ -5,7 +5,8 @@ import { MaterialIcon } from '../components/shared/MaterialIcon';
 import { GradientButton } from '../components/shared/GradientButton';
 import { GlowCard } from '../components/shared/GlowCard';
 import ProtocolForm from '../components/protocols/ProtocolForm';
-import { createProtocol, type CreateProtocolRequest } from '../lib/api';
+import PaymentRequiredModal from '../components/agents/PaymentRequiredModal';
+import { createProtocol, retryCreateProtocolWithPayment, type CreateProtocolRequest } from '../lib/api';
 import { logDiagnostics } from '../lib/diagnostics';
 import { useAuth } from '../lib/auth';
 
@@ -15,6 +16,11 @@ export default function ProtocolRegistration() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [initialValues, setInitialValues] = useState<Partial<CreateProtocolRequest> | undefined>(undefined);
+
+  // x.402 payment modal state
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentTerms, setPaymentTerms] = useState<any>(undefined);
+  const [pendingProtocolRequest, setPendingProtocolRequest] = useState<CreateProtocolRequest | null>(null);
 
   // Run diagnostics on mount to help debug issues
   useEffect(() => {
@@ -81,9 +87,47 @@ export default function ProtocolRegistration() {
         navigate(`/protocols/${response.id}`);
       }, 1500);
     } catch (err) {
+      // Handle x.402 Payment Required
+      if ((err as any).status === 402) {
+        setPendingProtocolRequest(data);
+        setPaymentTerms((err as any).paymentTerms);
+        setShowPaymentModal(true);
+        setIsSubmitting(false);
+        return;
+      }
+
       const errorMessage = err instanceof Error ? err.message : 'Failed to register protocol';
       setError(errorMessage);
       toast.error('Registration failed', {
+        description: errorMessage,
+        duration: 5000,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handlePaymentRetry = async (txHash: string) => {
+    if (!pendingProtocolRequest) return;
+
+    try {
+      setIsSubmitting(true);
+      const response = await retryCreateProtocolWithPayment(pendingProtocolRequest, txHash);
+
+      setShowPaymentModal(false);
+
+      toast.success('Payment confirmed! Protocol registered.', {
+        description: 'Your x.402 payment was verified on-chain. Redirecting to funding...',
+        duration: 5000,
+      });
+
+      setTimeout(() => {
+        navigate(`/protocols/${response.id}`);
+      }, 1500);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to register after payment';
+      setError(errorMessage);
+      toast.error('Registration failed after payment', {
         description: errorMessage,
         duration: 5000,
       });
@@ -231,6 +275,17 @@ export default function ProtocolRegistration() {
           </div>
         </div>
       </div>
+
+      {/* x.402 Payment Required Modal */}
+      <PaymentRequiredModal
+        isOpen={showPaymentModal}
+        onClose={() => {
+          setShowPaymentModal(false);
+          setPendingProtocolRequest(null);
+        }}
+        onRetry={handlePaymentRetry}
+        paymentTerms={paymentTerms}
+      />
     </div>
   );
 }
