@@ -1,6 +1,6 @@
 import type { EscrowTransaction } from '../../types/dashboard';
 import { ArrowUpCircle, ArrowDownCircle, ExternalLink } from 'lucide-react';
-import { getExplorerTxUrl } from '../../lib/utils';
+import { getExplorerTxUrl, isValidTxHash } from '../../lib/utils';
 
 interface EscrowTransactionListProps {
   transactions: EscrowTransaction[];
@@ -133,7 +133,7 @@ export function EscrowTransactionList({ transactions, isLoading }: EscrowTransac
                       </span>
                     </td>
                     <td className="px-4 py-4">
-                      {tx.txHash ? (
+                      {tx.txHash && isValidTxHash(tx.txHash) ? (
                         <a
                           href={getExplorerTxUrl(tx.txHash)}
                           target="_blank"

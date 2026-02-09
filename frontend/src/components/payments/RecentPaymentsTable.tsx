@@ -1,3 +1,5 @@
+import { isValidTxHash } from '../../lib/utils';
+
 interface Payment {
   id: string;
   researcherAddress: string;
@@ -178,7 +180,7 @@ export function RecentPaymentsTable({ payments, isLoading, onViewAll }: RecentPa
                     </span>
                   </td>
                   <td className="px-6 py-4 text-center">
-                    {payment.txHash ? (
+                    {payment.txHash && isValidTxHash(payment.txHash) ? (
                       <a
                         href={getBasescanUrl(payment.txHash)}
                         target="_blank"

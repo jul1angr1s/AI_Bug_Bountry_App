@@ -8,6 +8,13 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/**
+ * Validate that a txHash is a proper Ethereum transaction hash (0x + 64 hex digits).
+ */
+export function isValidTxHash(hash: string): boolean {
+  return /^0x[0-9a-fA-F]{64}$/.test(hash);
+}
+
 // ========== Explorer URL Utilities ==========
 
 const EXPLORER_BASE_URL =

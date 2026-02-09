@@ -3,6 +3,7 @@ import type { X402PaymentEvent } from '../../types/dashboard';
 import { CheckCircle, Clock, XCircle, MinusCircle, ExternalLink } from 'lucide-react';
 import {
   getExplorerTxUrl,
+  isValidTxHash,
   truncateHash,
   formatUSDC,
   X402_DESCRIPTIONS,
@@ -79,7 +80,7 @@ export default function X402PaymentCard({ payment }: X402PaymentCardProps) {
         </div>
         <div className="flex justify-between">
           <span>Verification</span>
-          {payment.txHash ? (
+          {payment.txHash && isValidTxHash(payment.txHash) ? (
             <a
               href={getExplorerTxUrl(payment.txHash)}
               target="_blank"
