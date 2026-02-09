@@ -2,6 +2,7 @@ import type { X402PaymentEvent } from '../../types/dashboard';
 import { Shield, Search, ExternalLink } from 'lucide-react';
 import {
   getExplorerTxUrl,
+  isValidTxHash,
   truncateHash,
   formatUSDC,
   formatDate,
@@ -118,7 +119,7 @@ export default function X402PaymentTimeline({ payments, isLoading }: X402Payment
                     </span>
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-sm">
-                    {p.txHash ? (
+                    {p.txHash && isValidTxHash(p.txHash) ? (
                       <a
                         href={getExplorerTxUrl(p.txHash)}
                         target="_blank"

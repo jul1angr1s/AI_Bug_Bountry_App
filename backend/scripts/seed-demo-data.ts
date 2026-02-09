@@ -131,7 +131,7 @@ async function main() {
       requesterAddress: RESEARCHER_WALLET.toLowerCase(),
       amount: BigInt(1000000), // 1 USDC
       status: 'COMPLETED' as const,
-      txHash: '0xdemo_x402_protocol_reg_payment_tx_hash_for_basescan_display',
+      txHash: null,
       expiresAt: new Date(Date.now() + 30 * 60 * 1000),
       completedAt: new Date(),
     },
@@ -140,7 +140,7 @@ async function main() {
       requesterAddress: '0xabcdef1234567890abcdef1234567890abcdef12',
       amount: BigInt(1000000), // 1 USDC
       status: 'COMPLETED' as const,
-      txHash: '0xdemo_x402_protocol_reg_payment2_tx_hash_for_basescan_display',
+      txHash: null,
       expiresAt: new Date(Date.now() + 30 * 60 * 1000),
       completedAt: new Date(Date.now() - 3600000),
     },
@@ -187,13 +187,13 @@ async function main() {
       agentEscrowId: escrow.id,
       transactionType: 'DEPOSIT' as const,
       amount: BigInt(10000000),
-      txHash: '0xdemo_escrow_deposit_tx_hash_for_basescan_verification',
+      txHash: null,
     },
     {
       agentEscrowId: escrow.id,
       transactionType: 'SUBMISSION_FEE' as const,
       amount: BigInt(500000),
-      txHash: '0xdemo_escrow_submission_fee_tx_hash_for_verification',
+      txHash: null,
     },
   ];
 
