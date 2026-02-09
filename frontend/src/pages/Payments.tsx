@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { usePayments } from '../hooks/usePayments';
 import { usePaymentStats } from '../hooks/usePaymentStats';
 import { usePaymentLeaderboard } from '../hooks/usePaymentLeaderboard';
+import { useStats } from '../hooks/useDashboardData';
 import { PaymentStatsCards } from '../components/payments/PaymentStatsCards';
 import { PayoutChart } from '../components/payments/PayoutChart';
 import { RecentPaymentsTable } from '../components/payments/RecentPaymentsTable';
@@ -13,6 +14,7 @@ export default function Payments() {
   const [modalOpen, setModalOpen] = useState(false);
 
   const { data: statsData, isLoading: statsLoading } = usePaymentStats();
+  const { data: dashboardStats } = useStats();
   const { data: leaderboardData, isLoading: leaderboardLoading } = usePaymentLeaderboard({ limit: 10 });
   // Show all payments (not just COMPLETED) to see PENDING and FAILED too
   const { data: paymentsData, isLoading: paymentsLoading } = usePayments({});
@@ -69,7 +71,7 @@ export default function Payments() {
       {/* Stats Cards */}
       <PaymentStatsCards 
         stats={statsData} 
-        poolBalance={50}
+        poolBalance={dashboardStats?.bountyPool?.total ?? 0}
         isLoading={statsLoading}
       />
 
