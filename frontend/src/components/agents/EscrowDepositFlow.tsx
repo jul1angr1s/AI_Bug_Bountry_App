@@ -7,7 +7,7 @@ interface EscrowDepositFlowProps {
   onClose: () => void;
 }
 
-const PLATFORM_ESCROW_ADDRESS = '0x33e5eE00985F96b482370c948d1c63c0AA4bD1ab';
+const PLATFORM_ESCROW_ADDRESS = '0x1EC275172C191670C9fbB290dcAB31A9784BC6eC';
 
 export function EscrowDepositFlow({ agentId, onSuccess, onClose }: EscrowDepositFlowProps) {
   const [amount, setAmount] = useState('');

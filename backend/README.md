@@ -648,8 +648,8 @@ reputationService.recordFeedbackOnChain(
 ```
 
 **Deployed Contracts**:
-- AgentIdentityRegistry: `0x59932bDf3056D88DC07cb320263419B8ec1e942d`
-- AgentReputationRegistry: `0x8160ab516366ffaab6c239524d35963058feb850`
+- AgentIdentityRegistry: `0x772ADB0bC03B1b465942091a35D8F6fCC6F84f8b`
+- AgentReputationRegistry: `0x53f126F6F79414d8Db4cd08B05b84f5F1128de16`
 
 **Tech Stack**: ethers.js, AgentIdentityRegistryClient, AgentReputationRegistryClient, Prisma
 
@@ -676,7 +676,7 @@ await escrowService.deductSubmissionFee(walletAddress, findingId);
 // → Decrements balance by 0.5 USDC → Logs transaction
 ```
 
-**Deployed Contract**: PlatformEscrow at `0x33e5ee00985f96b482370c948d1c63c0aa4bd1ab`
+**Deployed Contract**: PlatformEscrow at `0x1EC275172C191670C9fbB290dcAB31A9784BC6eC`
 
 **Tech Stack**: PlatformEscrowClient, ethers.js, Prisma transactions
 
@@ -859,9 +859,9 @@ BOUNTY_POOL_ADDRESS=0x6D0bA6dA342c4ce75281Ea90c71017BC94A397b0
 USDC_ADDRESS=0x036CbD53842c5426634e7929541eC2318f3dCF7e
 
 # Agent Contracts (ERC-8004)
-AGENT_IDENTITY_REGISTRY_ADDRESS=0x59932bDf3056D88DC07cb320263419B8ec1e942d
-AGENT_REPUTATION_REGISTRY_ADDRESS=0x8160ab516366ffaab6c239524d35963058feb850
-PLATFORM_ESCROW_ADDRESS=0x33e5ee00985f96b482370c948d1c63c0aa4bd1ab
+AGENT_IDENTITY_REGISTRY_ADDRESS=0x772ADB0bC03B1b465942091a35D8F6fCC6F84f8b
+AGENT_REPUTATION_REGISTRY_ADDRESS=0x53f126F6F79414d8Db4cd08B05b84f5F1128de16
+PLATFORM_ESCROW_ADDRESS=0x1EC275172C191670C9fbB290dcAB31A9784BC6eC
 
 # x.402 Payment Gating
 SKIP_X402_PAYMENT_GATE=true

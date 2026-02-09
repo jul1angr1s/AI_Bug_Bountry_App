@@ -31,7 +31,7 @@
 **Blockchain Configuration**
 - ✅ BountyPool: `0x6D0bA6dA342c4ce75281Ea90c71017BC94A397b0`
 - ✅ USDC: `0x036CbD53842c5426634e7929541eC2318f3dCF7e`
-- ✅ Agent Identity Registry: `0x59932bDf3056D88DC07cb320263419B8ec1e942d`
+- ✅ Agent Identity Registry: `0x772ADB0bC03B1b465942091a35D8F6fCC6F84f8b`
 - ✅ All contract addresses configured in `.env`
 
 **Environment**

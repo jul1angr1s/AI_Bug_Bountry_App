@@ -55,9 +55,9 @@ The platform runs 4 BullMQ agent workers:
 | ProtocolRegistry | `0xc7DF730cf661a306a9aEC93D7180da6f6Da23235` | Protocol registration |
 | ValidationRegistry | `0x8fBE5E9B0C17Cb606091e5050529CE99baB7744d` | Validation records |
 | BountyPool | `0x6D0bA6dA342c4ce75281Ea90c71017BC94A397b0` | Bounty payouts |
-| AgentIdentityRegistry | `0x59932bDf3056D88DC07cb320263419B8ec1e942d` | ERC-8004 soulbound agent NFTs |
-| AgentReputationRegistry | `0x8160aB516366FfaAb6C239524D35963058Feb850` | On-chain reputation scoring |
-| PlatformEscrow | `0x33e5eE00985F96b482370c948d1c63c0AA4bD1ab` | Escrow deposits + fee deduction |
+| AgentIdentityRegistry | `0x772ADB0bC03B1b465942091a35D8F6fCC6F84f8b` | ERC-8004 soulbound agent NFTs |
+| AgentReputationRegistry | `0x53f126F6F79414d8Db4cd08B05b84f5F1128de16` | On-chain reputation scoring |
+| PlatformEscrow | `0x1EC275172C191670C9fbB290dcAB31A9784BC6eC` | Escrow deposits + fee deduction |
 | USDC (Base Sepolia) | `0x036CbD53842c5426634e7929541eC2318f3dCF7e` | Payment token |
 
 ## Wallet Configuration (Two-Wallet Setup)
@@ -124,10 +124,12 @@ To populate the platform with realistic demo data for management presentations:
 npx tsx backend/scripts/seed-demo-data.ts
 ```
 
+**Note**: The seed script performs real on-chain transactions (agent registration, reputation feedback). The deployer wallet needs Base Sepolia ETH for gas (~0.01 ETH). If on-chain calls fail, it falls back to database-only mode.
+
 This creates:
-- 2 agent identities (1 RESEARCHER, 1 VALIDATOR) with on-chain tx hashes
-- Reputation records (researcher: score 85, validator: score 92)
-- 4 feedback entries (3 on-chain, 1 off-chain)
+- 2 agent identities (1 RESEARCHER, 1 VALIDATOR) registered on-chain with real tx hashes
+- Reputation records with on-chain feedback (real BaseScan-verifiable transactions)
+- 4 feedback entries (3 on-chain with real txHash, 1 off-chain)
 - 3 X.402 payment records (2 COMPLETED, 1 PENDING)
 - 1 escrow account with 5 USDC balance and 2 transactions
 
@@ -303,7 +305,7 @@ All "Verify on chain" links open the transaction on `sepolia.basescan.org` for i
 
 ```bash
 # Check agent is registered on-chain (ERC-8004)
-cast call 0x59932bDf3056D88DC07cb320263419B8ec1e942d \
+cast call 0x772ADB0bC03B1b465942091a35D8F6fCC6F84f8b \
   "isRegistered(address)(bool)" \
   0xRESEARCHER_ADDRESS \
   --rpc-url $BASE_SEPOLIA_RPC_URL
@@ -327,7 +329,7 @@ cast call 0x036CbD53842c5426634e7929541eC2318f3dCF7e \
 |------|------------|
 | Transaction | `https://sepolia.basescan.org/tx/<TX_HASH>` |
 | Agent Wallet | `https://sepolia.basescan.org/address/<WALLET>` |
-| AgentIdentityRegistry | `https://sepolia.basescan.org/address/0x59932bDf3056D88DC07cb320263419B8ec1e942d` |
+| AgentIdentityRegistry | `https://sepolia.basescan.org/address/0x772ADB0bC03B1b465942091a35D8F6fCC6F84f8b` |
 | BountyPool | `https://sepolia.basescan.org/address/0x6D0bA6dA342c4ce75281Ea90c71017BC94A397b0` |
 
 #### Database Verification
@@ -402,6 +404,7 @@ npx playwright test --project=chromium
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/v1/agent-identities` | List all agents with reputation |
+| GET | `/api/v1/agent-identities/metadata/:tokenId` | ERC-721 metadata JSON (public, no auth) |
 | POST | `/api/v1/agent-identities/register` | Register new agent (optional on-chain) |
 | GET | `/api/v1/agent-identities/x402-payments` | All X.402 payment records |
 | GET | `/api/v1/agent-identities/leaderboard` | Reputation leaderboard |

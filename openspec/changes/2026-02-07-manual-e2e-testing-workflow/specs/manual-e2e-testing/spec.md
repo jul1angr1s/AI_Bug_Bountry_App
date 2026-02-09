@@ -25,7 +25,7 @@ Formal GIVEN-WHEN-THEN scenarios for the Manual End-to-End Testing Workflow. The
 - **WHEN** Tester verifies `DATABASE_URL` is set and formatted correctly
 - **WHEN** Tester verifies `BOUNTY_POOL_ADDRESS` is configured (0x6D0bA6dA342c4ce75281Ea90c71017BC94A397b0)
 - **WHEN** Tester verifies `USDC_ADDRESS` is configured (0x036CbD53842c5426634e7929541eC2318f3dCF7e)
-- **WHEN** Tester verifies `AGENT_IDENTITY_REGISTRY_ADDRESS` is set (0x59932bDf3056D88DC07cb320263419B8ec1e942d)
+- **WHEN** Tester verifies `AGENT_IDENTITY_REGISTRY_ADDRESS` is set (0x772ADB0bC03B1b465942091a35D8F6fCC6F84f8b)
 - **WHEN** Tester verifies `MOONSHOT_API_KEY` is set
 - **WHEN** Tester verifies `REDIS_URL` points to running Redis with authentication
 - **THEN** All required environment variables are configured

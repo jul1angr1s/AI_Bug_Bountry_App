@@ -2,12 +2,15 @@ import { ethers, Contract, ContractTransactionResponse } from 'ethers';
 import { payerWallet, contractAddresses, provider } from '../config.js';
 
 const AGENT_IDENTITY_REGISTRY_ABI = [
-  'function registerAgent(address agent, uint8 agentType) external returns (uint256)',
-  'function getAgentByAddress(address agent) external view returns (uint256 tokenId, uint8 agentType, bool isActive, uint256 registeredAt)',
-  'function isRegistered(address agent) external view returns (bool)',
-  'function setAgentActive(address agent, bool active) external',
-  'function totalAgents() external view returns (uint256)',
-  'event AgentRegistered(uint256 indexed tokenId, address indexed agent, uint8 agentType)',
+  'function registerAgent(address wallet, uint8 agentType) external returns (uint256)',
+  'function selfRegister(uint8 agentType) external returns (uint256)',
+  'function getAgent(uint256 agentId) external view returns (tuple(uint256 agentId, address wallet, uint8 agentType, uint256 registeredAt, bool active))',
+  'function getAgentByWallet(address wallet) external view returns (tuple(uint256 agentId, address wallet, uint8 agentType, uint256 registeredAt, bool active))',
+  'function isRegistered(address wallet) external view returns (bool)',
+  'function isActive(uint256 agentId) external view returns (bool)',
+  'function getTotalAgentCount() external view returns (uint256)',
+  'function walletToAgentId(address wallet) external view returns (uint256)',
+  'event AgentRegistered(uint256 indexed agentId, address indexed wallet, uint8 agentType, uint256 registeredAt)',
 ];
 
 export enum AgentType {
@@ -102,11 +105,11 @@ export class AgentIdentityRegistryClient {
 
   async getAgent(walletAddress: string): Promise<OnChainAgent | null> {
     try {
-      const result = await this.readOnlyContract.getAgentByAddress(walletAddress);
+      const result = await this.readOnlyContract.getAgentByWallet(walletAddress);
       return {
-        tokenId: result.tokenId.toString(),
+        tokenId: result.agentId.toString(),
         agentType: Number(result.agentType) as AgentType,
-        isActive: result.isActive,
+        isActive: result.active,
         registeredAt: result.registeredAt,
       };
     } catch {
@@ -114,13 +117,9 @@ export class AgentIdentityRegistryClient {
     }
   }
 
-  async setAgentActive(walletAddress: string, active: boolean): Promise<string> {
-    const tx: ContractTransactionResponse = await this.contract.setAgentActive(
-      walletAddress,
-      active
-    );
-    await tx.wait();
-    return tx.hash;
+  async getAgentIdByWallet(walletAddress: string): Promise<string> {
+    const id = await this.readOnlyContract.walletToAgentId(walletAddress);
+    return id.toString();
   }
 
   getAddress(): string {

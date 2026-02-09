@@ -43,6 +43,58 @@ forge script script/DeployBaseSepolia.s.sol \
 3. Verify on Basescan:
    - https://sepolia.basescan.org/address/{CONTRACT_ADDRESS}
 
+## Agent Contract Deployment
+
+The agent contracts (AgentIdentityRegistry, AgentReputationRegistry, PlatformEscrow) are deployed separately from the platform contracts. **Always deploy with `--verify`** to ensure source code is visible on BaseScan.
+
+```bash
+cd backend/contracts
+source ../.env
+
+# Deploy with verification (recommended)
+PRIVATE_KEY=0x$PRIVATE_KEY forge script script/DeployAgentContracts.s.sol \
+  --rpc-url $BASE_SEPOLIA_RPC_URL \
+  --broadcast \
+  --verify \
+  --etherscan-api-key $BASESCAN_API_KEY \
+  --slow
+```
+
+After deployment, update `backend/.env`:
+```bash
+AGENT_IDENTITY_REGISTRY_ADDRESS=0x...
+AGENT_REPUTATION_REGISTRY_ADDRESS=0x...
+PLATFORM_ESCROW_ADDRESS=0x...
+```
+
+### Manual Verification (fallback)
+
+If `--verify` fails during deployment, verify each contract manually:
+
+```bash
+# AgentIdentityRegistry (no constructor args)
+forge verify-contract \
+  $AGENT_IDENTITY_REGISTRY_ADDRESS \
+  src/AgentIdentityRegistry.sol:AgentIdentityRegistry \
+  --chain base-sepolia \
+  --etherscan-api-key $BASESCAN_API_KEY
+
+# AgentReputationRegistry (no constructor args)
+forge verify-contract \
+  $AGENT_REPUTATION_REGISTRY_ADDRESS \
+  src/AgentReputationRegistry.sol:AgentReputationRegistry \
+  --chain base-sepolia \
+  --etherscan-api-key $BASESCAN_API_KEY
+
+# PlatformEscrow (has constructor args: USDC address, treasury address)
+forge verify-contract \
+  $PLATFORM_ESCROW_ADDRESS \
+  src/PlatformEscrow.sol:PlatformEscrow \
+  --chain base-sepolia \
+  --etherscan-api-key $BASESCAN_API_KEY \
+  --constructor-args $(cast abi-encode "constructor(address,address)" 0x036CbD53842c5426634e7929541eC2318f3dCF7e $DEPLOYER_ADDRESS)
+```
+
 ## Deployed Contracts
 
 ### ProtocolRegistry

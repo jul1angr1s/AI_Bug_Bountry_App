@@ -40,6 +40,74 @@ const DepositEscrowSchema = z.object({
 // STATIC ROUTES (must be before /:id param)
 // =============================================
 
+// GET /api/v1/agent-identities/metadata/:tokenId - ERC-721 metadata (public, no auth)
+router.get('/metadata/:tokenId', async (req: Request, res: Response) => {
+  try {
+    const tokenId = parseInt(req.params.tokenId);
+    if (isNaN(tokenId) || tokenId <= 0) {
+      return res.status(404).json({ error: 'Token not found' });
+    }
+
+    const agent = await prisma.agentIdentity.findFirst({
+      where: { agentNftId: BigInt(tokenId) },
+      include: { reputation: true },
+    });
+
+    if (!agent) {
+      return res.status(404).json({ error: 'Token not found' });
+    }
+
+    const agentTypeLabel = agent.agentType === 'RESEARCHER' ? 'Security Researcher' : 'Validation Agent';
+    const badgeColor = agent.agentType === 'RESEARCHER' ? '#3b82f6' : '#8b5cf6';
+    const iconPath = agent.agentType === 'RESEARCHER'
+      ? 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z'
+      : 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z';
+
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f172a"/>
+      <stop offset="100%" style="stop-color:#1e293b"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="400" fill="url(#bg)" rx="20"/>
+  <rect x="20" y="20" width="360" height="360" rx="12" fill="none" stroke="${badgeColor}" stroke-width="2" opacity="0.5"/>
+  <circle cx="200" cy="120" r="50" fill="${badgeColor}" opacity="0.2"/>
+  <svg x="176" y="96" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="${badgeColor}" stroke-width="1.5">
+    <path d="${iconPath}"/>
+  </svg>
+  <text x="200" y="210" text-anchor="middle" fill="white" font-family="monospace" font-size="18" font-weight="bold">BBAGENT #${tokenId}</text>
+  <text x="200" y="240" text-anchor="middle" fill="${badgeColor}" font-family="monospace" font-size="14">${agentTypeLabel}</text>
+  <text x="200" y="280" text-anchor="middle" fill="#94a3b8" font-family="monospace" font-size="10">${agent.walletAddress.slice(0, 6)}...${agent.walletAddress.slice(-4)}</text>
+  <text x="200" y="310" text-anchor="middle" fill="#94a3b8" font-family="monospace" font-size="10">Score: ${agent.reputation?.reputationScore ?? 0}/100</text>
+  <text x="200" y="370" text-anchor="middle" fill="#475569" font-family="monospace" font-size="9">Thunder Security Platform</text>
+</svg>`;
+
+    const svgBase64 = Buffer.from(svg).toString('base64');
+
+    const metadata = {
+      name: `BugBounty Agent #${tokenId}`,
+      description: `${agentTypeLabel} on the Thunder Security Bug Bounty Platform. This soulbound NFT represents a verified agent identity (ERC-8004).`,
+      image: `data:image/svg+xml;base64,${svgBase64}`,
+      external_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/agents/${agent.id}`,
+      attributes: [
+        { trait_type: 'Agent Type', value: agent.agentType },
+        { trait_type: 'Wallet', value: agent.walletAddress },
+        { trait_type: 'Registration Date', value: agent.registeredAt.toISOString() },
+        { trait_type: 'Reputation Score', display_type: 'number', value: agent.reputation?.reputationScore ?? 0 },
+        { trait_type: 'Active', value: agent.isActive ? 'Yes' : 'No' },
+      ],
+    };
+
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Cache-Control', 'public, max-age=300');
+    res.json(metadata);
+  } catch (error) {
+    console.error('Metadata endpoint error:', error);
+    res.status(500).json({ error: 'Failed to generate metadata' });
+  }
+});
+
 // GET /api/v1/agent-identities - List all agents
 router.get('/', async (req: Request, res: Response) => {
   try {

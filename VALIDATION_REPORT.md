@@ -76,9 +76,9 @@ grep -E "(BOUNTY_POOL|USDC_ADDRESS)" backend/.env.example
 ### Blockchain Configuration
 - ✅ BountyPool contract: `0x6D0bA6dA342c4ce75281Ea90c71017BC94A397b0` (Base Sepolia)
 - ✅ USDC contract: `0x036CbD53842c5426634e7929541eC2318f3dCF7e` (Base Sepolia)
-- ✅ Agent Identity Registry: `0x59932bDf3056D88DC07cb320263419B8ec1e942d`
-- ✅ Agent Reputation Registry: `0x8160aB516366FfaAb6C239524D35963058Feb850`
-- ✅ Platform Escrow: `0x33e5eE00985F96b482370c948d1c63c0AA4bD1ab`
+- ✅ Agent Identity Registry: `0x772ADB0bC03B1b465942091a35D8F6fCC6F84f8b`
+- ✅ Agent Reputation Registry: `0x53f126F6F79414d8Db4cd08B05b84f5F1128de16`
+- ✅ Platform Escrow: `0x1EC275172C191670C9fbB290dcAB31A9784BC6eC`
 
 ### Environment Variables
 - ✅ All required variables configured in `.env`

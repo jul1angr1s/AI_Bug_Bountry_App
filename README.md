@@ -872,9 +872,9 @@ sequenceDiagram
 
 | Contract | Address | Purpose |
 |----------|---------|---------|
-| **AgentIdentityRegistry** | [`0x59932bDf3056D88DC07cb320263419B8ec1e942d`](https://sepolia.basescan.org/address/0x59932bDf3056D88DC07cb320263419B8ec1e942d) | Soulbound NFT agent registration |
-| **AgentReputationRegistry** | [`0x8160ab516366ffaab6c239524d35963058feb850`](https://sepolia.basescan.org/address/0x8160ab516366ffaab6c239524d35963058feb850) | On-chain reputation scoring |
-| **PlatformEscrow** | [`0x33e5ee00985f96b482370c948d1c63c0aa4bd1ab`](https://sepolia.basescan.org/address/0x33e5ee00985f96b482370c948d1c63c0aa4bd1ab) | USDC escrow for submission fees |
+| **AgentIdentityRegistry** | [`0x772ADB0bC03B1b465942091a35D8F6fCC6F84f8b`](https://sepolia.basescan.org/address/0x772ADB0bC03B1b465942091a35D8F6fCC6F84f8b) | Soulbound NFT agent registration |
+| **AgentReputationRegistry** | [`0x53f126F6F79414d8Db4cd08B05b84f5F1128de16`](https://sepolia.basescan.org/address/0x53f126F6F79414d8Db4cd08B05b84f5F1128de16) | On-chain reputation scoring |
+| **PlatformEscrow** | [`0x1EC275172C191670C9fbB290dcAB31A9784BC6eC`](https://sepolia.basescan.org/address/0x1EC275172C191670C9fbB290dcAB31A9784BC6eC) | USDC escrow for submission fees |
 
 ### Tokens
 
@@ -945,9 +945,9 @@ VALIDATION_REGISTRY_ADDRESS="0x8fBE5E9B0C17Cb606091e5050529CE99baB7744d"
 BOUNTY_POOL_ADDRESS="0x6D0bA6dA342c4ce75281Ea90c71017BC94A397b0"
 
 # Agent Contracts (ERC-8004)
-AGENT_IDENTITY_REGISTRY_ADDRESS="0x59932bDf3056D88DC07cb320263419B8ec1e942d"
-AGENT_REPUTATION_REGISTRY_ADDRESS="0x8160ab516366ffaab6c239524d35963058feb850"
-PLATFORM_ESCROW_ADDRESS="0x33e5ee00985f96b482370c948d1c63c0aa4bd1ab"
+AGENT_IDENTITY_REGISTRY_ADDRESS="0x772ADB0bC03B1b465942091a35D8F6fCC6F84f8b"
+AGENT_REPUTATION_REGISTRY_ADDRESS="0x53f126F6F79414d8Db4cd08B05b84f5F1128de16"
+PLATFORM_ESCROW_ADDRESS="0x1EC275172C191670C9fbB290dcAB31A9784BC6eC"
 
 # x.402 Payment Gating
 X402_FACILITATOR_URL="https://www.x402.org/facilitator"

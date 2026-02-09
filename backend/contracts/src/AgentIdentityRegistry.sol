@@ -27,6 +27,7 @@ contract AgentIdentityRegistry is ERC721, AccessControl {
     }
 
     uint256 private _agentIdCounter;
+    string private _metadataBaseURI;
 
     mapping(uint256 => Agent) public agents;
     mapping(address => uint256) public walletToAgentId;
@@ -263,6 +264,21 @@ contract AgentIdentityRegistry is ERC721, AccessControl {
      */
     function removeRegistrar(address registrar) external onlyRole(DEFAULT_ADMIN_ROLE) {
         revokeRole(REGISTRAR_ROLE, registrar);
+    }
+
+    /**
+     * @notice Set the base URI for token metadata
+     * @param baseURI Base URI (must end with trailing slash)
+     */
+    function setBaseURI(string memory baseURI) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _metadataBaseURI = baseURI;
+    }
+
+    /**
+     * @notice Returns the base URI for token metadata
+     */
+    function _baseURI() internal view override returns (string memory) {
+        return _metadataBaseURI;
     }
 
     /**
