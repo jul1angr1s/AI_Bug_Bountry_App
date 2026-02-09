@@ -469,6 +469,10 @@ fi
 if [ "${SEED_DEMO_DATA:-0}" = "1" ]; then
   echo ""
   echo "🌱 Seeding demo data (agents, payments, reputation, escrow)..."
+  echo "   ⚠️  NOTE: Seed script performs real on-chain transactions (requires ETH for gas)"
+  if [ -z "${PRIVATE_KEY:-}" ] || [ -z "${BASE_SEPOLIA_RPC_URL:-}" ]; then
+    echo "   ⚠️  Missing PRIVATE_KEY or BASE_SEPOLIA_RPC_URL — seed will run in database-only mode"
+  fi
   if [ -f "$ROOT_DIR/backend/scripts/seed-demo-data.ts" ]; then
     if (cd "$ROOT_DIR/backend" && npx tsx scripts/seed-demo-data.ts); then
       echo "✓ Demo data seeded successfully"
@@ -666,6 +670,16 @@ if [ "${START_BACKEND:-1}" = "1" ] && command -v curl >/dev/null 2>&1; then
       echo "  ✓ Leaderboard endpoint: OK"
     else
       echo "  ⚠️  Leaderboard endpoint: HTTP $leaderboard_response"
+    fi
+
+    # Test metadata endpoint (ERC-721 token metadata)
+    metadata_response=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:3000/api/v1/agent-identities/metadata/1" 2>/dev/null)
+    if [ "$metadata_response" = "200" ]; then
+      echo "  ✓ Metadata endpoint: OK (token #1)"
+    elif [ "$metadata_response" = "404" ]; then
+      echo "  ✓ Metadata endpoint: OK (no token #1 yet — seed data first)"
+    else
+      echo "  ⚠️  Metadata endpoint: HTTP $metadata_response"
     fi
 
     # Verify CSRF is enforced on state-changing routes (POST without token should fail)

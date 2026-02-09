@@ -484,6 +484,7 @@ model AgentFeedback {
   findingId           String?           // Reference to Finding
   feedbackType        FeedbackType
   onChainFeedbackId   String?           // bytes32 from AgentReputationRegistry
+  txHash              String?           // Transaction hash for on-chain feedback
   createdAt           DateTime          @default(now())
 
   researcherAgent AgentIdentity @relation("ResearcherFeedbacks", fields: [researcherAgentId], references: [id], onDelete: Cascade)

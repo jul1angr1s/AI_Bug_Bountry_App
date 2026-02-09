@@ -1,11 +1,20 @@
 import { ethers, Contract, ContractTransactionResponse } from 'ethers';
 import { payerWallet, contractAddresses, provider } from '../config.js';
 
+// ABI matches AgentReputationRegistry.sol exactly:
+// - recordFeedback(uint256, uint256, bytes32, FeedbackType) returns (bytes32)
+// - initializeReputation(uint256, address)
+// - getReputation(uint256) returns ReputationRecord
+// - getScore(uint256) returns uint256
 const AGENT_REPUTATION_REGISTRY_ABI = [
-  'function recordFeedback(uint256 researcherTokenId, uint256 validatorTokenId, uint8 feedbackType, bytes32 validationId, bytes32 findingId) external returns (uint256)',
-  'function getScore(uint256 tokenId) external view returns (uint256 totalSubmissions, uint256 confirmedCount, uint256 rejectedCount, uint256 reputationScore)',
-  'function getFeedback(uint256 feedbackId) external view returns (uint256 researcherTokenId, uint256 validatorTokenId, uint8 feedbackType, bytes32 validationId, bytes32 findingId, uint256 timestamp)',
-  'event FeedbackRecorded(uint256 indexed feedbackId, uint256 indexed researcherTokenId, uint256 indexed validatorTokenId, uint8 feedbackType)',
+  'function initializeReputation(uint256 agentId, address wallet) external',
+  'function recordFeedback(uint256 researcherAgentId, uint256 validatorAgentId, bytes32 validationId, uint8 feedbackType) external returns (bytes32)',
+  'function getReputation(uint256 agentId) external view returns (tuple(uint256 agentId, address wallet, uint256 confirmedCount, uint256 rejectedCount, uint256 inconclusiveCount, uint256 totalSubmissions, uint256 reputationScore, uint256 lastUpdated))',
+  'function getScore(uint256 agentId) external view returns (uint256)',
+  'function getAgentFeedbacks(uint256 agentId) external view returns (tuple(bytes32 feedbackId, uint256 researcherAgentId, uint256 validatorAgentId, bytes32 validationId, uint8 feedbackType, uint256 timestamp)[])',
+  'function meetsMinimumScore(uint256 agentId, uint256 minScore) external view returns (bool)',
+  'event FeedbackRecorded(bytes32 indexed feedbackId, uint256 indexed researcherAgentId, uint256 indexed validatorAgentId, bytes32 validationId, uint8 feedbackType, uint256 timestamp)',
+  'event ReputationUpdated(uint256 indexed agentId, address indexed wallet, uint256 confirmedCount, uint256 rejectedCount, uint256 reputationScore, uint256 timestamp)',
 ];
 
 export enum FeedbackType {
@@ -19,6 +28,11 @@ export enum FeedbackType {
 
 export interface FeedbackRecordResult {
   feedbackId: string;
+  txHash: string;
+  blockNumber: number;
+}
+
+export interface InitializeReputationResult {
   txHash: string;
   blockNumber: number;
 }
@@ -52,41 +66,59 @@ export class AgentReputationRegistryClient {
     );
   }
 
-  async recordFeedback(
-    researcherTokenId: string,
-    validatorTokenId: string,
-    feedbackType: FeedbackType,
-    validationId: string,
-    findingId: string
-  ): Promise<FeedbackRecordResult> {
-    console.log('[AgentReputationRegistry] Recording feedback on-chain...');
-    console.log(`  Researcher NFT: ${researcherTokenId}`);
-    console.log(`  Validator NFT: ${validatorTokenId}`);
-    console.log(`  Feedback: ${FeedbackType[feedbackType]}`);
+  async initializeReputation(
+    agentId: string,
+    walletAddress: string
+  ): Promise<InitializeReputationResult> {
+    console.log('[AgentReputationRegistry] Initializing reputation on-chain...');
+    console.log(`  Agent ID: ${agentId}`);
+    console.log(`  Wallet: ${walletAddress}`);
 
-    // Convert string IDs to bytes32
-    const validationIdBytes32 = ethers.zeroPadValue(
-      ethers.toBeHex(validationId.startsWith('0x') ? validationId : ethers.id(validationId)),
-      32
-    );
-    const findingIdBytes32 = ethers.zeroPadValue(
-      ethers.toBeHex(findingId.startsWith('0x') ? findingId : ethers.id(findingId)),
-      32
-    );
-
-    const tx: ContractTransactionResponse = await this.contract.recordFeedback(
-      researcherTokenId,
-      validatorTokenId,
-      feedbackType,
-      validationIdBytes32,
-      findingIdBytes32
+    const tx: ContractTransactionResponse = await this.contract.initializeReputation(
+      agentId,
+      walletAddress
     );
 
     const receipt = await tx.wait();
     if (!receipt) throw new Error('Transaction receipt is null');
 
-    // Parse FeedbackRecorded event
-    let feedbackId = '0';
+    console.log(`[AgentReputationRegistry] Reputation initialized: tx=${tx.hash}`);
+
+    return {
+      txHash: tx.hash,
+      blockNumber: receipt.blockNumber,
+    };
+  }
+
+  async recordFeedback(
+    researcherAgentId: string,
+    validatorAgentId: string,
+    validationId: string,
+    feedbackType: FeedbackType
+  ): Promise<FeedbackRecordResult> {
+    console.log('[AgentReputationRegistry] Recording feedback on-chain...');
+    console.log(`  Researcher Agent ID: ${researcherAgentId}`);
+    console.log(`  Validator Agent ID: ${validatorAgentId}`);
+    console.log(`  Feedback: ${FeedbackType[feedbackType]}`);
+
+    // Convert validationId to bytes32
+    const validationIdBytes32 = ethers.zeroPadValue(
+      ethers.toBeHex(validationId.startsWith('0x') ? validationId : ethers.id(validationId)),
+      32
+    );
+
+    const tx: ContractTransactionResponse = await this.contract.recordFeedback(
+      researcherAgentId,
+      validatorAgentId,
+      validationIdBytes32,
+      feedbackType
+    );
+
+    const receipt = await tx.wait();
+    if (!receipt) throw new Error('Transaction receipt is null');
+
+    // Parse FeedbackRecorded event to get feedbackId (bytes32)
+    let feedbackId = '0x0';
     for (const log of receipt.logs) {
       try {
         const parsed = this.contract.interface.parseLog({
@@ -94,7 +126,7 @@ export class AgentReputationRegistryClient {
           data: log.data,
         });
         if (parsed?.name === 'FeedbackRecorded') {
-          feedbackId = parsed.args[0].toString();
+          feedbackId = parsed.args[0];
           break;
         }
       } catch {
@@ -112,12 +144,12 @@ export class AgentReputationRegistryClient {
   }
 
   async getScore(tokenId: string): Promise<OnChainReputationScore> {
-    const result = await this.readOnlyContract.getScore(tokenId);
+    const repRecord = await this.readOnlyContract.getReputation(tokenId);
     return {
-      totalSubmissions: result.totalSubmissions,
-      confirmedCount: result.confirmedCount,
-      rejectedCount: result.rejectedCount,
-      reputationScore: result.reputationScore,
+      totalSubmissions: repRecord.totalSubmissions,
+      confirmedCount: repRecord.confirmedCount,
+      rejectedCount: repRecord.rejectedCount,
+      reputationScore: repRecord.reputationScore,
     };
   }
 

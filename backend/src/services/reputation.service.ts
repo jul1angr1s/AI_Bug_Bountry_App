@@ -82,6 +82,11 @@ export class ReputationService {
     return { feedback, reputation: updatedReputation };
   }
 
+  async initializeReputationOnChain(agentNftId: string, walletAddress: string) {
+    const client = getReputationClient();
+    return await client.initializeReputation(agentNftId, walletAddress);
+  }
+
   async recordFeedbackOnChain(
     researcherWallet: string,
     validatorWallet: string,
@@ -102,12 +107,14 @@ export class ReputationService {
     }
 
     const client = getReputationClient();
+
+    // Corrected call: 4 params matching Solidity signature
+    // recordFeedback(researcherAgentId, validatorAgentId, validationId, feedbackType)
     const result = await client.recordFeedback(
       researcher.agentNftId.toString(),
       validator.agentNftId.toString(),
-      FEEDBACK_TYPE_MAP[feedbackType],
       validationId,
-      findingId
+      FEEDBACK_TYPE_MAP[feedbackType]
     );
 
     // Record in database as well
@@ -119,10 +126,13 @@ export class ReputationService {
       feedbackType
     );
 
-    // Update with on-chain feedback ID
+    // Update with on-chain feedback ID and txHash
     await prisma.agentFeedback.update({
       where: { id: feedback.id },
-      data: { onChainFeedbackId: result.feedbackId },
+      data: {
+        onChainFeedbackId: result.feedbackId,
+        txHash: result.txHash,
+      },
     });
 
     return { feedback, reputation, txHash: result.txHash };
