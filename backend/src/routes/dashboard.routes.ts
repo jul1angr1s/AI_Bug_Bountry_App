@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
-import { requireAdmin } from '../middleware/admin.js';
 import { validateRequest } from '../middleware/validation.js';
 import { dashboardRateLimits } from '../middleware/rate-limit.js';
 import {
@@ -64,8 +63,8 @@ router.get('/stats', requireAuth, dashboardRateLimits.stats, validateRequest({ q
   }
 });
 
-// GET /api/v1/agents - Agent status (admin only)
-router.get('/agents', requireAuth, requireAdmin, dashboardRateLimits.agents, validateRequest({ query: agentQuerySchema }), async (req: Request, res: Response) => {
+// GET /api/v1/agents - Agent status
+router.get('/agents', requireAuth, dashboardRateLimits.agents, validateRequest({ query: agentQuerySchema }), async (req: Request, res: Response) => {
   try {
     const { type } = req.query as { type?: 'PROTOCOL' | 'RESEARCHER' | 'VALIDATOR' };
     const cacheKey = CACHE_KEYS.AGENT_STATUS(type);
