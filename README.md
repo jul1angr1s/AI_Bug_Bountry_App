@@ -217,6 +217,9 @@ This platform has completed all development phases including comprehensive testi
 - ✨ **6 Smart Contracts**: ProtocolRegistry, ValidationRegistry, BountyPool + AgentIdentityRegistry, AgentReputationRegistry, PlatformEscrow
 - ✨ **AI Integration**: Kimi 2.5 (Moonshot AI) achieving 6x vulnerability detection improvement
 - ✨ **SIWE Server-Side Verification**: ethers.js `verifyMessage()` with JWT tokens (1h access / 7d refresh), eliminating client-only trust
+- ✨ **NFT Metadata API**: ERC-721 compliant `tokenURI()` with dynamic SVG generation — agent identity NFTs now display metadata on BaseScan
+- ✨ **On-Chain Seed Data**: Seed script creates real blockchain transactions (agent registration, reputation, feedback) — no more placeholder hashes
+- ✨ **All 6 Contracts Verified**: Agent contracts redeployed with `--verify` — full source code visible on BaseScan
 - ✨ **EIP-7702 Smart Account Batching**: Single-click approve+transfer for wallets with EIP-7702 delegation via ERC-5792 `wallet_sendCalls`, graceful fallback for standard wallets (PRs #120-#122)
 - ✨ **BullMQ Validator Migration**: Redis Pub/Sub → BullMQ queue consumer for LLM validator, guaranteed delivery with retries (PR #118)
 - ✨ **Redis-Backed Rate Limiting**: Per-endpoint limits (60-300 req/min), `X-RateLimit-*` response headers, fail-open degradation
@@ -616,9 +619,9 @@ graph TB
         PR[Protocol Registry<br/>0xc7DF...3235]
         VR[Validation Registry<br/>0x8fBE...44d]
         BP[Bounty Pool<br/>0x6D0b...7b0]
-        AIR[🪪 Agent Identity<br/>0x5993...942d]
-        ARR[⭐ Agent Reputation<br/>0x8160...b850]
-        PE[🏦 Platform Escrow<br/>0x33e5...D1ab]
+        AIR[🪪 Agent Identity<br/>0x772A...f8b]
+        ARR[⭐ Agent Reputation<br/>0x53f1...e16]
+        PE[🏦 Platform Escrow<br/>0x1EC2...6eC]
         USDC[💵 USDC Token<br/>0x036C...CF7e]
     end
 
@@ -987,6 +990,46 @@ cd backend
 npx prisma migrate deploy
 npx prisma generate
 ```
+
+### Seed Demo Data (Real On-Chain Transactions)
+
+The seed script creates realistic demo data with **real on-chain transactions** on Base Sepolia — not mock hashes. Every agent registration, reputation initialization, and feedback recording is a verifiable blockchain transaction.
+
+```bash
+cd backend
+npx tsx scripts/seed-demo-data.ts
+```
+
+**What it creates:**
+- 2 agent identities minted as soulbound NFTs (Researcher + Validator)
+- On-chain reputation initialization for both agents
+- 3 on-chain feedback records (CONFIRMED_CRITICAL, HIGH, MEDIUM) + 1 off-chain (REJECTED)
+- Sample X.402 payment records and escrow data
+
+**Requirements:**
+- Deployer wallet needs Base Sepolia ETH for gas (~0.01 ETH)
+- `PRIVATE_KEY`, `BASE_SEPOLIA_RPC_URL` set in `backend/.env`
+- Agent contracts deployed (`AGENT_IDENTITY_REGISTRY_ADDRESS`, etc.)
+
+**Output includes real BaseScan links:**
+```
+✅ Researcher registered on-chain: tokenId=1
+   TX: https://sepolia.basescan.org/tx/0x91c1cc...
+✅ CONFIRMED_CRITICAL on-chain: feedbackId=0x9b8ba6da...
+   TX: https://sepolia.basescan.org/tx/0x84be42...
+```
+
+Falls back to database-only mode if blockchain environment variables are missing or on-chain calls fail.
+
+### NFT Metadata API
+
+Each registered agent has ERC-721 compliant metadata accessible via:
+
+```
+GET http://localhost:3000/api/v1/agent-identities/metadata/:tokenId
+```
+
+Returns JSON with name, description, dynamically generated SVG image, and on-chain attributes (agent type, wallet, reputation score). This is what BaseScan and NFT marketplaces use to display agent identity NFTs.
 
 ---
 
@@ -1750,7 +1793,7 @@ Imagine a world where:
 
 **Blockchain:**
 - Network: Base Sepolia (Chain ID: 84532)
-- Contracts Deployed: 6 (3 platform verified + 3 agent)
+- Contracts Deployed: 6 (all verified on BaseScan)
 - Agent Economy: ERC-8004 identity + reputation + escrow
 - USDC Base Amount: 100 USDC
 - Real Transactions: Verified on testnet
@@ -1944,7 +1987,7 @@ cd AI_Bug_Bountry_App
 **Code**: 26,000+ lines (TypeScript + Solidity)
 **Tests**: 302 unit + 87 contract + 36 integration + 46 regression + 49 E2E
 **CI/CD**: 5 parallel GitHub Actions jobs with Codecov
-**Smart Contracts**: 6 deployed on Base Sepolia (3 platform + 3 agent)
+**Smart Contracts**: 6 deployed and verified on Base Sepolia (3 platform + 3 agent)
 **Architecture**: tsyringe DI, decomposed services, ESLint enforced
 
 ---
