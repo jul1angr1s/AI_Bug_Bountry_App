@@ -1,0 +1,25 @@
+schema: change
+version: 1.0
+status: in-progress
+started: 2026-02-08
+component:
+  - Frontend
+layer:
+  - Web3 Integration
+  - UI
+  - Testing
+artifacts:
+  - name: proposal
+    completed: true
+  - name: design
+    completed: true
+  - name: tasks
+    completed: true
+  - name: spec
+    completed: true
+notes: |
+  EIP-7702 Smart Account Transaction Batching for x.402 Payment Flow
+  - useSmartAccountBatching hook using wagmi useSendCalls/useCapabilities/useCallsStatus
+  - PaymentRequiredModal integration with 1-click approve+transfer for EIP-7702 wallets
+  - Graceful fallback to existing 2-step flow for non-delegated wallets
+  - No new dependencies required (wagmi v3.4.1 ships with ERC-5792 hooks)
