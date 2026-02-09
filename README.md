@@ -22,7 +22,7 @@
 
 <div align="center">
 
-### ⚡ **6x More Vulnerabilities** | 🤖 **4 Autonomous AI Agents** | 💰 **Automatic USDC Payments** | ⏱️ **< 4 Minute E2E** | 🪪 **ERC-8004 Agent Identity** | 💳 **x.402 Payment Gating**
+### ⚡ **6x More Vulnerabilities** | 🤖 **4 Autonomous AI Agents** | 💰 **Automatic USDC Payments** | ⏱️ **< 4 Minute E2E** | 🪪 **ERC-8004 Agent Identity** | 💳 **x.402 Payment Gating** | ⚡ **EIP-7702 Smart Accounts**
 
 </div>
 
@@ -41,6 +41,7 @@
 - [🧪 Testing](#-testing)
 - [🤖 AI-Enhanced Analysis](#-ai-enhanced-analysis)
 - [💳 Payment Automation](#-payment-automation)
+- [⚡ EIP-7702 Smart Account Batching](#-eip-7702-smart-account-batching)
 - [📚 Documentation](#-documentation)
 - [🤝 Contributing](#-contributing)
 - [🗺️ Roadmap](#️-roadmap)
@@ -186,6 +187,7 @@ HTTP 402 protocol registration gate with Coinbase x.402 facilitator integration 
 - **🤖 True Agent Autonomy**: Four specialized AI agents (Protocol, Researcher, Validator, Payment) coordinate through BullMQ queues with zero human intervention
 - **🪪 ERC-8004 Agent Identity**: Soulbound NFT registration with on-chain reputation scoring tied to validation outcomes
 - **💳 x.402 Payment Gating**: Coinbase x.402 facilitator gates protocol registration with HTTP 402 USDC payment flows
+- **⚡ EIP-7702 Smart Accounts**: Single-click atomic approve+transfer via `wallet_sendCalls` for delegated wallets, eliminating the 2-popup pain point
 - **🧠 Hybrid AI Analysis**: Kimi 2.5 discovers business logic flaws, access control issues, and DoS vectors that static analysis misses
 - **⛓️ Blockchain-Native**: 6 smart contracts on Base L2 — platform registry, agent identity, reputation, and escrow
 - **🔬 Sandboxed Validation**: Isolated Anvil environments ensure exploit verification without risk
@@ -215,6 +217,7 @@ This platform has completed all development phases including comprehensive testi
 - ✨ **6 Smart Contracts**: ProtocolRegistry, ValidationRegistry, BountyPool + AgentIdentityRegistry, AgentReputationRegistry, PlatformEscrow
 - ✨ **AI Integration**: Kimi 2.5 (Moonshot AI) achieving 6x vulnerability detection improvement
 - ✨ **SIWE Server-Side Verification**: ethers.js `verifyMessage()` with JWT tokens (1h access / 7d refresh), eliminating client-only trust
+- ✨ **EIP-7702 Smart Account Batching**: Single-click approve+transfer for wallets with EIP-7702 delegation via ERC-5792 `wallet_sendCalls`, graceful fallback for standard wallets (PRs #120-#122)
 - ✨ **BullMQ Validator Migration**: Redis Pub/Sub → BullMQ queue consumer for LLM validator, guaranteed delivery with retries (PR #118)
 - ✨ **Redis-Backed Rate Limiting**: Per-endpoint limits (60-300 req/min), `X-RateLimit-*` response headers, fail-open degradation
 - ✨ **Post-Registration Flow Fixes**: Resolved 401 spam, false scan modal, and missing funding redirect (PR #117)
@@ -350,7 +353,7 @@ graph LR
     style Escrow fill:#10B981,stroke:#059669,stroke-width:2px,color:#fff
 ```
 
-**x.402 Protocol Registration**: Protocol owners pay a 1 USDC registration fee via Coinbase's x.402 facilitator (HTTP 402 → USDC transfer → cryptographic receipt → access granted).
+**x.402 Protocol Registration**: Protocol owners pay a 1 USDC registration fee via Coinbase's x.402 facilitator (HTTP 402 → USDC transfer → cryptographic receipt → access granted). With **EIP-7702 Smart Accounts**, approve + transfer execute as a single atomic batch transaction.
 
 ### 🔥 Tech Stack
 
@@ -427,6 +430,7 @@ graph LR
 
 #### 💰 **Payments & Blockchain**
 - ✅ **x.402 Payment Gating** - Coinbase facilitator for protocol registration fees
+- ✅ **EIP-7702 Batching** - 1-click atomic approve+transfer for smart account wallets
 - ✅ **Platform Escrow** - USDC escrow with on-chain verification + replay prevention
 - ✅ **Automated USDC Payments** - Event-driven releases with severity multipliers
 - ✅ **6 Smart Contracts** - Platform + Agent registries on Base Sepolia
@@ -1242,6 +1246,128 @@ See payment dashboard at `http://localhost:5173/payments` during development.
 
 ---
 
+## ⚡ EIP-7702 Smart Account Batching
+
+### The Problem: 2-Popup Payment UX
+
+The standard ERC-20 payment flow requires **two separate MetaMask popups** — first to approve USDC spending, then to transfer. Between them, a fragile `setTimeout(500ms)` delays the second popup, and if the transfer fails, the approval is orphaned on-chain.
+
+```mermaid
+graph LR
+    subgraph Before["❌ Before: Sequential (2 popups)"]
+        A1[🦊 Popup 1<br/>Approve USDC] -->|500ms delay| A2[🦊 Popup 2<br/>Transfer USDC]
+        A2 -->|Confirm on-chain| A3[✅ Done]
+        A2 -.->|If fails| A4[⚠️ Orphaned<br/>Approval]
+    end
+
+    style Before fill:#1E293B,stroke:#EF4444,stroke-width:2px,color:#fff
+    style A1 fill:#F59E0B,stroke:#D97706,stroke-width:2px,color:#fff
+    style A2 fill:#F59E0B,stroke:#D97706,stroke-width:2px,color:#fff
+    style A3 fill:#10B981,stroke:#059669,stroke-width:2px,color:#fff
+    style A4 fill:#EF4444,stroke:#DC2626,stroke-width:2px,color:#fff
+```
+
+### The Solution: EIP-7702 Atomic Batching
+
+Wallets with **EIP-7702 delegation** (e.g., MetaMask DeleGator) support `wallet_sendCalls` (ERC-5792), which batches multiple contract calls into a **single atomic transaction**. Both approve and transfer execute together — if either fails, both revert.
+
+```mermaid
+graph LR
+    subgraph After["✅ After: Atomic Batch (1 popup)"]
+        B1[🦊 Single Popup<br/>Approve + Transfer] -->|Atomic execution| B2[✅ Done]
+        B1 -.->|If fails| B3[🔄 Both Revert<br/>Clean State]
+    end
+
+    style After fill:#1E293B,stroke:#10B981,stroke-width:2px,color:#fff
+    style B1 fill:#6366F1,stroke:#4F46E5,stroke-width:2px,color:#fff
+    style B2 fill:#10B981,stroke:#059669,stroke-width:2px,color:#fff
+    style B3 fill:#3B82F6,stroke:#2563EB,stroke-width:2px,color:#fff
+```
+
+### How It Works
+
+```mermaid
+sequenceDiagram
+    participant UI as 🖥️ PaymentRequiredModal
+    participant Hook as ⚡ useSmartAccountBatching
+    participant Wagmi as 🔗 wagmi (ERC-5792)
+    participant MM as 🦊 MetaMask
+    participant Chain as ⛓️ Base Sepolia
+
+    UI->>Hook: Check supportsBatching
+    Hook->>Wagmi: useCapabilities()
+    Wagmi->>MM: wallet_getCapabilities
+    MM-->>Wagmi: atomicBatch.supported = true
+    Wagmi-->>Hook: capabilities[84532]
+    Hook-->>UI: supportsBatching = true
+
+    Note over UI: Shows "Approve & Pay (1 click)"<br/>+ "Smart Account" badge
+
+    UI->>Hook: sendBatch([approve, transfer])
+    Hook->>Wagmi: useSendCalls({ calls })
+    Wagmi->>MM: wallet_sendCalls
+    Note over MM: Single popup:<br/>approve + transfer
+
+    MM->>Chain: Atomic batch TX
+    Chain-->>MM: TX receipt
+    MM-->>Wagmi: batch ID
+    Wagmi-->>Hook: callsStatus = success
+
+    Hook-->>UI: batchTxHash = 0xabc...
+    UI->>UI: onRetry(batchTxHash)
+    Note over UI: "Payment Complete"<br/>+ BaseScan link
+```
+
+### Graceful Fallback
+
+Non-EIP-7702 wallets (standard EOAs without delegation) automatically fall back to the existing 2-step sequential flow — no user action needed.
+
+```mermaid
+graph TD
+    Start([User clicks Pay])
+    Check{hasAllowance?}
+    Batch{supportsBatching?}
+
+    Start --> Check
+    Check -->|Yes| Transfer[💸 Transfer Only<br/>1 popup]
+    Check -->|No| Batch
+
+    Batch -->|Yes| Atomic[⚡ Atomic Batch<br/>approve + transfer<br/>1 popup]
+    Batch -->|No| Sequential[🔄 Sequential<br/>approve → transfer<br/>2 popups]
+
+    Transfer --> Done([✅ Payment Complete])
+    Atomic --> Done
+    Sequential --> Done
+
+    style Start fill:#3B82F6,stroke:#1E40AF,stroke-width:2px,color:#fff
+    style Check fill:#8B5CF6,stroke:#7C3AED,stroke-width:2px,color:#fff
+    style Batch fill:#8B5CF6,stroke:#7C3AED,stroke-width:2px,color:#fff
+    style Transfer fill:#10B981,stroke:#059669,stroke-width:2px,color:#fff
+    style Atomic fill:#6366F1,stroke:#4F46E5,stroke-width:3px,color:#fff
+    style Sequential fill:#F59E0B,stroke:#D97706,stroke-width:2px,color:#fff
+    style Done fill:#10B981,stroke:#059669,stroke-width:2px,color:#fff
+```
+
+### Comparison
+
+| | Before (Sequential) | After (EIP-7702 Batch) |
+|---|---|---|
+| **MetaMask popups** | 2 (approve + transfer) | 1 (atomic batch) |
+| **Atomicity** | Orphaned approvals possible | Both revert together |
+| **State machine** | 7 states + setTimeout hack | 5 clean states |
+| **User experience** | Sign twice, wait between | Single click, instant |
+| **Future: gas sponsorship** | User pays ETH gas | Platform can sponsor via paymasters |
+
+### Technical Details
+
+- **Hook**: `useSmartAccountBatching` — wraps wagmi's `useCapabilities`, `useSendCalls`, `useCallsStatus`
+- **Capability detection**: `capabilities[84532].atomicBatch.supported` (Base Sepolia)
+- **No new dependencies**: wagmi v3.4.1 ships with ERC-5792 hooks
+- **No smart contract changes**: Uses standard ERC-20 approve + transfer
+- **Wallet compatibility**: MetaMask with DeleGator delegation on Base Sepolia
+
+---
+
 ## 📚 Documentation
 
 ### Getting Started
@@ -1330,10 +1456,11 @@ AI_Bug_Bountry_App/
 ├── frontend/                   # React/TypeScript frontend
 │   ├── src/
 │   │   ├── components/         # UI components
-│   │   │   ├── agents/         # PaymentRequiredModal, agent UI
+│   │   │   ├── agents/         # PaymentRequiredModal (EIP-7702), agent UI
 │   │   │   └── payments/       # Payment proposal components
+│   │   ├── hooks/              # React hooks (useSmartAccountBatching, etc.)
 │   │   ├── pages/              # Dashboard, Protocol, Agent pages
-│   │   └── lib/                # API client, utilities
+│   │   └── lib/                # API client, wagmi config, utilities
 ├── openspec/                   # OpenSpec framework
 │   ├── changes/                # Feature implementations
 │   └── specs/                  # Project specifications
@@ -1544,6 +1671,7 @@ All sensitive values are in `.env` files (gitignored).
 - [x] Reputation system v1 (ERC-8004 on-chain scoring)
 - [x] Agent identity (soulbound NFT registration)
 - [x] Platform escrow (USDC submission fees)
+- [x] EIP-7702 smart account batching (1-click payments)
 - [ ] Researcher onboarding portal
 - [ ] Governance token design
 
@@ -1648,7 +1776,7 @@ Imagine a world where:
 - Production Guides: 4 comprehensive documents (Production, Security, Troubleshooting, Backup/Recovery)
 
 **Development Quality:**
-- PRs Merged: 118+ PRs (implementation phases + security hardening)
+- PRs Merged: 122+ PRs (implementation phases + security hardening + EIP-7702)
 - PR Size Limit: 1,500 lines (enforced via GitHub Actions)
 - Automated Size Checks: ✅ Active
 - OpenSpec Changes: 16+ archived (100% complete)
