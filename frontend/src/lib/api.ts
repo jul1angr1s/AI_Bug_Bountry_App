@@ -475,19 +475,47 @@ export async function createProtocol(request: CreateProtocolRequest): Promise<Cr
 
     // Handle x.402 Payment Required response
     if (response.status === 402) {
-      const paymentTerms = await response.json().catch(() => ({}));
-      console.log('[API] x.402 Payment Required:', paymentTerms);
       const x402Error = new Error('Payment required');
       (x402Error as any).status = 402;
-      const x402 = paymentTerms.x402 || {};
-      (x402Error as any).paymentTerms = {
-        amount: x402.amount || '1000000',
-        asset: 'USDC',
-        chain: 'base-sepolia',
-        recipient: x402.recipient || '',
-        memo: paymentTerms.description || 'Protocol registration fee',
-        expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
-      };
+
+      // x402 v2: payment terms in PAYMENT-REQUIRED header (base64 JSON)
+      const paymentHeader = response.headers.get('PAYMENT-REQUIRED');
+      let paymentTerms;
+
+      if (paymentHeader) {
+        try {
+          const decoded = JSON.parse(atob(paymentHeader));
+          console.log('[API] x.402 Payment Required (header):', decoded);
+          const req = decoded.accepts?.[0] || {};
+          paymentTerms = {
+            amount: req.amount || '1000000',
+            asset: 'USDC',
+            chain: 'base-sepolia',
+            recipient: req.payTo || '',
+            memo: decoded.resource?.description || 'Protocol registration fee',
+            expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+          };
+        } catch (e) {
+          console.error('[API] Failed to decode PAYMENT-REQUIRED header:', e);
+        }
+      }
+
+      // Fallback: try body (v1 compat / custom responses)
+      if (!paymentTerms) {
+        const body = await response.json().catch(() => ({}));
+        console.log('[API] x.402 Payment Required (body fallback):', body);
+        const x402 = body.x402 || {};
+        paymentTerms = {
+          amount: x402.amount || '1000000',
+          asset: 'USDC',
+          chain: 'base-sepolia',
+          recipient: x402.payTo || x402.recipient || '',
+          memo: body.description || 'Protocol registration fee',
+          expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+        };
+      }
+
+      (x402Error as any).paymentTerms = paymentTerms;
       throw x402Error;
     }
 

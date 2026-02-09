@@ -61,7 +61,7 @@ app.use(
   cors({
     origin: config.FRONTEND_URL,
     credentials: true,
-    exposedHeaders: ['Set-Cookie'],
+    exposedHeaders: ['Set-Cookie', 'PAYMENT-REQUIRED'],
   })
 );
 app.use(morgan(config.NODE_ENV === 'production' ? 'combined' : 'dev'));

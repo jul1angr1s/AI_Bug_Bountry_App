@@ -92,10 +92,9 @@ describe('x402 Payment Gate Integration', () => {
         .send({ ownerAddress: '0x1234' });
 
       expect(res.status).toBe(402);
-      expect(res.body.error).toBe('Payment Required');
     });
 
-    test('returns 402 response with valid x.402 format', async () => {
+    test('returns 402 response with PAYMENT-REQUIRED header containing payment terms', async () => {
       process.env.SKIP_X402_PAYMENT_GATE = 'false';
       app = createTestApp();
 
@@ -104,12 +103,16 @@ describe('x402 Payment Gate Integration', () => {
         .send({ ownerAddress: '0x1234' });
 
       expect(res.status).toBe(402);
-      expect(res.body.x402).toBeDefined();
-      expect(res.body.x402.version).toBe('1.0');
-      expect(res.body.x402.amount).toBe('1000000');
-      expect(res.body.x402.asset).toBeDefined();
-      expect(res.body.x402.chain).toBe('base-sepolia');
-      expect(res.body.x402.recipient).toBeDefined();
+
+      // x402 v2 puts payment terms in the PAYMENT-REQUIRED header (base64 JSON)
+      const paymentHeader = res.headers['payment-required'];
+      expect(paymentHeader).toBeDefined();
+
+      const decoded = JSON.parse(Buffer.from(paymentHeader, 'base64').toString());
+      expect(decoded.accepts).toBeDefined();
+      expect(Array.isArray(decoded.accepts)).toBe(true);
+      expect(decoded.accepts[0].payTo).toBeDefined();
+      expect(decoded.accepts[0].network).toBeDefined();
     });
 
     test('passes when SKIP_X402_PAYMENT_GATE=true', async () => {
