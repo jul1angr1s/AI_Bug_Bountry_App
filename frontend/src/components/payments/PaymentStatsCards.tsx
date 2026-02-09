@@ -6,7 +6,7 @@ interface PaymentStatsCardsProps {
   isLoading?: boolean;
 }
 
-export function PaymentStatsCards({ stats, poolBalance = 50, isLoading }: PaymentStatsCardsProps) {
+export function PaymentStatsCards({ stats, poolBalance = 0, isLoading }: PaymentStatsCardsProps) {
   if (isLoading) {
     return (
       <section className="px-6 md:px-10 pb-6">

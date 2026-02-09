@@ -24,7 +24,7 @@ export default function ProtocolForm({ onSubmit, isSubmitting = false, initialVa
     branch: 'main',
     contractPath: '',
     contractName: '',
-    bountyTerms: 'Standard bug bounty terms: Critical - $10,000, High - $5,000, Medium - $1,000, Low - $500',
+    bountyTerms: 'Standard bug bounty terms: High - 5 USDC, Medium - 3 USDC, Low - 1 USDC',
     ownerAddress: '',
     bountyPoolAmount: 100, // Default 100 USDC
   });
