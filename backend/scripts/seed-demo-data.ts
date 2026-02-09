@@ -24,6 +24,10 @@ const prisma = new PrismaClient();
 
 const EXPLORER_BASE_URL = 'https://sepolia.basescan.org';
 
+// Delay between on-chain txs to avoid RPC "in-flight transaction limit" rate limiting
+const TX_DELAY_MS = 5000;
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 // Use the deployer wallet as researcher and a derived address for validator
 const RESEARCHER_WALLET = '0x43793B3d9F23FAC1df54d715Cb215b8A50e710c3';
 const VALIDATOR_WALLET = '0x6b26F796b7C494a65ca42d29EF13E9eF1CeCE166';
@@ -76,6 +80,9 @@ async function main() {
         researcherNftId = agent?.tokenId || '1';
         console.log(`ℹ️  Researcher already registered on-chain: tokenId=${researcherNftId}`);
       }
+
+      // Wait before next tx to avoid rate limiting
+      await sleep(TX_DELAY_MS);
 
       // Register validator
       const validatorRegistered = await identityClient.isRegistered(VALIDATOR_WALLET);
@@ -142,6 +149,9 @@ async function main() {
 
       const reputationClient = new AgentReputationRegistryClient();
 
+      // Wait for previous txs to clear
+      await sleep(TX_DELAY_MS);
+
       // Initialize reputation for researcher
       try {
         const result = await reputationClient.initializeReputation(researcherNftId, RESEARCHER_WALLET);
@@ -155,6 +165,9 @@ async function main() {
           throw e;
         }
       }
+
+      // Wait before next tx
+      await sleep(TX_DELAY_MS);
 
       // Initialize reputation for validator
       try {
@@ -237,6 +250,10 @@ async function main() {
         };
 
         const reputationClient = new AgentReputationRegistryClient();
+
+        // Wait between feedback txs to avoid rate limiting
+        await sleep(TX_DELAY_MS);
+
         const result = await reputationClient.recordFeedback(
           researcherNftId,
           validatorNftId,
