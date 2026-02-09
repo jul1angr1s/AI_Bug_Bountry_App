@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, AlertTriangle, CreditCard, ExternalLink, CheckCircle } from 'lucide-react';
+import { X, AlertTriangle, CreditCard, ExternalLink, CheckCircle, Zap } from 'lucide-react';
 import {
   useAccount,
   useWriteContract,
@@ -8,6 +8,7 @@ import {
 } from 'wagmi';
 import { formatUnits } from 'viem';
 import { getExplorerTxUrl, truncateHash as truncateHashUtil } from '../../lib/utils';
+import { useSmartAccountBatching } from '../../hooks/useSmartAccountBatching';
 
 // Base Sepolia USDC contract address
 const USDC_ADDRESS = '0x036CbD53842c5426634e7929541eC2318f3dCF7e' as const;
@@ -73,6 +74,18 @@ export default function PaymentRequiredModal({
   const hasRetried = useRef(false);
 
   const { address, isConnected } = useAccount();
+
+  // EIP-7702 smart account batching
+  const {
+    supportsBatching,
+    sendBatch,
+    isSending: isBatchSending,
+    batchError,
+    batchStatus,
+    batchTxHash,
+    isWaitingForBatch,
+    resetBatch,
+  } = useSmartAccountBatching();
 
   const amountBigInt = paymentTerms
     ? BigInt(paymentTerms.amount)
@@ -141,6 +154,15 @@ export default function PaymentRequiredModal({
     }
   }, [isTransferring, isTransferConfirming, isTransferConfirmed, transferTxHash, onRetry]);
 
+  // Handle batch completion (EIP-7702 flow)
+  useEffect(() => {
+    if (batchStatus === 'success' && batchTxHash && !hasRetried.current) {
+      hasRetried.current = true;
+      setStep('complete');
+      onRetry(batchTxHash);
+    }
+  }, [batchStatus, batchTxHash, onRetry]);
+
   useEffect(() => {
     if (approveError) {
       setStep('error');
@@ -152,16 +174,25 @@ export default function PaymentRequiredModal({
     }
   }, [approveError, transferError]);
 
+  // Handle batch errors
+  useEffect(() => {
+    if (batchError) {
+      setStep('error');
+      setError(batchError.message.split('\n')[0]);
+    }
+  }, [batchError]);
+
   // Reset state when modal opens/closes
   useEffect(() => {
     if (isOpen) {
       setStep('idle');
       setError(null);
       hasRetried.current = false;
+      resetBatch();
     }
-  }, [isOpen]);
+  }, [isOpen, resetBatch]);
 
-  // Auto-transfer after approval
+  // Auto-transfer after approval (sequential flow only)
   useEffect(() => {
     if (isApproveConfirmed && step === 'approved' && recipientAddress) {
       // Small delay to let allowance update
@@ -220,9 +251,35 @@ export default function PaymentRequiredModal({
     });
   };
 
+  const handleBatchedPayment = () => {
+    if (!recipientAddress) {
+      setError('Missing payment recipient address. Please close and retry.');
+      return;
+    }
+    setError(null);
+    setStep('approving');
+
+    sendBatch([
+      {
+        to: USDC_ADDRESS,
+        abi: ERC20_ABI,
+        functionName: 'approve',
+        args: [recipientAddress, amountBigInt],
+      },
+      {
+        to: USDC_ADDRESS,
+        abi: ERC20_ABI,
+        functionName: 'transfer',
+        args: [recipientAddress, amountBigInt],
+      },
+    ]);
+  };
+
   const handleApproveAndPay = async () => {
     if (hasAllowance) {
       handleTransfer();
+    } else if (supportsBatching) {
+      handleBatchedPayment();
     } else {
       handleApprove();
     }
@@ -234,17 +291,28 @@ export default function PaymentRequiredModal({
     }
   };
 
-  const isProcessing = ['approving', 'paying', 'confirming'].includes(step);
+  const isBatchProcessing = isBatchSending || isWaitingForBatch;
+  const isProcessing = ['approving', 'paying', 'confirming'].includes(step) || isBatchProcessing;
+
+  // TX hash to display — prefer sequential transfer hash, fall back to batch hash
+  const displayTxHash = transferTxHash || batchTxHash;
 
   const getButtonText = () => {
     if (!isConnected) return 'Connect Wallet First';
+
+    // Batch-specific states
+    if (isBatchSending) return 'Approve & Pay...';
+    if (isWaitingForBatch) return 'Confirming Batch...';
+
     switch (step) {
       case 'approving': return 'Approving USDC...';
       case 'approved': return 'Sending Payment...';
       case 'paying': return 'Sending USDC...';
       case 'confirming': return 'Confirming...';
       case 'complete': return 'Payment Complete';
-      default: return hasAllowance ? 'Pay Now' : 'Approve & Pay';
+      default:
+        if (hasAllowance) return 'Pay Now';
+        return supportsBatching ? 'Approve & Pay (1 click)' : 'Approve & Pay';
     }
   };
 
@@ -298,11 +366,19 @@ export default function PaymentRequiredModal({
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-400">Chain</span>
-              <span className="text-sm text-gray-200">
-                {paymentTerms.chain === 'base-sepolia'
-                  ? 'Base Sepolia'
-                  : paymentTerms.chain}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-200">
+                  {paymentTerms.chain === 'base-sepolia'
+                    ? 'Base Sepolia'
+                    : paymentTerms.chain}
+                </span>
+                {supportsBatching && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-indigo-500/20 px-2 py-0.5 text-xs font-medium text-indigo-300 border border-indigo-500/30">
+                    <Zap className="h-3 w-3" />
+                    Smart Account
+                  </span>
+                )}
+              </div>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-400">Recipient</span>
@@ -329,25 +405,27 @@ export default function PaymentRequiredModal({
         )}
 
         {/* Transaction progress */}
-        {transferTxHash && (
+        {displayTxHash && (
           <div className="mb-4 flex items-center gap-2 rounded-lg bg-blue-500/10 border border-blue-500/30 p-3">
             <span className="text-sm text-blue-400">TX:</span>
             <a
-              href={getExplorerTxUrl(transferTxHash)}
+              href={getExplorerTxUrl(displayTxHash)}
               target="_blank"
               rel="noopener noreferrer"
               className="text-sm font-mono text-blue-300 hover:text-blue-200 flex items-center gap-1"
             >
-              {truncateHashUtil(transferTxHash)}
+              {truncateHashUtil(displayTxHash)}
               <ExternalLink className="h-3 w-3" />
             </a>
           </div>
         )}
 
         {/* Error state */}
-        {error && (
+        {(error || batchError) && (
           <div className="mb-4 rounded-lg bg-red-500/10 border border-red-500/30 p-3">
-            <p className="text-sm text-red-400">{error}</p>
+            <p className="text-sm text-red-400">
+              {error || batchError?.message.split('\n')[0]}
+            </p>
           </div>
         )}
 
