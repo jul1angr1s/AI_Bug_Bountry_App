@@ -21,6 +21,17 @@ export function getExplorerAddressUrl(address: string): string {
   return `${EXPLORER_BASE_URL}/address/${address}`;
 }
 
+const AGENT_REGISTRY_ADDRESS =
+  import.meta.env.VITE_AGENT_REGISTRY_ADDRESS || '';
+
+export function getExplorerNftUrl(contractAddress: string, tokenId: string | number): string {
+  return `${EXPLORER_BASE_URL}/nft/${contractAddress}/${tokenId}`;
+}
+
+export function getAgentNftUrl(tokenId: string | number): string {
+  return getExplorerNftUrl(AGENT_REGISTRY_ADDRESS, tokenId);
+}
+
 export function truncateHash(hash: string, startLen = 6, endLen = 4): string {
   if (hash.length <= startLen + endLen + 3) return hash;
   return `${hash.slice(0, startLen)}...${hash.slice(-endLen)}`;
