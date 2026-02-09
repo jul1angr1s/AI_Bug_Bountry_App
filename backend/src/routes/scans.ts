@@ -95,6 +95,12 @@ router.get('/:id', requireAuth, async (req, res, next) => {
 
     res.json({
       id: scan.id,
+      protocolId: scan.protocolId,
+      protocol: scan.protocol ? {
+        id: scan.protocol.id,
+        githubUrl: scan.protocol.githubUrl,
+        contractName: scan.protocol.contractName,
+      } : undefined,
       state: scan.state,
       currentStep: scan.currentStep,
       startedAt: scan.startedAt,
@@ -219,6 +225,67 @@ router.get('/:id/progress', sseAuthenticate, async (req, res, next) => {
         subscriber.unsubscribe();
         subscriber.quit();
         res.end();
+      }
+    });
+
+    // Handle client disconnect
+    req.on('close', () => {
+      subscriber.unsubscribe();
+      subscriber.quit();
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// SSE stream for scan logs (terminal output)
+router.get('/:id/logs', sseAuthenticate, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const scan = await scanRepository.getScanById(id);
+    if (!scan) {
+      throw new NotFoundError('Scan', id);
+    }
+
+    // Setup SSE
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+
+    // Send initial connection event
+    res.write(`data: ${JSON.stringify({
+      eventType: 'scan:log',
+      timestamp: new Date().toISOString(),
+      scanId: scan.id,
+      protocolId: scan.protocolId,
+      data: {
+        level: 'INFO',
+        message: 'Connected to scan log stream',
+      },
+    })}\n\n`);
+
+    // Subscribe to Redis for real-time log and progress updates
+    const redis = getRedisClient();
+    const subscriber = redis.duplicate();
+
+    await subscriber.subscribe(`scan:${id}:logs`, `scan:${id}:progress`);
+
+    subscriber.on('message', (channel: string, message: string) => {
+      if (channel === `scan:${id}:logs`) {
+        res.write(`data: ${message}\n\n`);
+      } else if (channel === `scan:${id}:progress`) {
+        // Check if scan completed to close the stream
+        try {
+          const data = JSON.parse(message);
+          if (data.data?.state === ScanState.SUCCEEDED ||
+              data.data?.state === ScanState.FAILED ||
+              data.data?.state === ScanState.CANCELED) {
+            subscriber.unsubscribe();
+            subscriber.quit();
+            res.end();
+          }
+        } catch { /* ignore parse errors */ }
       }
     });
 

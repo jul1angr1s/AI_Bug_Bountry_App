@@ -3,7 +3,7 @@ import { ScanState, ScanStep, AgentStatus } from '@prisma/client';
 import { scanRepository, scanStepRepository, findingRepository, proofRepository, agentRunRepository } from '../../db/repositories.js';
 import { getPrismaClient } from '../../lib/prisma.js';
 import { getRedisClient } from '../../lib/redis.js';
-import { emitScanStarted, emitScanProgress, emitScanCompleted } from '../../websocket/events.js';
+import { emitScanStarted, emitScanProgress, emitScanCompleted, emitScanLog } from '../../websocket/events.js';
 import { ScanJobData } from '../../queues/scanQueue.js';
 import { ChildProcess } from 'child_process';
 import {
@@ -222,6 +222,7 @@ async function executeScanPipeline(
   const cloneStep = await scanStepRepository.startStep(scanId, ScanStep.CLONE);
   try {
     await emitScanProgress(scanId, protocolId, 'CLONE', ScanState.RUNNING, 5, 'Cloning repository...');
+    await emitScanLog(scanId, protocolId, 'DEFAULT', `> Cloning repository from ${protocol.githubUrl}...`);
 
     const cloneResult = await executeCloneStep({
       scanId,
@@ -240,6 +241,7 @@ async function executeScanPipeline(
       clonedPath: cloneResult.clonedPath,
     });
 
+    await emitScanLog(scanId, protocolId, 'INFO', `[INFO] Repository cloned (${cloneResult.branch}@${cloneResult.commitHash?.slice(0, 7) || 'HEAD'})`);
     await emitScanProgress(scanId, protocolId, 'CLONE', ScanState.RUNNING, 15, 'Repository cloned');
   } catch (error) {
     await handleStepFailure(scanId, protocolId, cloneStep.id, ScanErrorCodes.CLONE_FAILED, error);
@@ -251,6 +253,8 @@ async function executeScanPipeline(
   let compilationResult;
   try {
     await emitScanProgress(scanId, protocolId, 'COMPILE', ScanState.RUNNING, 20, 'Compiling contracts...');
+    await emitScanLog(scanId, protocolId, 'DEFAULT', `> Compiling smart contracts...`);
+    await emitScanLog(scanId, protocolId, 'DEFAULT', `> Loading ABI for ${protocol.contractName}...`);
 
     if (!clonedPath) {
       throw new Error('No cloned path available from previous step');
@@ -271,6 +275,10 @@ async function executeScanPipeline(
       warnings: compilationResult.warnings,
     });
 
+    await emitScanLog(scanId, protocolId, 'INFO', `[INFO] Compilation successful`);
+    if (compilationResult.warnings?.length) {
+      await emitScanLog(scanId, protocolId, 'WARN', `[WARN] ${compilationResult.warnings.length} compilation warning(s)`);
+    }
     await emitScanProgress(scanId, protocolId, 'COMPILE', ScanState.RUNNING, 30, 'Compilation successful');
   } catch (error) {
     await handleStepFailure(scanId, protocolId, compileStep.id, ScanErrorCodes.COMPILE_FAILED, error);
@@ -283,6 +291,7 @@ async function executeScanPipeline(
 
   try {
     await emitScanProgress(scanId, protocolId, 'DEPLOY', ScanState.RUNNING, 35, 'Deploying to Anvil...');
+    await emitScanLog(scanId, protocolId, 'DEFAULT', `> Deploying to local Anvil testnet...`);
 
     if (!compilationResult?.abi || !compilationResult?.bytecode) {
       throw new Error('No ABI or bytecode available from compilation step');
@@ -303,6 +312,7 @@ async function executeScanPipeline(
       deploymentTx: deployResult.transactionHash,
     });
 
+    await emitScanLog(scanId, protocolId, 'INFO', `[INFO] Contract deployed at ${deployResult.deploymentAddress}`);
     await emitScanProgress(scanId, protocolId, 'DEPLOY', ScanState.RUNNING, 45, 'Deployment complete');
   } catch (error) {
     // Deployment is optional - continue with static analysis even if it fails
@@ -313,6 +323,7 @@ async function executeScanPipeline(
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     await scanStepRepository.failStep(deployStep.id, ScanErrorCodes.DEPLOY_FAILED, errorMessage);
 
+    await emitScanLog(scanId, protocolId, 'WARN', `[WARN] Deployment failed - continuing with static analysis`);
     await emitScanProgress(
       scanId,
       protocolId,
@@ -330,6 +341,7 @@ async function executeScanPipeline(
   let slitherFindings: VulnerabilityFinding[] = [];
   try {
     await emitScanProgress(scanId, protocolId, 'ANALYZE', ScanState.RUNNING, 50, 'Running static analysis...');
+    await emitScanLog(scanId, protocolId, 'ANALYSIS', `[ANALYSIS] Running Slither detector suite...`);
 
     if (!clonedPath) {
       throw new Error('No cloned path available from previous step');
@@ -349,6 +361,11 @@ async function executeScanPipeline(
       analysisTools: analysisResult.toolsUsed,
     });
 
+    await emitScanLog(scanId, protocolId, 'INFO', `[INFO] Found ${slitherFindings.length} potential vectors`);
+    const highCritical = slitherFindings.filter(f => f.severity === 'HIGH' || f.severity === 'CRITICAL').length;
+    if (highCritical > 0) {
+      await emitScanLog(scanId, protocolId, 'ALERT', `[ALERT] ${highCritical} high/critical severity`);
+    }
     await emitScanProgress(scanId, protocolId, 'ANALYZE', ScanState.RUNNING, 60, `Slither found ${slitherFindings.length} issues`);
   } catch (error) {
     await cleanupResources(anvilProcess);
@@ -368,6 +385,7 @@ async function executeScanPipeline(
 
     if (aiEnabled) {
       await emitScanProgress(scanId, protocolId, 'AI_DEEP_ANALYSIS', ScanState.RUNNING, 65, 'Running AI deep analysis...');
+      await emitScanLog(scanId, protocolId, 'ANALYSIS', `[ANALYSIS] AI deep analysis starting...`);
 
       if (!clonedPath) {
         throw new Error('No cloned path available from previous step');
@@ -394,6 +412,10 @@ async function executeScanPipeline(
           processingTimeMs: aiAnalysisResult.metrics.processingTimeMs,
         });
 
+        await emitScanLog(scanId, protocolId, 'INFO', `[INFO] AI enhanced ${aiAnalysisResult.metrics.enhancedFindings} findings`);
+        if (aiAnalysisResult.metrics.newFindings > 0) {
+          await emitScanLog(scanId, protocolId, 'ALERT', `[ALERT] AI discovered ${aiAnalysisResult.metrics.newFindings} new vulnerabilities`);
+        }
         await emitScanProgress(
           scanId,
           protocolId,
@@ -412,6 +434,7 @@ async function executeScanPipeline(
           message: 'AI analysis skipped or not implemented',
         });
 
+        await emitScanLog(scanId, protocolId, 'INFO', `[INFO] AI analysis did not enhance findings - using Slither results`);
         await emitScanProgress(scanId, protocolId, 'AI_DEEP_ANALYSIS', ScanState.RUNNING, 75, 'Using Slither findings only');
       }
     } else {
@@ -424,6 +447,7 @@ async function executeScanPipeline(
         message: 'AI analysis disabled via feature flag',
       });
 
+      await emitScanLog(scanId, protocolId, 'INFO', `[INFO] AI analysis disabled - using Slither findings only`);
       await emitScanProgress(scanId, protocolId, 'AI_DEEP_ANALYSIS', ScanState.RUNNING, 75, 'AI analysis disabled - using Slither findings only');
     }
   } catch (error) {
@@ -436,6 +460,7 @@ async function executeScanPipeline(
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     await scanStepRepository.failStep(aiAnalysisStep.id, ScanErrorCodes.AI_ANALYSIS_FAILED, errorMessage);
 
+    await emitScanLog(scanId, protocolId, 'WARN', `[WARN] AI analysis failed - continuing with Slither findings`);
     await emitScanProgress(
       scanId,
       protocolId,
@@ -463,6 +488,7 @@ async function executeScanPipeline(
 
   try {
     await emitScanProgress(scanId, protocolId, 'PROOF_GENERATION', ScanState.RUNNING, 80, 'Generating proofs...');
+    await emitScanLog(scanId, protocolId, 'DEFAULT', `> Generating proof of concept exploit code...`);
 
     // Get findings to generate proofs for
     const findings = await findingRepository.getFindingsByScan(scanId);
@@ -491,6 +517,7 @@ async function executeScanPipeline(
         deploymentUsed: !!deploymentAddress,
       });
 
+      await emitScanLog(scanId, protocolId, 'INFO', `[INFO] ${proofGenResult.proofsCreated} PoC exploits generated`);
       await emitScanProgress(scanId, protocolId, 'PROOF_GENERATION', ScanState.RUNNING, 90, `${proofGenResult.proofsCreated} proofs generated`);
     }
   } catch (error) {
@@ -503,6 +530,7 @@ async function executeScanPipeline(
   const submitStep = await scanStepRepository.startStep(scanId, ScanStep.SUBMIT);
   try {
     await emitScanProgress(scanId, protocolId, 'SUBMIT', ScanState.RUNNING, 95, 'Submitting to Validator Agent...');
+    await emitScanLog(scanId, protocolId, 'DEFAULT', `> Submitting findings to Validator Agent...`);
 
     // Get proofs for submission
     const proofs = await proofRepository.getProofsByScan(scanId);
@@ -525,6 +553,7 @@ async function executeScanPipeline(
       submissionTimestamp: submitResult.submissionTimestamp,
     });
 
+    await emitScanLog(scanId, protocolId, 'INFO', `[INFO] ${submitResult.proofsSubmitted} proofs submitted`);
     await emitScanProgress(scanId, protocolId, 'SUBMIT', ScanState.RUNNING, 100, 'Submission complete');
   } catch (error) {
     await cleanupResources(anvilProcess);
@@ -540,7 +569,8 @@ async function executeScanPipeline(
     ...(aiAnalysisFailed ? { errorCode: ScanErrorCodes.AI_ANALYSIS_FAILED } : {}),
   });
 
-  // Emit completion event
+  // Emit log and completion event
+  await emitScanLog(scanId, protocolId, 'INFO', `[INFO] Scan completed - ${findingsCount} findings total`);
   await emitScanCompleted(
     scanId,
     protocolId,
@@ -563,7 +593,8 @@ async function handleStepFailure(
   const errorMessage = error instanceof Error ? error.message : 'Unknown error';
   
   await scanStepRepository.failStep(stepId, errorCode, errorMessage);
-  
+
+  await emitScanLog(scanId, protocolId, 'ALERT', `[ALERT] Scan failed at step: ${errorCode}`);
   await emitScanProgress(
     scanId,
     protocolId,

@@ -1,6 +1,7 @@
 import { useParams } from 'react-router-dom';
 import { useScan, useScanFindings } from '../hooks/useScans';
 import { useScanProgressLive } from '../hooks/useScanProgressLive';
+import { useScanLogs } from '../hooks/useScanLogs';
 import { ScanProgressTimeline } from '../components/scans/modern/ScanProgressTimeline';
 import { LiveTerminalOutput } from '../components/scans/modern/LiveTerminalOutput';
 import VulnerabilityChart from '../components/scans/modern/VulnerabilityChart';
@@ -23,6 +24,9 @@ export function ScanDashboardModern() {
   // Subscribe to real-time progress updates
   const progress = useScanProgressLive(scanId);
   const progressError = progress.error;
+
+  // Subscribe to real-time scan logs for terminal output
+  const logs = useScanLogs(scanId, scan?.state);
 
   // Loading state
   if (scanLoading) {
@@ -119,7 +123,7 @@ export function ScanDashboardModern() {
           {/* Right Content: Terminal, Chart, Findings */}
           <div className="lg:col-span-8 flex flex-col gap-6">
             {/* Live Terminal Output */}
-            <LiveTerminalOutput scanState={scan.state as 'RUNNING' | 'COMPLETED' | 'FAILED' | 'ABORTED'} />
+            <LiveTerminalOutput logs={logs} scanState={scan.state as 'RUNNING' | 'COMPLETED' | 'FAILED' | 'ABORTED'} />
 
             {/* Vulnerability Chart */}
             {findingsLoading ? (

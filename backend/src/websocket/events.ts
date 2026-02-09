@@ -455,6 +455,43 @@ export async function emitScanCompleted(
   await invalidateCache(`scan:${scanId}`);
 }
 
+// Scan Log Event Types
+export type ScanLogLevel = 'INFO' | 'ANALYSIS' | 'ALERT' | 'WARN' | 'DEFAULT';
+
+export interface ScanLogEvent {
+  eventType: 'scan:log';
+  timestamp: string;
+  scanId: string;
+  protocolId: string;
+  data: {
+    level: ScanLogLevel;
+    message: string;
+  };
+}
+
+export async function emitScanLog(
+  scanId: string,
+  protocolId: string,
+  level: ScanLogLevel,
+  message: string
+): Promise<void> {
+  const event: ScanLogEvent = {
+    eventType: 'scan:log',
+    timestamp: new Date().toISOString(),
+    scanId,
+    protocolId,
+    data: {
+      level,
+      message,
+    },
+  };
+
+  // Publish to Redis for SSE subscribers
+  const { getRedisClient } = await import('../lib/redis.js');
+  const redis = await getRedisClient();
+  await redis.publish(`scan:${scanId}:logs`, JSON.stringify(event));
+}
+
 // Funding Gate WebSocket Event Types
 export interface ProtocolFundingStateChangedEvent {
   eventType: 'protocol:funding_state_changed';
