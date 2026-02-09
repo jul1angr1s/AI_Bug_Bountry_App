@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X, AlertTriangle, CreditCard, ExternalLink, CheckCircle } from 'lucide-react';
 import {
   useAccount,
@@ -70,6 +70,7 @@ export default function PaymentRequiredModal({
 }: PaymentRequiredModalProps) {
   const [step, setStep] = useState<PaymentStep>('idle');
   const [error, setError] = useState<string | null>(null);
+  const hasRetried = useRef(false);
 
   const { address, isConnected } = useAccount();
 
@@ -133,9 +134,9 @@ export default function PaymentRequiredModal({
   useEffect(() => {
     if (isTransferring) setStep('paying');
     if (isTransferConfirming) setStep('confirming');
-    if (isTransferConfirmed && transferTxHash) {
+    if (isTransferConfirmed && transferTxHash && !hasRetried.current) {
+      hasRetried.current = true;
       setStep('complete');
-      // Automatically retry the original request with the tx hash
       onRetry(transferTxHash);
     }
   }, [isTransferring, isTransferConfirming, isTransferConfirmed, transferTxHash, onRetry]);
@@ -156,6 +157,7 @@ export default function PaymentRequiredModal({
     if (isOpen) {
       setStep('idle');
       setError(null);
+      hasRetried.current = false;
     }
   }, [isOpen]);
 

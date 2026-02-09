@@ -560,6 +560,12 @@ export async function retryCreateProtocolWithPayment(
     credentials: 'include',
     body: JSON.stringify(request),
   });
+  if (response.status === 402) {
+    const retryError = new Error('Payment verification failed. The blockchain transaction could not be verified by the server.');
+    (retryError as any).status = 402;
+    (retryError as any).retryFailed = true;
+    throw retryError;
+  }
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.message || response.statusText);

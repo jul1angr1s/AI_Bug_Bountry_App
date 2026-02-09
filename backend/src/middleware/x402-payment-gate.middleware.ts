@@ -4,6 +4,7 @@ import { ExactEvmScheme } from '@x402/evm/exact/server';
 import { HTTPFacilitatorClient } from '@x402/core/server';
 import type { Network } from '@x402/core/types';
 import { PrismaClient } from '@prisma/client';
+import { ethers } from 'ethers';
 import { escrowService } from '../services/escrow.service.js';
 
 const prisma = new PrismaClient();
@@ -28,6 +29,53 @@ const PROTOCOL_REGISTRATION_FEE_USD = '$1.00';
 const facilitatorClient = new HTTPFacilitatorClient({ url: FACILITATOR_URL });
 const resourceServer = new x402ResourceServer(facilitatorClient)
   .register(NETWORK, new ExactEvmScheme());
+
+// Base Sepolia USDC contract address
+const USDC_ADDRESS = '0x036CbD53842c5426634e7929541eC2318f3dCF7e';
+
+// ERC-20 Transfer event signature: Transfer(address,address,uint256)
+const TRANSFER_EVENT_TOPIC = ethers.id('Transfer(address,address,uint256)');
+
+// Lazy-initialized provider (avoids importing blockchain/config which eagerly creates wallets)
+let _provider: ethers.JsonRpcProvider | null = null;
+function getProvider(): ethers.JsonRpcProvider {
+  if (!_provider) {
+    _provider = new ethers.JsonRpcProvider(
+      process.env.BASE_SEPOLIA_RPC_URL || 'https://sepolia.base.org'
+    );
+  }
+  return _provider;
+}
+
+/**
+ * Verify an on-chain USDC transfer by checking the transaction receipt.
+ * Returns true if the tx is confirmed, transfers USDC to the expected recipient
+ * for at least the expected amount.
+ */
+async function verifyOnChainPayment(
+  txHash: string,
+  expectedRecipient: string,
+  expectedAmount: bigint,
+): Promise<boolean> {
+  const provider = getProvider();
+  const receipt = await provider.getTransactionReceipt(txHash);
+  if (!receipt || receipt.status !== 1) return false;
+
+  const usdcAddress = USDC_ADDRESS.toLowerCase();
+  const recipientPadded = ethers.zeroPadValue(expectedRecipient.toLowerCase(), 32);
+
+  for (const log of receipt.logs) {
+    if (log.address.toLowerCase() !== usdcAddress) continue;
+    if (log.topics[0] !== TRANSFER_EVENT_TOPIC) continue;
+    // topics[2] is the `to` address
+    if (log.topics[2]?.toLowerCase() !== recipientPadded) continue;
+
+    const transferAmount = BigInt(log.data);
+    if (transferAmount >= expectedAmount) return true;
+  }
+
+  return false;
+}
 
 // ============================================================
 // Protocol Registration Gate — x.402 via Coinbase facilitator
@@ -67,12 +115,47 @@ export function x402ProtocolRegistrationGate() {
 
   // Wrap to also record payment in our database
   return async (req: Request, res: Response, next: NextFunction) => {
-    // Intercept the response to capture payment details
     const originalNext = next;
+
+    // Check if payment-signature looks like a raw tx hash (direct USDC transfer)
+    // If so, verify the transfer on-chain before falling through to the facilitator
+    const paymentSig = req.headers['payment-signature'] as string | undefined;
+    if (paymentSig && paymentSig.startsWith('0x') && paymentSig.length === 66) {
+      try {
+        const verified = await verifyOnChainPayment(
+          paymentSig,
+          PLATFORM_WALLET,
+          BigInt(1000000), // 1 USDC in base units
+        );
+        if (verified) {
+          const requester = req.body?.ownerAddress || 'unknown';
+          await prisma.x402PaymentRequest.create({
+            data: {
+              requestType: 'PROTOCOL_REGISTRATION',
+              requesterAddress: requester.toLowerCase(),
+              amount: BigInt(1000000),
+              status: 'COMPLETED',
+              txHash: paymentSig,
+              expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+              completedAt: new Date(),
+            },
+          }).catch(err => console.error('[x402] Failed to record payment:', err));
+
+          console.log(`[x402] Protocol registration payment verified on-chain (tx: ${paymentSig})`);
+          return originalNext();
+        }
+        console.log(`[x402] On-chain verification failed for ${paymentSig}, falling through to facilitator`);
+      } catch (err) {
+        console.error('[x402] On-chain verification error:', err);
+        // Fall through to facilitator
+      }
+    }
+
+    // Standard x402 facilitator path
     const wrappedNext = async () => {
       // If we get here, payment was verified by the facilitator
       try {
-        const paymentSignature = req.headers['payment-signature'] as string;
+        const facilitatorSig = req.headers['payment-signature'] as string;
         const requester = req.body?.ownerAddress || 'unknown';
 
         await prisma.x402PaymentRequest.create({
@@ -81,7 +164,7 @@ export function x402ProtocolRegistrationGate() {
             requesterAddress: requester.toLowerCase(),
             amount: BigInt(1000000), // 1 USDC
             status: 'COMPLETED',
-            txHash: paymentSignature?.slice(0, 66) || undefined,
+            txHash: facilitatorSig?.slice(0, 66) || undefined,
             expiresAt: new Date(Date.now() + 30 * 60 * 1000),
             completedAt: new Date(),
           },

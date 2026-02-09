@@ -124,13 +124,22 @@ export default function ProtocolRegistration() {
       setTimeout(() => {
         navigate(`/protocols/${response.id}`);
       }, 1500);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to register after payment';
-      setError(errorMessage);
-      toast.error('Registration failed after payment', {
-        description: errorMessage,
-        duration: 5000,
-      });
+    } catch (err: any) {
+      if (err.retryFailed) {
+        setError('Payment was sent but could not be verified. Please wait a moment and try again, or contact support.');
+        setShowPaymentModal(false);
+        toast.error('Payment verification failed', {
+          description: 'Your transaction was sent but the server could not verify it. Please try again shortly.',
+          duration: 7000,
+        });
+      } else {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to register after payment';
+        setError(errorMessage);
+        toast.error('Registration failed after payment', {
+          description: errorMessage,
+          duration: 5000,
+        });
+      }
     } finally {
       setIsSubmitting(false);
     }
