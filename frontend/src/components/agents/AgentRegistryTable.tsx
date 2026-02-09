@@ -1,7 +1,7 @@
 import { ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { AgentIdentity } from '../../types/dashboard';
-import { getExplorerTxUrl, truncateHash } from '../../lib/utils';
+import { getAgentNftUrl, truncateHash } from '../../lib/utils';
 
 interface AgentRegistryTableProps {
   agents: AgentIdentity[];
@@ -160,13 +160,13 @@ export function AgentRegistryTable({ agents, isLoading }: AgentRegistryTableProp
                     </div>
                   </td>
                   <td className="px-6 py-4 text-center">
-                    {agent.onChainTxHash ? (
+                    {agent.agentNftId ? (
                       <a
-                        href={getExplorerTxUrl(agent.onChainTxHash)}
+                        href={getAgentNftUrl(agent.agentNftId)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 transition-colors text-xs"
-                        title="View on BaseScan"
+                        title="View ERC-8004 Agent NFT on BaseScan"
                       >
                         Verify on chain
                         <ExternalLink className="w-3 h-3" />
