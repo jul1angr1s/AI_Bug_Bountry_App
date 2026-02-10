@@ -449,27 +449,42 @@ async function main() {
 
   let totalFeedbackCreated = 0;
 
+  // Accumulators: track counts per agent across ALL pairs
+  const researcherCounts: Record<string, { confirmed: number; rejected: number }> = {};
+  const validatorCounts: Record<string, { confirmed: number; rejected: number }> = {};
+
+  // Delete all existing demo feedback to start fresh
+  await prisma.agentFeedback.deleteMany({
+    where: { validationId: { startsWith: 'demo-' } },
+  });
+
+  // Reset all reputation scores to 0 before recalculating
+  await prisma.agentReputation.updateMany({
+    data: {
+      confirmedCount: 0,
+      rejectedCount: 0,
+      totalSubmissions: 0,
+      reputationScore: 0,
+      validatorConfirmedCount: 0,
+      validatorRejectedCount: 0,
+      validatorTotalSubmissions: 0,
+      validatorReputationScore: 0,
+    },
+  });
+
   // For every researcher-validator pair, create bidirectional feedback
   for (const r of allResearchers) {
-    for (const v of allValidators) {
-      // Delete existing feedback between this pair to avoid duplicates
-      await prisma.agentFeedback.deleteMany({
-        where: {
-          researcherAgentId: r.id,
-          validatorAgentId: v.id,
-        },
-      });
+    if (!researcherCounts[r.id]) researcherCounts[r.id] = { confirmed: 0, rejected: 0 };
 
-      // Pick random feedback types for variety
-      const numFeedbacks = 3 + Math.floor(Math.random() * 3); // 3-5 feedbacks per pair
-      let confirmedAsResearcher = 0;
-      let rejectedAsResearcher = 0;
-      let confirmedAsValidator = 0;
-      let rejectedAsValidator = 0;
+    for (const v of allValidators) {
+      if (!validatorCounts[v.id]) validatorCounts[v.id] = { confirmed: 0, rejected: 0 };
+
+      // Deterministic feedback count based on pair (3-5 feedbacks)
+      const pairSeed = (r.id.charCodeAt(0) + v.id.charCodeAt(0)) % 3;
+      const numFeedbacks = 3 + pairSeed; // 3, 4, or 5
 
       for (let i = 0; i < numFeedbacks; i++) {
         const ft = feedbackTypes[i % feedbackTypes.length];
-        const isRejected = ft === 'REJECTED';
 
         // Validator rates researcher
         await prisma.agentFeedback.create({
@@ -481,12 +496,11 @@ async function main() {
             validationId: `demo-v2r-${r.id.slice(0, 8)}-${v.id.slice(0, 8)}-${i}`,
           },
         });
-        if (isRejected) rejectedAsResearcher++;
-        else confirmedAsResearcher++;
+        if (ft === 'REJECTED') researcherCounts[r.id].rejected++;
+        else researcherCounts[r.id].confirmed++;
 
-        // Researcher rates validator (bidirectional)
+        // Researcher rates validator (offset by 1 for variety)
         const reverseFt = feedbackTypes[(i + 1) % feedbackTypes.length];
-        const reverseRejected = reverseFt === 'REJECTED';
 
         await prisma.agentFeedback.create({
           data: {
@@ -497,58 +511,65 @@ async function main() {
             validationId: `demo-r2v-${r.id.slice(0, 8)}-${v.id.slice(0, 8)}-${i}`,
           },
         });
-        if (reverseRejected) rejectedAsValidator++;
-        else confirmedAsValidator++;
+        if (reverseFt === 'REJECTED') validatorCounts[v.id].rejected++;
+        else validatorCounts[v.id].confirmed++;
 
         totalFeedbackCreated += 2;
       }
 
       console.log(`   ${r.walletAddress.slice(0, 10)}... <-> ${v.walletAddress.slice(0, 10)}...: ${numFeedbacks * 2} feedbacks`);
-
-      // Update researcher reputation (as researcher)
-      const rTotal = confirmedAsResearcher + rejectedAsResearcher;
-      const rScore = rTotal > 0 ? Math.round((confirmedAsResearcher * 100) / rTotal) : 0;
-
-      await prisma.agentReputation.upsert({
-        where: { agentIdentityId: r.id },
-        update: {
-          confirmedCount: { increment: confirmedAsResearcher },
-          rejectedCount: { increment: rejectedAsResearcher },
-          totalSubmissions: { increment: rTotal },
-          reputationScore: rScore,
-          lastUpdated: new Date(),
-        },
-        create: {
-          agentIdentityId: r.id,
-          confirmedCount: confirmedAsResearcher,
-          rejectedCount: rejectedAsResearcher,
-          totalSubmissions: rTotal,
-          reputationScore: rScore,
-        },
-      });
-
-      // Update validator reputation (as validator)
-      const vTotal = confirmedAsValidator + rejectedAsValidator;
-      const vScore = vTotal > 0 ? Math.round((confirmedAsValidator * 100) / vTotal) : 0;
-
-      await prisma.agentReputation.upsert({
-        where: { agentIdentityId: v.id },
-        update: {
-          validatorConfirmedCount: { increment: confirmedAsValidator },
-          validatorRejectedCount: { increment: rejectedAsValidator },
-          validatorTotalSubmissions: { increment: vTotal },
-          validatorReputationScore: vScore,
-          validatorLastUpdated: new Date(),
-        },
-        create: {
-          agentIdentityId: v.id,
-          validatorConfirmedCount: confirmedAsValidator,
-          validatorRejectedCount: rejectedAsValidator,
-          validatorTotalSubmissions: vTotal,
-          validatorReputationScore: vScore,
-        },
-      });
     }
+  }
+
+  // Now update reputation scores from cumulative totals
+  for (const r of allResearchers) {
+    const c = researcherCounts[r.id];
+    const total = c.confirmed + c.rejected;
+    const score = total > 0 ? Math.round((c.confirmed * 100) / total) : 0;
+
+    await prisma.agentReputation.upsert({
+      where: { agentIdentityId: r.id },
+      update: {
+        confirmedCount: c.confirmed,
+        rejectedCount: c.rejected,
+        totalSubmissions: total,
+        reputationScore: score,
+        lastUpdated: new Date(),
+      },
+      create: {
+        agentIdentityId: r.id,
+        confirmedCount: c.confirmed,
+        rejectedCount: c.rejected,
+        totalSubmissions: total,
+        reputationScore: score,
+      },
+    });
+    console.log(`   Researcher ${r.walletAddress.slice(0, 10)}...: score=${score} (${c.confirmed}/${total})`);
+  }
+
+  for (const v of allValidators) {
+    const c = validatorCounts[v.id];
+    const total = c.confirmed + c.rejected;
+    const score = total > 0 ? Math.round((c.confirmed * 100) / total) : 0;
+
+    await prisma.agentReputation.upsert({
+      where: { agentIdentityId: v.id },
+      update: {
+        validatorConfirmedCount: c.confirmed,
+        validatorRejectedCount: c.rejected,
+        validatorTotalSubmissions: total,
+        validatorReputationScore: score,
+        validatorLastUpdated: new Date(),
+      },
+      create: {
+        agentIdentityId: v.id,
+        validatorConfirmedCount: c.confirmed,
+        validatorRejectedCount: c.rejected,
+        validatorTotalSubmissions: total,
+        validatorReputationScore: score,
+      },
+    });
+    console.log(`   Validator ${v.walletAddress.slice(0, 10)}...: score=${score} (${c.confirmed}/${total})`);
   }
 
   console.log(`   Total: ${totalFeedbackCreated} feedback records across ${allResearchers.length} researchers x ${allValidators.length} validators`);

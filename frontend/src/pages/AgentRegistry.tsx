@@ -25,7 +25,12 @@ export default function AgentRegistry() {
   const onChainVerified = agents?.filter((a) => !!a.onChainTxHash).length || 0;
   const avgReputation = totalAgents > 0
     ? Math.round(
-        (agents?.reduce((sum, a) => sum + (a.reputation?.reputationScore ?? 0), 0) || 0) / totalAgents
+        (agents?.reduce((sum, a) => {
+          const score = a.agentType === 'VALIDATOR'
+            ? (a.reputation?.validatorReputationScore ?? 0)
+            : (a.reputation?.reputationScore ?? 0);
+          return sum + score;
+        }, 0) || 0) / totalAgents
       )
     : 0;
 

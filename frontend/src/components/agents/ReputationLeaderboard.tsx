@@ -54,7 +54,15 @@ function SkeletonRow() {
 export default function ReputationLeaderboard({ agents, isLoading }: ReputationLeaderboardProps) {
   const sorted = [...agents]
     .filter((a) => a.reputation)
-    .sort((a, b) => (b.reputation?.reputationScore ?? 0) - (a.reputation?.reputationScore ?? 0));
+    .sort((a, b) => {
+      const scoreA = a.agentType === 'VALIDATOR'
+        ? (a.reputation?.validatorReputationScore ?? 0)
+        : (a.reputation?.reputationScore ?? 0);
+      const scoreB = b.agentType === 'VALIDATOR'
+        ? (b.reputation?.validatorReputationScore ?? 0)
+        : (b.reputation?.reputationScore ?? 0);
+      return scoreB - scoreA;
+    });
 
   return (
     <div className="rounded-lg border border-gray-700 bg-gray-800">
@@ -84,7 +92,9 @@ export default function ReputationLeaderboard({ agents, isLoading }: ReputationL
         {!isLoading &&
           sorted.map((agent, index) => {
             const rank = index + 1;
-            const score = agent.reputation?.reputationScore ?? 0;
+            const score = agent.agentType === 'VALIDATOR'
+              ? (agent.reputation?.validatorReputationScore ?? 0)
+              : (agent.reputation?.reputationScore ?? 0);
             const isTopThree = rank <= 3;
 
             return (

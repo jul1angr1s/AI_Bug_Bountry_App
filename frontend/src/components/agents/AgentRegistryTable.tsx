@@ -127,17 +127,22 @@ export function AgentRegistryTable({ agents, isLoading }: AgentRegistryTableProp
                     )}
                   </td>
                   <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <span className="text-white font-medium text-sm">
-                        {agent.reputation?.reputationScore ?? 0}
-                      </span>
-                      <div className="w-16 h-1.5 bg-gray-700 rounded-full overflow-hidden">
-                        <div
-                          className="h-full rounded-full bg-gradient-to-r from-blue-500 to-emerald-500 transition-all"
-                          style={{ width: `${agent.reputation?.reputationScore ?? 0}%` }}
-                        ></div>
-                      </div>
-                    </div>
+                    {(() => {
+                      const score = agent.agentType === 'VALIDATOR'
+                        ? (agent.reputation?.validatorReputationScore ?? 0)
+                        : (agent.reputation?.reputationScore ?? 0);
+                      return (
+                        <div className="flex items-center gap-2">
+                          <span className="text-white font-medium text-sm">{score}</span>
+                          <div className="w-16 h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-gradient-to-r from-blue-500 to-emerald-500 transition-all"
+                              style={{ width: `${score}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </td>
                   <td className="px-6 py-4">
                     <div>

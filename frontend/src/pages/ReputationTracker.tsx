@@ -54,6 +54,7 @@ export default function ReputationTracker() {
             reputation={reputation}
             isLoading={repLoading}
             isOnChain={!!agent?.onChainTxHash}
+            agentType={agent?.agentType}
           />
         </div>
         <div className="lg:col-span-2 space-y-4">

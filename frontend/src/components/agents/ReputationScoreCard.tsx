@@ -5,6 +5,7 @@ interface ReputationScoreCardProps {
   reputation: AgentReputation | null | undefined;
   isLoading: boolean;
   isOnChain?: boolean;
+  agentType?: 'RESEARCHER' | 'VALIDATOR';
 }
 
 function CircularProgress({ score }: { score: number }) {
@@ -65,7 +66,7 @@ function LoadingSkeleton() {
   );
 }
 
-export default function ReputationScoreCard({ reputation, isLoading, isOnChain }: ReputationScoreCardProps) {
+export default function ReputationScoreCard({ reputation, isLoading, isOnChain, agentType }: ReputationScoreCardProps) {
   if (isLoading) {
     return <LoadingSkeleton />;
   }
@@ -87,7 +88,11 @@ export default function ReputationScoreCard({ reputation, isLoading, isOnChain }
       </h3>
 
       <div className="flex flex-col items-center gap-6">
-        <CircularProgress score={reputation.reputationScore} />
+        <CircularProgress score={
+          agentType === 'VALIDATOR'
+            ? (reputation.validatorReputationScore ?? 0)
+            : reputation.reputationScore
+        } />
 
         {/* On-chain verification indicator */}
         {isOnChain && (

@@ -113,7 +113,8 @@ export class AgentIdentityService {
   }
 
   async getLeaderboard(limit = 10) {
-    return prisma.agentIdentity.findMany({
+    // Get top researchers by reputationScore
+    const researchers = await prisma.agentIdentity.findMany({
       where: {
         agentType: 'RESEARCHER',
         isActive: true,
@@ -121,16 +122,37 @@ export class AgentIdentityService {
           totalSubmissions: { gt: 0 },
         },
       },
-      include: {
-        reputation: true,
-      },
-      orderBy: {
-        reputation: {
-          reputationScore: 'desc',
-        },
-      },
+      include: { reputation: true },
+      orderBy: { reputation: { reputationScore: 'desc' } },
       take: limit,
     });
+
+    // Get top validators by validatorReputationScore
+    const validators = await prisma.agentIdentity.findMany({
+      where: {
+        agentType: 'VALIDATOR',
+        isActive: true,
+        reputation: {
+          validatorTotalSubmissions: { gt: 0 },
+        },
+      },
+      include: { reputation: true },
+      orderBy: { reputation: { validatorReputationScore: 'desc' } },
+      take: limit,
+    });
+
+    // Merge, sort by effective score, and take top N
+    const all = [...researchers, ...validators].sort((a, b) => {
+      const scoreA = a.agentType === 'VALIDATOR'
+        ? (a.reputation?.validatorReputationScore ?? 0)
+        : (a.reputation?.reputationScore ?? 0);
+      const scoreB = b.agentType === 'VALIDATOR'
+        ? (b.reputation?.validatorReputationScore ?? 0)
+        : (b.reputation?.reputationScore ?? 0);
+      return scoreB - scoreA;
+    });
+
+    return all.slice(0, limit);
   }
 
   async associateAgentsWithProtocol(
