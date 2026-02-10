@@ -2,7 +2,7 @@ import { Worker, Job } from 'bullmq';
 import { getPrismaClient } from '../../lib/prisma.js';
 import { getKimiClient } from '../../lib/llm.js';
 import { getValidationService } from '../../services/validation.service.js';
-import { emitAgentTaskUpdate } from '../../websocket/events.js';
+import { emitValidationProgress, emitValidationLog } from '../../websocket/events.js';
 import { decryptProof } from './steps/decrypt.js';
 import { validateMessage, ProofSubmissionSchema } from '../../messages/schemas.js';
 import type { ProofSubmissionMessage } from '../../messages/schemas.js';
@@ -113,7 +113,11 @@ async function processValidationLLM(submission: ProofSubmissionMessage): Promise
     const validationService = getValidationService();
     const kimiClient = getKimiClient();
 
-    await emitAgentTaskUpdate('validator-agent', 'Decrypting proof', 10);
+    const vId = submission.proofId;
+    const pId = submission.protocolId;
+
+    await emitValidationProgress(vId, pId, 'DECRYPT_PROOF', 'RUNNING', 'LLM', 0, 'Decrypting proof payload...');
+    await emitValidationLog(vId, pId, 'DEFAULT', '> Decrypting proof payload...');
 
     // =================
     // STEP 1: Decrypt and parse proof
@@ -127,7 +131,11 @@ async function processValidationLLM(submission: ProofSubmissionMessage): Promise
     const proof = decryptResult.proof;
     console.log(`[Validator LLM] Proof decrypted: ${proof.vulnerabilityType}`);
 
-    await emitAgentTaskUpdate('validator-agent', 'Fetching finding details', 20);
+    await emitValidationProgress(vId, pId, 'DECRYPT_PROOF', 'RUNNING', 'LLM', 10, 'Proof decrypted');
+    await emitValidationLog(vId, pId, 'INFO', `[INFO] Proof decrypted: ${proof.vulnerabilityType}`);
+
+    await emitValidationProgress(vId, pId, 'FETCH_DETAILS', 'RUNNING', 'LLM', 10, 'Fetching finding and protocol details...');
+    await emitValidationLog(vId, pId, 'DEFAULT', '> Fetching finding and protocol details...');
 
     // =================
     // STEP 2: Fetch finding and protocol details
@@ -141,7 +149,11 @@ async function processValidationLLM(submission: ProofSubmissionMessage): Promise
     const protocol = finding.scan.protocol;
     console.log(`[Validator LLM] Protocol: ${protocol.githubUrl}`);
 
-    await emitAgentTaskUpdate('validator-agent', 'Reading contract code', 30);
+    await emitValidationProgress(vId, pId, 'FETCH_DETAILS', 'RUNNING', 'LLM', 20, 'Details fetched');
+    await emitValidationLog(vId, pId, 'INFO', `[INFO] Protocol: ${protocol.githubUrl}`);
+
+    await emitValidationProgress(vId, pId, 'READ_CONTRACT', 'RUNNING', 'LLM', 20, 'Reading contract source code...');
+    await emitValidationLog(vId, pId, 'DEFAULT', '> Reading contract source code...');
 
     // =================
     // STEP 3: Read contract code for context
@@ -191,7 +203,11 @@ async function processValidationLLM(submission: ProofSubmissionMessage): Promise
       }
     }
 
-    await emitAgentTaskUpdate('validator-agent', 'Analyzing proof with Kimi 2.5 LLM', 50);
+    await emitValidationProgress(vId, pId, 'READ_CONTRACT', 'RUNNING', 'LLM', 30, 'Contract loaded');
+    await emitValidationLog(vId, pId, 'INFO', `[INFO] Contract loaded (${contractCode.length} chars)`);
+
+    await emitValidationProgress(vId, pId, 'LLM_ANALYSIS', 'RUNNING', 'LLM', 30, 'Submitting to Kimi 2.5 for analysis...');
+    await emitValidationLog(vId, pId, 'ANALYSIS', '[ANALYSIS] Submitting to Kimi 2.5 for proof analysis...');
 
     // =================
     // STEP 4: Analyze proof with Kimi 2.5 LLM
@@ -214,7 +230,12 @@ async function processValidationLLM(submission: ProofSubmissionMessage): Promise
       severity: analysis.severity,
     });
 
-    await emitAgentTaskUpdate('validator-agent', 'Updating validation result', 80);
+    await emitValidationProgress(vId, pId, 'LLM_ANALYSIS', 'RUNNING', 'LLM', 60, `Verdict: ${analysis.isValid ? 'VALID' : 'INVALID'} (${analysis.confidence}%)`);
+    await emitValidationLog(vId, pId, 'INFO', `[INFO] Verdict: ${analysis.isValid ? 'VALID' : 'INVALID'} (${analysis.confidence}% confidence)`);
+    await emitValidationLog(vId, pId, analysis.isValid ? 'ANALYSIS' : 'WARN', `[${analysis.isValid ? 'ANALYSIS' : 'WARN'}] Severity: ${analysis.severity} | Exploitability: ${analysis.exploitability}`);
+
+    await emitValidationProgress(vId, pId, 'UPDATE_RESULT', 'RUNNING', 'LLM', 60, 'Updating finding and proof status...');
+    await emitValidationLog(vId, pId, 'DEFAULT', '> Updating finding and proof status...');
 
     // =================
     // STEP 5: Update finding with validation result
@@ -242,11 +263,14 @@ async function processValidationLLM(submission: ProofSubmissionMessage): Promise
       `[Validator LLM] Validation complete: ${analysis.isValid ? 'VALIDATED' : 'REJECTED'}`
     );
 
-    await emitAgentTaskUpdate(
-      'validator-agent',
-      `Validation ${analysis.isValid ? 'complete' : 'rejected'} (${analysis.confidence}% confidence)`,
-      100
-    );
+    await emitValidationProgress(vId, pId, 'UPDATE_RESULT', 'RUNNING', 'LLM', 80, `Status: ${analysis.isValid ? 'VALIDATED' : 'REJECTED'}`);
+    await emitValidationLog(vId, pId, 'INFO', `[INFO] Status: ${analysis.isValid ? 'VALIDATED' : 'REJECTED'}`);
+
+    await emitValidationProgress(vId, pId, 'RECORD_ONCHAIN', 'RUNNING', 'LLM', 80, 'On-chain recording skipped for LLM validation');
+    await emitValidationLog(vId, pId, 'INFO', '[INFO] On-chain recording skipped for LLM validation');
+
+    await emitValidationProgress(vId, pId, 'COMPLETE', 'COMPLETED', 'LLM', 100, `Validation complete: ${analysis.isValid ? 'VALIDATED' : 'REJECTED'} (${analysis.confidence}% confidence)`);
+    await emitValidationLog(vId, pId, 'INFO', `[INFO] Validation complete: ${analysis.isValid ? 'VALIDATED' : 'REJECTED'} (${analysis.confidence}% confidence)`);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error(`[Validator LLM] Validation failed:`, errorMessage);
@@ -276,11 +300,8 @@ async function processValidationLLM(submission: ProofSubmissionMessage): Promise
       console.error('[Validator LLM] Failed to update database:', dbError);
     }
 
-    await emitAgentTaskUpdate(
-      'validator-agent',
-      `Validation error: ${errorMessage}`,
-      0
-    );
+    await emitValidationProgress(submission.proofId, submission.protocolId, 'COMPLETE', 'FAILED', 'LLM', 0, `Validation failed: ${errorMessage}`);
+    await emitValidationLog(submission.proofId, submission.protocolId, 'ALERT', `[ALERT] Validation failed: ${errorMessage}`);
 
     // Re-throw so BullMQ can retry if attempts remain
     throw error;

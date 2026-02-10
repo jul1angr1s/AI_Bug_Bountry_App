@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { Prisma } from '@prisma/client';
 import { getPrismaClient } from '../lib/prisma.js';
+import { sseAuthenticate } from '../middleware/sse-auth.js';
+import { getRedisClient } from '../lib/redis.js';
 
 const router = Router();
 const prisma = getPrismaClient();
@@ -32,7 +34,7 @@ router.get('/', async (req, res) => {
       };
     }
     if (status) {
-      where.status = status as string;
+      where.status = status as any;
     }
 
     // Query findings (which represent validations)
@@ -79,6 +81,177 @@ router.get('/', async (req, res) => {
   } catch (error) {
     console.error('[ValidationController] listValidations error:', error);
     res.status(500).json({ error: 'Failed to list validations' });
+  }
+});
+
+// GET /api/v1/validations/active - Find any actively validating proof
+router.get('/active', async (req, res) => {
+  try {
+    const activeProof = await prisma.proof.findFirst({
+      where: { status: 'VALIDATING' as any },
+      orderBy: { submittedAt: 'desc' },
+      select: {
+        id: true,
+        status: true,
+        findingId: true,
+        submittedAt: true,
+      },
+    });
+
+    res.json({ activeValidation: activeProof });
+  } catch (error) {
+    console.error('[ValidationController] getActive error:', error);
+    res.status(500).json({ error: 'Failed to check active validations' });
+  }
+});
+
+// SSE stream for validation progress
+router.get('/:id/progress', sseAuthenticate, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    // Look up proof to verify it exists and get protocolId
+    const proof = await prisma.proof.findUnique({
+      where: { id },
+      include: {
+        finding: {
+          include: {
+            scan: {
+              select: { protocolId: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!proof) {
+      res.status(404).json({ error: 'Validation not found' });
+      return;
+    }
+
+    const protocolId = proof.finding?.scan?.protocolId || 'unknown';
+
+    // Setup SSE
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+
+    // Send initial state
+    res.write(`data: ${JSON.stringify({
+      eventType: 'validation:progress',
+      timestamp: new Date().toISOString(),
+      validationId: id,
+      protocolId,
+      data: {
+        currentStep: 'DECRYPT_PROOF',
+        state: (proof.status as string) === 'VALIDATING' ? 'RUNNING' : proof.status,
+        progress: 0,
+        message: 'Connected to validation progress stream',
+        workerType: 'LLM',
+      },
+    })}\n\n`);
+
+    // Subscribe to Redis for real-time updates
+    const redis = getRedisClient();
+    const subscriber = redis.duplicate();
+
+    await subscriber.subscribe(`validation:${id}:progress`);
+
+    subscriber.on('message', (_channel: string, message: string) => {
+      res.write(`data: ${message}\n\n`);
+
+      // Check if validation completed
+      try {
+        const data = JSON.parse(message);
+        if (data.data?.state === 'COMPLETED' || data.data?.state === 'FAILED') {
+          subscriber.unsubscribe();
+          subscriber.quit();
+          res.end();
+        }
+      } catch { /* ignore parse errors */ }
+    });
+
+    // Handle client disconnect
+    req.on('close', () => {
+      subscriber.unsubscribe();
+      subscriber.quit();
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// SSE stream for validation logs (terminal output)
+router.get('/:id/logs', sseAuthenticate, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const proof = await prisma.proof.findUnique({
+      where: { id },
+      include: {
+        finding: {
+          include: {
+            scan: {
+              select: { protocolId: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!proof) {
+      res.status(404).json({ error: 'Validation not found' });
+      return;
+    }
+
+    const protocolId = proof.finding?.scan?.protocolId || 'unknown';
+
+    // Setup SSE
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+
+    // Send initial connection event
+    res.write(`data: ${JSON.stringify({
+      eventType: 'validation:log',
+      timestamp: new Date().toISOString(),
+      validationId: id,
+      protocolId,
+      data: {
+        level: 'INFO',
+        message: 'Connected to validation log stream',
+      },
+    })}\n\n`);
+
+    // Subscribe to Redis for real-time log and progress updates
+    const redis = getRedisClient();
+    const subscriber = redis.duplicate();
+
+    await subscriber.subscribe(`validation:${id}:logs`, `validation:${id}:progress`);
+
+    subscriber.on('message', (channel: string, message: string) => {
+      if (channel === `validation:${id}:logs`) {
+        res.write(`data: ${message}\n\n`);
+      } else if (channel === `validation:${id}:progress`) {
+        // Check if validation completed to close the stream
+        try {
+          const data = JSON.parse(message);
+          if (data.data?.state === 'COMPLETED' || data.data?.state === 'FAILED') {
+            subscriber.unsubscribe();
+            subscriber.quit();
+            res.end();
+          }
+        } catch { /* ignore parse errors */ }
+      }
+    });
+
+    // Handle client disconnect
+    req.on('close', () => {
+      subscriber.unsubscribe();
+      subscriber.quit();
+    });
+  } catch (error) {
+    next(error);
   }
 });
 

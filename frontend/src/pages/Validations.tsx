@@ -1,11 +1,26 @@
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useValidations } from '../hooks/useValidations';
 import ValidationCard from '../components/validations/ValidationCard';
+import { ActiveValidationPanel } from '../components/validations/ActiveValidationPanel';
 import { LoadingSkeleton } from '../components/shared/LoadingSkeleton';
+import { api } from '../lib/api';
 
 export default function Validations() {
   const [statusFilter, setStatusFilter] = useState<string>('');
   const { data, isLoading, error } = useValidations({ status: statusFilter });
+
+  // Poll for any actively validating proof
+  const { data: activeData } = useQuery({
+    queryKey: ['validations', 'active'],
+    queryFn: async () => {
+      const response = await api.get('/validations/active');
+      return response.data;
+    },
+    refetchInterval: 3000,
+  });
+
+  const activeValidationId = activeData?.activeValidation?.id as string | undefined;
 
   if (error) {
     return (
@@ -30,6 +45,11 @@ export default function Validations() {
           </p>
         </div>
 
+        {/* Active Validation Panel */}
+        {activeValidationId && (
+          <ActiveValidationPanel validationId={activeValidationId} />
+        )}
+
         {/* Filters */}
         <div className="mb-6 flex gap-4">
           <select
@@ -39,6 +59,7 @@ export default function Validations() {
           >
             <option value="">All Status</option>
             <option value="PENDING">Pending</option>
+            <option value="VALIDATING">Validating</option>
             <option value="VALIDATED">Validated</option>
             <option value="REJECTED">Rejected</option>
           </select>

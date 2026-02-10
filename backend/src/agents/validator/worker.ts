@@ -1,7 +1,7 @@
 import { Worker, Job } from 'bullmq';
 import { getPrismaClient } from '../../lib/prisma.js';
 import { proofRepository } from '../../db/repositories.js';
-import { emitAgentTaskUpdate } from '../../websocket/events.js';
+import { emitValidationProgress, emitValidationLog } from '../../websocket/events.js';
 import { decryptProof } from './steps/decrypt.js';
 import { spawnSandbox, deployToSandbox, killSandbox } from './steps/sandbox.js';
 import { executeExploit } from './steps/execute.js';
@@ -101,7 +101,11 @@ async function processValidation(submission: ProofSubmissionMessage): Promise<vo
     // Update proof status to VALIDATING
     await proofRepository.updateProofStatus(submission.proofId, 'VALIDATING');
 
-    await emitAgentTaskUpdate('validator-agent', 'Decrypting proof', 5);
+    const vId = submission.proofId;
+    const pId = submission.protocolId;
+
+    await emitValidationProgress(vId, pId, 'DECRYPT_PROOF', 'RUNNING', 'EXECUTION', 0, 'Decrypting proof payload...');
+    await emitValidationLog(vId, pId, 'DEFAULT', '> Decrypting proof payload...');
 
     // =================
     // STEP 1: Decrypt and parse proof
@@ -115,7 +119,11 @@ async function processValidation(submission: ProofSubmissionMessage): Promise<vo
     const proof = decryptResult.proof;
     console.log(`[Validator] Proof decrypted: ${proof.vulnerabilityType}`);
 
-    await emitAgentTaskUpdate('validator-agent', 'Fetching protocol details', 10);
+    await emitValidationProgress(vId, pId, 'DECRYPT_PROOF', 'RUNNING', 'EXECUTION', 5, 'Proof decrypted');
+    await emitValidationLog(vId, pId, 'INFO', `[INFO] Proof decrypted: ${proof.vulnerabilityType}`);
+
+    await emitValidationProgress(vId, pId, 'FETCH_DETAILS', 'RUNNING', 'EXECUTION', 5, 'Fetching protocol details...');
+    await emitValidationLog(vId, pId, 'DEFAULT', '> Fetching protocol details...');
 
     // =================
     // STEP 2: Fetch protocol details
@@ -130,7 +138,11 @@ async function processValidation(submission: ProofSubmissionMessage): Promise<vo
 
     console.log(`[Validator] Protocol: ${protocol.githubUrl}`);
 
-    await emitAgentTaskUpdate('validator-agent', 'Cloning repository', 15);
+    await emitValidationProgress(vId, pId, 'FETCH_DETAILS', 'RUNNING', 'EXECUTION', 10, 'Protocol details fetched');
+    await emitValidationLog(vId, pId, 'INFO', `[INFO] Protocol: ${protocol.githubUrl}`);
+
+    await emitValidationProgress(vId, pId, 'CLONE_REPO', 'RUNNING', 'EXECUTION', 10, 'Cloning repository...');
+    await emitValidationLog(vId, pId, 'DEFAULT', '> Cloning repository from GitHub...');
 
     // =================
     // STEP 3: Clone same commit as Researcher
@@ -148,7 +160,11 @@ async function processValidation(submission: ProofSubmissionMessage): Promise<vo
     repoPath = cloneResult.repoPath;
     console.log(`[Validator] Repository cloned to ${repoPath}`);
 
-    await emitAgentTaskUpdate('validator-agent', 'Compiling contracts', 30);
+    await emitValidationProgress(vId, pId, 'CLONE_REPO', 'RUNNING', 'EXECUTION', 20, 'Repository cloned');
+    await emitValidationLog(vId, pId, 'INFO', `[INFO] Repository cloned to ${repoPath}`);
+
+    await emitValidationProgress(vId, pId, 'COMPILE', 'RUNNING', 'EXECUTION', 20, 'Compiling contracts...');
+    await emitValidationLog(vId, pId, 'DEFAULT', '> Compiling contracts...');
 
     // =================
     // STEP 4: Compile contracts
@@ -165,7 +181,11 @@ async function processValidation(submission: ProofSubmissionMessage): Promise<vo
 
     console.log(`[Validator] Contract compiled successfully`);
 
-    await emitAgentTaskUpdate('validator-agent', 'Spawning isolated sandbox', 45);
+    await emitValidationProgress(vId, pId, 'COMPILE', 'RUNNING', 'EXECUTION', 30, 'Contracts compiled');
+    await emitValidationLog(vId, pId, 'INFO', '[INFO] Contract compiled successfully');
+
+    await emitValidationProgress(vId, pId, 'SPAWN_SANDBOX', 'RUNNING', 'EXECUTION', 30, 'Spawning isolated Anvil sandbox...');
+    await emitValidationLog(vId, pId, 'DEFAULT', '> Spawning isolated Anvil sandbox...');
 
     // =================
     // STEP 5: Spawn isolated Anvil sandbox
@@ -179,7 +199,11 @@ async function processValidation(submission: ProofSubmissionMessage): Promise<vo
     anvilProcess = sandboxResult.anvilProcess;
     console.log(`[Validator] Sandbox spawned at ${sandboxResult.rpcUrl}`);
 
-    await emitAgentTaskUpdate('validator-agent', 'Deploying contract to sandbox', 60);
+    await emitValidationProgress(vId, pId, 'SPAWN_SANDBOX', 'RUNNING', 'EXECUTION', 40, 'Sandbox spawned');
+    await emitValidationLog(vId, pId, 'INFO', `[INFO] Sandbox spawned at ${sandboxResult.rpcUrl}`);
+
+    await emitValidationProgress(vId, pId, 'DEPLOY', 'RUNNING', 'EXECUTION', 40, 'Deploying contract to sandbox...');
+    await emitValidationLog(vId, pId, 'DEFAULT', '> Deploying contract to sandbox...');
 
     // =================
     // STEP 6: Deploy contract to sandbox
@@ -196,7 +220,11 @@ async function processValidation(submission: ProofSubmissionMessage): Promise<vo
 
     console.log(`[Validator] Contract deployed at ${deployResult.contractAddress}`);
 
-    await emitAgentTaskUpdate('validator-agent', 'Executing exploit', 75);
+    await emitValidationProgress(vId, pId, 'DEPLOY', 'RUNNING', 'EXECUTION', 55, 'Contract deployed');
+    await emitValidationLog(vId, pId, 'INFO', `[INFO] Contract deployed at ${deployResult.contractAddress}`);
+
+    await emitValidationProgress(vId, pId, 'EXECUTE_EXPLOIT', 'RUNNING', 'EXECUTION', 55, 'Executing exploit...');
+    await emitValidationLog(vId, pId, 'ANALYSIS', '[ANALYSIS] Executing exploit against sandboxed contract...');
 
     // =================
     // STEP 7: Execute exploit
@@ -210,7 +238,11 @@ async function processValidation(submission: ProofSubmissionMessage): Promise<vo
 
     console.log(`[Validator] Exploit execution completed: ${executionResult.validated ? 'CONFIRMED' : 'REJECTED'}`);
 
-    await emitAgentTaskUpdate('validator-agent', 'Updating validation result', 90);
+    await emitValidationProgress(vId, pId, 'EXECUTE_EXPLOIT', 'RUNNING', 'EXECUTION', 75, `Exploit ${executionResult.validated ? 'CONFIRMED' : 'REJECTED'}`);
+    await emitValidationLog(vId, pId, executionResult.validated ? 'ALERT' : 'WARN', `[${executionResult.validated ? 'ALERT' : 'WARN'}] Exploit ${executionResult.validated ? 'CONFIRMED — vulnerability reproduced' : 'REJECTED — exploit failed'}`);
+
+    await emitValidationProgress(vId, pId, 'UPDATE_RESULT', 'RUNNING', 'EXECUTION', 75, 'Updating validation result...');
+    await emitValidationLog(vId, pId, 'DEFAULT', '> Updating validation result...');
 
     // =================
     // STEP 8: Update validation result
@@ -240,15 +272,15 @@ async function processValidation(submission: ProofSubmissionMessage): Promise<vo
 
     console.log(`[Validator] Validation complete: ${validationStatus}`);
 
-    await emitAgentTaskUpdate(
-      'validator-agent',
-      `Validation ${validationStatus.toLowerCase()}`,
-      100
-    );
+    await emitValidationProgress(vId, pId, 'UPDATE_RESULT', 'RUNNING', 'EXECUTION', 85, `Status: ${validationStatus}`);
+    await emitValidationLog(vId, pId, 'INFO', `[INFO] Status: ${validationStatus}`);
 
     // =================
     // STEP 9: Record validation on-chain (Base Sepolia)
     // =================
+    await emitValidationProgress(vId, pId, 'RECORD_ONCHAIN', 'RUNNING', 'EXECUTION', 85, 'Recording validation on-chain...');
+    await emitValidationLog(vId, pId, 'DEFAULT', '> Recording validation on Base Sepolia...');
+
     try {
       // Get protocol to access onChainProtocolId
       const protocol = await prisma.protocol.findUnique({
@@ -257,6 +289,7 @@ async function processValidation(submission: ProofSubmissionMessage): Promise<vo
 
       if (!protocol || !protocol.onChainProtocolId) {
         console.warn('[Validator] Protocol not registered on-chain, skipping on-chain validation');
+        await emitValidationLog(vId, pId, 'WARN', '[WARN] Protocol not registered on-chain, skipping');
       } else {
         // Get finding details
         const finding = await prisma.finding.findUnique({
@@ -330,6 +363,8 @@ async function processValidation(submission: ProofSubmissionMessage): Promise<vo
           });
 
           console.log('[Validator] Database updated with on-chain validation IDs');
+          await emitValidationLog(vId, pId, 'INFO', `[INFO] On-chain TX: ${onChainResult.txHash}`);
+          await emitValidationProgress(vId, pId, 'RECORD_ONCHAIN', 'RUNNING', 'EXECUTION', 95, 'On-chain recording complete');
 
           // =================
           // STEP 10: Record reputation feedback (ERC-8004)
@@ -417,7 +452,11 @@ async function processValidation(submission: ProofSubmissionMessage): Promise<vo
       // Log error but don't fail the validation - off-chain validation is still valid
       console.error('[Validator] Failed to record validation on-chain:', onChainError);
       console.error('  Continuing with off-chain validation only');
+      await emitValidationLog(vId, pId, 'WARN', '[WARN] On-chain recording failed, continuing with off-chain validation');
     }
+
+    await emitValidationProgress(vId, pId, 'COMPLETE', 'COMPLETED', 'EXECUTION', 100, `Validation complete: ${validationStatus}`);
+    await emitValidationLog(vId, pId, 'INFO', `[INFO] Validation complete: ${validationStatus}`);
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -434,7 +473,8 @@ async function processValidation(submission: ProofSubmissionMessage): Promise<vo
       console.error('[Validator] Failed to update database:', dbError);
     }
 
-    await emitAgentTaskUpdate('validator-agent', `Validation error: ${errorMessage}`, 0);
+    await emitValidationProgress(submission.proofId, submission.protocolId, 'COMPLETE', 'FAILED', 'EXECUTION', 0, `Validation failed: ${errorMessage}`);
+    await emitValidationLog(submission.proofId, submission.protocolId, 'ALERT', `[ALERT] Validation failed: ${errorMessage}`);
 
     // Re-throw so BullMQ can retry if attempts remain
     throw error;

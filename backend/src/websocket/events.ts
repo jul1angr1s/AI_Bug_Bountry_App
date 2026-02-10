@@ -492,6 +492,94 @@ export async function emitScanLog(
   await redis.publish(`scan:${scanId}:logs`, JSON.stringify(event));
 }
 
+// Validation Event Types (mirrors Scan events for validator agent real-time streaming)
+export type ValidationWorkerType = 'EXECUTION' | 'LLM';
+
+export interface ValidationProgressEvent {
+  eventType: 'validation:progress';
+  timestamp: string;
+  validationId: string; // proofId
+  protocolId: string;
+  data: {
+    currentStep: string;
+    state: string;
+    progress?: number;
+    message?: string;
+    workerType: ValidationWorkerType;
+  };
+}
+
+export type ValidationLogLevel = 'INFO' | 'ANALYSIS' | 'ALERT' | 'WARN' | 'DEFAULT';
+
+export interface ValidationLogEvent {
+  eventType: 'validation:log';
+  timestamp: string;
+  validationId: string;
+  protocolId: string;
+  data: {
+    level: ValidationLogLevel;
+    message: string;
+  };
+}
+
+export async function emitValidationProgress(
+  validationId: string,
+  protocolId: string,
+  currentStep: string,
+  state: string,
+  workerType: ValidationWorkerType,
+  progress?: number,
+  message?: string
+): Promise<void> {
+  const event: ValidationProgressEvent = {
+    eventType: 'validation:progress',
+    timestamp: new Date().toISOString(),
+    validationId,
+    protocolId,
+    data: {
+      currentStep,
+      state,
+      progress,
+      message,
+      workerType,
+    },
+  };
+
+  // Emit to WebSocket rooms if available
+  if (ioInstance) {
+    ioInstance.to(`protocol:${protocolId}`).emit('validation:progress', event);
+    ioInstance.to('validations').emit('validation:progress', event);
+  }
+
+  // Publish to Redis for SSE subscribers
+  const { getRedisClient } = await import('../lib/redis.js');
+  const redis = getRedisClient();
+  await redis.publish(`validation:${validationId}:progress`, JSON.stringify(event));
+}
+
+export async function emitValidationLog(
+  validationId: string,
+  protocolId: string,
+  level: ValidationLogLevel,
+  message: string
+): Promise<void> {
+  const event: ValidationLogEvent = {
+    eventType: 'validation:log',
+    timestamp: new Date().toISOString(),
+    validationId,
+    protocolId,
+    data: {
+      level,
+      message,
+    },
+  };
+
+  // Publish to Redis for SSE subscribers
+  const { getRedisClient } = await import('../lib/redis.js');
+  const redis = getRedisClient();
+  await redis.publish(`validation:${validationId}:logs`, JSON.stringify(event));
+}
+
 // Funding Gate WebSocket Event Types
 export interface ProtocolFundingStateChangedEvent {
   eventType: 'protocol:funding_state_changed';
