@@ -97,18 +97,44 @@ export default function ReputationScoreCard({ reputation, isLoading, isOnChain }
           </div>
         )}
 
-        <div className="flex w-full justify-around border-t border-gray-700 pt-4">
-          <div className="flex flex-col items-center">
-            <span className="text-xl font-bold text-green-400">{reputation.confirmedCount}</span>
-            <span className="text-xs text-gray-400">Confirmed</span>
+        {/* Dual score display */}
+        <div className="w-full grid grid-cols-2 gap-4 border-t border-gray-700 pt-4">
+          {/* As Researcher */}
+          <div className="text-center">
+            <h4 className="text-xs font-medium text-purple-400 mb-2 uppercase tracking-wider">As Researcher</h4>
+            <div className="flex justify-around">
+              <div className="flex flex-col items-center">
+                <span className="text-lg font-bold text-green-400">{reputation.confirmedCount}</span>
+                <span className="text-[10px] text-gray-400">Confirmed</span>
+              </div>
+              <div className="flex flex-col items-center">
+                <span className="text-lg font-bold text-red-400">{reputation.rejectedCount}</span>
+                <span className="text-[10px] text-gray-400">Rejected</span>
+              </div>
+              <div className="flex flex-col items-center">
+                <span className="text-lg font-bold text-white">{reputation.totalSubmissions}</span>
+                <span className="text-[10px] text-gray-400">Total</span>
+              </div>
+            </div>
           </div>
-          <div className="flex flex-col items-center">
-            <span className="text-xl font-bold text-red-400">{reputation.rejectedCount}</span>
-            <span className="text-xs text-gray-400">Rejected</span>
-          </div>
-          <div className="flex flex-col items-center">
-            <span className="text-xl font-bold text-white">{reputation.totalSubmissions}</span>
-            <span className="text-xs text-gray-400">Total</span>
+
+          {/* As Validator */}
+          <div className="text-center">
+            <h4 className="text-xs font-medium text-cyan-400 mb-2 uppercase tracking-wider">As Validator</h4>
+            <div className="flex justify-around">
+              <div className="flex flex-col items-center">
+                <span className="text-lg font-bold text-green-400">{reputation.validatorConfirmedCount ?? 0}</span>
+                <span className="text-[10px] text-gray-400">Confirmed</span>
+              </div>
+              <div className="flex flex-col items-center">
+                <span className="text-lg font-bold text-red-400">{reputation.validatorRejectedCount ?? 0}</span>
+                <span className="text-[10px] text-gray-400">Rejected</span>
+              </div>
+              <div className="flex flex-col items-center">
+                <span className="text-lg font-bold text-white">{reputation.validatorTotalSubmissions ?? 0}</span>
+                <span className="text-[10px] text-gray-400">Total</span>
+              </div>
+            </div>
           </div>
         </div>
 

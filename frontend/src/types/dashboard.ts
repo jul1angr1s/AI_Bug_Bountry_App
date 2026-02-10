@@ -131,6 +131,12 @@ export interface AgentReputation {
   totalSubmissions: number;
   reputationScore: number;
   lastUpdated: string;
+  // Validator reputation fields (bidirectional)
+  validatorConfirmedCount?: number;
+  validatorRejectedCount?: number;
+  validatorTotalSubmissions?: number;
+  validatorReputationScore?: number;
+  validatorLastUpdated?: string | null;
 }
 
 export type FeedbackType =
@@ -141,6 +147,8 @@ export type FeedbackType =
   | 'CONFIRMED_INFORMATIONAL'
   | 'REJECTED';
 
+export type FeedbackDirection = 'VALIDATOR_RATES_RESEARCHER' | 'RESEARCHER_RATES_VALIDATOR';
+
 export interface AgentFeedback {
   id: string;
   researcherAgentId: string;
@@ -148,9 +156,11 @@ export interface AgentFeedback {
   validationId?: string | null;
   findingId?: string | null;
   feedbackType: FeedbackType;
+  feedbackDirection?: FeedbackDirection;
   onChainFeedbackId?: string | null;
   createdAt: string;
   validatorAgent?: AgentIdentity;
+  researcherAgent?: AgentIdentity;
 }
 
 // ========== Escrow Types ==========

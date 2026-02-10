@@ -480,6 +480,108 @@ router.get('/:id/x402-payments', async (req: Request, res: Response) => {
   }
 });
 
+// POST /api/v1/agent-identities/:id/qualification - Record mutual qualification
+const QualificationSchema = z.object({
+  targetAgentId: z.string().uuid(),
+  feedbackType: z.enum([
+    'CONFIRMED_CRITICAL',
+    'CONFIRMED_HIGH',
+    'CONFIRMED_MEDIUM',
+    'CONFIRMED_LOW',
+    'CONFIRMED_INFORMATIONAL',
+    'REJECTED',
+  ]),
+  direction: z.enum(['VALIDATOR_RATES_RESEARCHER', 'RESEARCHER_RATES_VALIDATOR']),
+  validationId: z.string().optional(),
+  findingId: z.string().optional(),
+  recordOnChain: z.boolean().optional().default(false),
+});
+
+router.post('/:id/qualification', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { targetAgentId, feedbackType, direction, validationId, findingId, recordOnChain } =
+      QualificationSchema.parse(req.body);
+
+    const sourceAgent = await agentIdentityService.getAgentById(id);
+    if (!sourceAgent) {
+      return res.status(404).json({ success: false, error: 'Source agent not found' });
+    }
+
+    const targetAgent = await agentIdentityService.getAgentById(targetAgentId);
+    if (!targetAgent) {
+      return res.status(404).json({ success: false, error: 'Target agent not found' });
+    }
+
+    let result;
+    const fbType = feedbackType as any;
+
+    if (direction === 'VALIDATOR_RATES_RESEARCHER') {
+      if (recordOnChain) {
+        result = await reputationService.recordFeedbackOnChain(
+          targetAgent.walletAddress,
+          sourceAgent.walletAddress,
+          validationId || `qual-${Date.now()}`,
+          findingId || '',
+          fbType
+        );
+      } else {
+        result = await reputationService.recordFeedback(
+          targetAgent.walletAddress,
+          sourceAgent.walletAddress,
+          validationId || `qual-${Date.now()}`,
+          findingId || '',
+          fbType
+        );
+      }
+    } else {
+      if (recordOnChain) {
+        result = await reputationService.recordValidatorFeedbackOnChain(
+          sourceAgent.walletAddress,
+          targetAgent.walletAddress,
+          validationId || `qual-${Date.now()}`,
+          findingId || '',
+          fbType
+        );
+      } else {
+        result = await reputationService.recordValidatorFeedback(
+          sourceAgent.walletAddress,
+          targetAgent.walletAddress,
+          validationId || `qual-${Date.now()}`,
+          findingId || '',
+          fbType
+        );
+      }
+    }
+
+    res.json({ success: true, data: serializeBigInts(result) });
+  } catch (error) {
+    console.error('Qualification error:', error);
+    res.status(400).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Qualification failed',
+    });
+  }
+});
+
+// GET /api/v1/agent-identities/:id/validator-reputation
+router.get('/:id/validator-reputation', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const valRep = await reputationService.getValidatorReputation(id);
+    if (!valRep) {
+      return res.status(404).json({ success: false, error: 'Validator reputation not found' });
+    }
+    res.json({ success: true, data: valRep });
+  } catch (error) {
+    console.error('Get validator reputation error:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to get validator reputation',
+    });
+  }
+});
+
 // POST /api/v1/agent-identities/:id/deactivate
 router.post('/:id/deactivate', async (req: Request, res: Response) => {
   try {

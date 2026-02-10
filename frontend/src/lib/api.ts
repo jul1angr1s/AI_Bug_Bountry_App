@@ -1154,3 +1154,54 @@ export async function fetchAgentX402Payments(agentId: string): Promise<X402Payme
   const result = await response.json();
   return result.data || [];
 }
+
+// ========== Mutual Qualification API Functions ==========
+
+export async function fetchValidatorReputation(agentId: string): Promise<{
+  validatorConfirmedCount: number;
+  validatorRejectedCount: number;
+  validatorTotalSubmissions: number;
+  validatorReputationScore: number;
+  validatorLastUpdated: string | null;
+}> {
+  const headers = await getAuthHeaders();
+  const response = await fetch(`${API_BASE_URL}/api/v1/agent-identities/${agentId}/validator-reputation`, { headers, credentials: 'include' });
+  if (!response.ok) throw new Error(`Failed to fetch validator reputation: ${response.statusText}`);
+  const result = await response.json();
+  return result.data;
+}
+
+export async function recordQualification(
+  agentId: string,
+  targetAgentId: string,
+  feedbackType: string,
+  direction: 'VALIDATOR_RATES_RESEARCHER' | 'RESEARCHER_RATES_VALIDATOR',
+  options?: { validationId?: string; findingId?: string; recordOnChain?: boolean }
+): Promise<{ feedback: any; reputation: any; txHash?: string }> {
+  const headers = await getMutationHeaders();
+  const response = await fetch(`${API_BASE_URL}/api/v1/agent-identities/${agentId}/qualification`, {
+    method: 'POST',
+    headers,
+    credentials: 'include',
+    body: JSON.stringify({
+      targetAgentId,
+      feedbackType,
+      direction,
+      ...options,
+    }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Failed to record qualification: ${response.statusText}`);
+  }
+  const result = await response.json();
+  return result.data;
+}
+
+export async function fetchAgentsByType(type: AgentIdentityType): Promise<AgentIdentity[]> {
+  const headers = await getAuthHeaders();
+  const response = await fetch(`${API_BASE_URL}/api/v1/agent-identities/type/${type}`, { headers, credentials: 'include' });
+  if (!response.ok) throw new Error(`Failed to fetch agents by type: ${response.statusText}`);
+  const result = await response.json();
+  return result.data || [];
+}

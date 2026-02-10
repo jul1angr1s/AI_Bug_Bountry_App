@@ -176,6 +176,121 @@ export class ReputationService {
     return (reputation?.reputationScore || 0) >= minScore;
   }
 
+  async recordValidatorFeedback(
+    researcherWallet: string,
+    validatorWallet: string,
+    validationId: string,
+    findingId: string,
+    feedbackType: FeedbackType
+  ) {
+    const researcher = await prisma.agentIdentity.findUnique({
+      where: { walletAddress: researcherWallet.toLowerCase() },
+    });
+
+    if (!researcher) {
+      throw new Error(`Researcher not found: ${researcherWallet}`);
+    }
+
+    const validator = await prisma.agentIdentity.findUnique({
+      where: { walletAddress: validatorWallet.toLowerCase() },
+      include: { reputation: true },
+    });
+
+    if (!validator) {
+      throw new Error(`Validator not found: ${validatorWallet}`);
+    }
+
+    const feedback = await prisma.agentFeedback.create({
+      data: {
+        researcherAgentId: researcher.id,
+        validatorAgentId: validator.id,
+        validationId,
+        findingId,
+        feedbackType,
+        feedbackDirection: 'RESEARCHER_RATES_VALIDATOR',
+      },
+    });
+
+    const isConfirmed = feedbackType !== 'REJECTED';
+
+    const updatedReputation = await prisma.agentReputation.update({
+      where: { agentIdentityId: validator.id },
+      data: {
+        validatorConfirmedCount: isConfirmed ? { increment: 1 } : undefined,
+        validatorRejectedCount: !isConfirmed ? { increment: 1 } : undefined,
+        validatorTotalSubmissions: { increment: 1 },
+        validatorReputationScore: this.calculateScore(
+          (validator.reputation?.validatorConfirmedCount || 0) + (isConfirmed ? 1 : 0),
+          (validator.reputation?.validatorTotalSubmissions || 0) + 1
+        ),
+        validatorLastUpdated: new Date(),
+      },
+    });
+
+    return { feedback, reputation: updatedReputation };
+  }
+
+  async recordValidatorFeedbackOnChain(
+    researcherWallet: string,
+    validatorWallet: string,
+    validationId: string,
+    findingId: string,
+    feedbackType: FeedbackType
+  ) {
+    const researcher = await prisma.agentIdentity.findUnique({
+      where: { walletAddress: researcherWallet.toLowerCase() },
+    });
+
+    const validator = await prisma.agentIdentity.findUnique({
+      where: { walletAddress: validatorWallet.toLowerCase() },
+    });
+
+    if (!researcher?.agentNftId || !validator?.agentNftId) {
+      throw new Error('Agents must be registered on-chain first');
+    }
+
+    const client = getReputationClient();
+
+    const result = await client.recordValidatorFeedback(
+      validator.agentNftId.toString(),
+      researcher.agentNftId.toString(),
+      validationId,
+      FEEDBACK_TYPE_MAP[feedbackType]
+    );
+
+    const { feedback, reputation } = await this.recordValidatorFeedback(
+      researcherWallet,
+      validatorWallet,
+      validationId,
+      findingId,
+      feedbackType
+    );
+
+    await prisma.agentFeedback.update({
+      where: { id: feedback.id },
+      data: {
+        onChainFeedbackId: result.feedbackId,
+        txHash: result.txHash,
+      },
+    });
+
+    return { feedback, reputation, txHash: result.txHash };
+  }
+
+  async getValidatorReputation(agentIdentityId: string) {
+    const rep = await prisma.agentReputation.findUnique({
+      where: { agentIdentityId },
+    });
+    if (!rep) return null;
+    return {
+      validatorConfirmedCount: rep.validatorConfirmedCount,
+      validatorRejectedCount: rep.validatorRejectedCount,
+      validatorTotalSubmissions: rep.validatorTotalSubmissions,
+      validatorReputationScore: rep.validatorReputationScore,
+      validatorLastUpdated: rep.validatorLastUpdated,
+    };
+  }
+
   async getFeedbackHistory(walletAddress: string) {
     const agent = await prisma.agentIdentity.findUnique({
       where: { walletAddress: walletAddress.toLowerCase() },
@@ -186,9 +301,15 @@ export class ReputationService {
     }
 
     return prisma.agentFeedback.findMany({
-      where: { researcherAgentId: agent.id },
+      where: {
+        OR: [
+          { researcherAgentId: agent.id },
+          { validatorAgentId: agent.id },
+        ],
+      },
       include: {
         validatorAgent: true,
+        researcherAgent: true,
       },
       orderBy: { createdAt: 'desc' },
     });

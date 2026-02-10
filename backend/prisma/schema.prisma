@@ -120,14 +120,30 @@ model Protocol {
   fundingVerifiedAt     DateTime? // On-chain verification timestamp
   minimumBountyRequired Float     @default(25) // Minimum USDC for prototype
 
-  vulnerabilities Vulnerability[]
-  scans           Scan[]
-  auditLogs       AuditLog[]
-  fundingEvents   FundingEvent[]
+  vulnerabilities        Vulnerability[]
+  scans                  Scan[]
+  auditLogs              AuditLog[]
+  fundingEvents          FundingEvent[]
+  agentAssociations      ProtocolAgentAssociation[]
 
   @@index([ownerAddress])
   @@index([registrationState])
   @@index([githubUrl])
+}
+
+model ProtocolAgentAssociation {
+  id              String            @id @default(uuid())
+  protocolId      String
+  agentIdentityId String
+  role            AgentIdentityType // RESEARCHER or VALIDATOR
+  associatedAt    DateTime          @default(now())
+
+  protocol        Protocol          @relation(fields: [protocolId], references: [id], onDelete: Cascade)
+  agentIdentity   AgentIdentity     @relation(fields: [agentIdentityId], references: [id], onDelete: Cascade)
+
+  @@unique([protocolId, role])
+  @@index([protocolId])
+  @@index([agentIdentityId])
 }
 
 model Vulnerability {
@@ -450,10 +466,11 @@ model AgentIdentity {
   onChainTxHash String? // Registration transaction hash
 
   // Relations
-  reputation      AgentReputation?
-  escrowBalance   AgentEscrow?
-  feedbacksGiven  AgentFeedback[]  @relation("ValidatorFeedbacks")
-  feedbacksReceived AgentFeedback[] @relation("ResearcherFeedbacks")
+  reputation             AgentReputation?
+  escrowBalance          AgentEscrow?
+  feedbacksGiven         AgentFeedback[]              @relation("ValidatorFeedbacks")
+  feedbacksReceived      AgentFeedback[]              @relation("ResearcherFeedbacks")
+  protocolAssociations   ProtocolAgentAssociation[]
 
   @@index([walletAddress])
   @@index([agentType])
@@ -470,6 +487,13 @@ model AgentReputation {
   reputationScore  Int      @default(0) // 0-100 scale
   lastUpdated      DateTime @default(now())
 
+  // Validator reputation fields (bidirectional scoring)
+  validatorConfirmedCount   Int       @default(0)
+  validatorRejectedCount    Int       @default(0)
+  validatorTotalSubmissions Int       @default(0)
+  validatorReputationScore  Int       @default(0)
+  validatorLastUpdated      DateTime?
+
   agentIdentity AgentIdentity @relation(fields: [agentIdentityId], references: [id], onDelete: Cascade)
 
   @@index([reputationScore])
@@ -477,15 +501,16 @@ model AgentReputation {
 }
 
 model AgentFeedback {
-  id                  String            @id @default(uuid())
+  id                  String              @id @default(uuid())
   researcherAgentId   String
   validatorAgentId    String
-  validationId        String?           // Reference to on-chain validation
-  findingId           String?           // Reference to Finding
+  validationId        String?             // Reference to on-chain validation
+  findingId           String?             // Reference to Finding
   feedbackType        FeedbackType
-  onChainFeedbackId   String?           // bytes32 from AgentReputationRegistry
-  txHash              String?           // Transaction hash for on-chain feedback
-  createdAt           DateTime          @default(now())
+  feedbackDirection   FeedbackDirection   @default(VALIDATOR_RATES_RESEARCHER)
+  onChainFeedbackId   String?             // bytes32 from AgentReputationRegistry
+  txHash              String?             // Transaction hash for on-chain feedback
+  createdAt           DateTime            @default(now())
 
   researcherAgent AgentIdentity @relation("ResearcherFeedbacks", fields: [researcherAgentId], references: [id], onDelete: Cascade)
   validatorAgent  AgentIdentity @relation("ValidatorFeedbacks", fields: [validatorAgentId], references: [id], onDelete: Cascade)
@@ -493,6 +518,12 @@ model AgentFeedback {
   @@index([researcherAgentId])
   @@index([validatorAgentId])
   @@index([feedbackType])
+  @@index([feedbackDirection])
+}
+
+enum FeedbackDirection {
+  VALIDATOR_RATES_RESEARCHER
+  RESEARCHER_RATES_VALIDATOR
 }
 
 enum FeedbackType {
