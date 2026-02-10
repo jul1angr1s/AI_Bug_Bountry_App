@@ -18,6 +18,7 @@ import {
 } from './steps/index.js';
 import type { VulnerabilityFinding } from './steps/analyze.js';
 import type { AIAnalysisMetrics } from './steps/ai-deep-analysis.js';
+import { agentPaymentService } from '../../services/agent-payment.service.js';
 
 // Error codes for structured error handling
 export const ScanErrorCodes = {
@@ -554,6 +555,45 @@ async function executeScanPipeline(
     });
 
     await emitScanLog(scanId, protocolId, 'INFO', `[INFO] ${submitResult.proofsSubmitted} proofs submitted`);
+
+    // Stream A: Pay exploit submission fee ($0.50 per exploit) to validator
+    if (submitResult.proofsSubmitted > 0) {
+      try {
+        const prismaClient = getPrismaClient();
+        // Look up validator wallet from ProtocolAgentAssociation
+        const validatorAssoc = await prismaClient.protocolAgentAssociation?.findFirst({
+          where: { protocolId, role: 'VALIDATOR' },
+          include: { agentIdentity: true },
+        }).catch(() => null);
+
+        const researcherAssoc = await prismaClient.protocolAgentAssociation?.findFirst({
+          where: { protocolId, role: 'RESEARCHER' },
+          include: { agentIdentity: true },
+        }).catch(() => null);
+
+        if (validatorAssoc?.agentIdentity?.walletAddress && researcherAssoc?.agentIdentity?.walletAddress) {
+          const proofs = await proofRepository.getProofsByScan(scanId);
+          for (const proof of proofs) {
+            const feeResult = await agentPaymentService.payExploitSubmissionFee(
+              researcherAssoc.agentIdentity.walletAddress,
+              validatorAssoc.agentIdentity.walletAddress,
+              proof.findingId || proof.id,
+              protocolId
+            );
+            if (feeResult) {
+              await emitScanLog(scanId, protocolId, 'INFO', `[INFO] Exploit fee paid to validator: ${feeResult.txHash}`);
+            }
+          }
+        } else {
+          await emitScanLog(scanId, protocolId, 'DEFAULT', `> No agent associations found, skipping exploit fees`);
+        }
+      } catch (feeError) {
+        // Non-fatal: exploit fee payment failure should not block scan completion
+        console.error('[ResearcherWorker] Exploit fee payment error (non-fatal):', feeError);
+        await emitScanLog(scanId, protocolId, 'ALERT', `[WARN] Exploit fee payment failed (non-fatal)`);
+      }
+    }
+
     await emitScanProgress(scanId, protocolId, 'SUBMIT', ScanState.RUNNING, 100, 'Submission complete');
   } catch (error) {
     await cleanupResources(anvilProcess);

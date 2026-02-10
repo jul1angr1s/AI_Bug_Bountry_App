@@ -183,6 +183,109 @@ export function x402ProtocolRegistrationGate() {
 }
 
 // ============================================================
+// Scan Request Fee Gate — x.402 $10 fee to fee wallet
+// ============================================================
+
+const SCAN_REQUEST_FEE_USD = '$10.00';
+const SCAN_FEE_WALLET = process.env.SCAN_FEE_WALLET_ADDRESS || '0xa611bbEBB6E50e73F36dfAe79fFA65f8c21b4D77';
+
+/**
+ * x.402 payment gate for scan requests.
+ *
+ * Charges $10 USDC to the fee wallet for each scan request.
+ * Uses the same Coinbase x402 facilitator as protocol registration.
+ */
+export function x402ScanRequestFeeGate() {
+  const skipPaymentGate = process.env.SKIP_X402_PAYMENT_GATE === 'true';
+
+  if (skipPaymentGate) {
+    return (_req: Request, _res: Response, next: NextFunction) => {
+      console.log('[x402] Scan request fee gate skipped (SKIP_X402_PAYMENT_GATE=true)');
+      next();
+    };
+  }
+
+  const routes = {
+    accepts: {
+      scheme: 'exact',
+      price: SCAN_REQUEST_FEE_USD,
+      network: NETWORK,
+      payTo: SCAN_FEE_WALLET,
+    },
+    description: 'Scan request fee for AI Bug Bounty Platform',
+  };
+
+  const middleware = paymentMiddleware(routes, resourceServer);
+
+  return async (req: Request, res: Response, next: NextFunction) => {
+    const originalNext = next;
+
+    // Check if payment-signature looks like a raw tx hash (direct USDC transfer)
+    const paymentSig = req.headers['payment-signature'] as string | undefined;
+    if (paymentSig && paymentSig.startsWith('0x') && paymentSig.length === 66) {
+      try {
+        const verified = await verifyOnChainPayment(
+          paymentSig,
+          SCAN_FEE_WALLET,
+          BigInt(10000000), // 10 USDC in base units
+        );
+        if (verified) {
+          const requester = req.body?.researcherAddress || req.headers['x-researcher-wallet'] || 'unknown';
+          await prisma.x402PaymentRequest.create({
+            data: {
+              requestType: 'SCAN_REQUEST_FEE',
+              requesterAddress: String(requester).toLowerCase(),
+              amount: BigInt(10000000),
+              status: 'COMPLETED',
+              txHash: paymentSig,
+              recipientAddress: SCAN_FEE_WALLET.toLowerCase(),
+              protocolId: req.body?.protocolId || null,
+              expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+              completedAt: new Date(),
+            },
+          }).catch(err => console.error('[x402] Failed to record scan fee payment:', err));
+
+          console.log(`[x402] Scan request fee payment verified on-chain (tx: ${paymentSig})`);
+          return originalNext();
+        }
+      } catch (err) {
+        console.error('[x402] On-chain verification error for scan fee:', err);
+      }
+    }
+
+    // Standard x402 facilitator path
+    const wrappedNext = async () => {
+      try {
+        const facilitatorSig = req.headers['payment-signature'] as string;
+        const requester = req.body?.researcherAddress || req.headers['x-researcher-wallet'] || 'unknown';
+
+        await prisma.x402PaymentRequest.create({
+          data: {
+            requestType: 'SCAN_REQUEST_FEE',
+            requesterAddress: String(requester).toLowerCase(),
+            amount: BigInt(10000000),
+            status: 'COMPLETED',
+            txHash: facilitatorSig?.slice(0, 66) || undefined,
+            recipientAddress: SCAN_FEE_WALLET.toLowerCase(),
+            protocolId: req.body?.protocolId || null,
+            expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+            completedAt: new Date(),
+          },
+        }).catch(err => console.error('[x402] Failed to record scan fee payment:', err));
+
+        console.log(`[x402] Scan request fee payment verified via facilitator`);
+      } catch (err) {
+        console.error('[x402] Error recording scan fee payment:', err);
+      }
+
+      originalNext();
+    };
+
+    middleware(req, res, wrappedNext);
+  };
+}
+
+// ============================================================
 // Finding Submission Gate — Escrow balance check (not x.402)
 // ============================================================
 

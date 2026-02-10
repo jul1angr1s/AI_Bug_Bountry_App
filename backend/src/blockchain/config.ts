@@ -26,6 +26,17 @@ const validateWalletKeys = (): { privateKey1: string; privateKey2: string } => {
 };
 
 /**
+ * Get optional agent wallets for server-side USDC transfers.
+ * PRIVATE_KEY3 = researcher agent wallet (pays exploit fees)
+ * PRIVATE_KEY4 = validator agent wallet (receives exploit fees)
+ * These are optional - if not set, exploit fee payments are skipped.
+ */
+const getAgentWalletKey = (envVar: string): string | null => {
+  const key = process.env[envVar];
+  return key || null;
+};
+
+/**
  * Payer wallet - Has PAYER_ROLE on BountyPool contract
  * This wallet is authorized to release bounty payments to researchers
  * Uses PRIVATE_KEY environment variable
@@ -51,6 +62,29 @@ export const researcherWallet = (() => {
  * Address of the researcher wallet for payment testing
  */
 export const RESEARCHER_ADDRESS = researcherWallet.address;
+
+/**
+ * Researcher agent wallet - Used for server-side exploit fee payments
+ * Sends $0.50 USDC to validator per exploit submission
+ * Uses PRIVATE_KEY3 environment variable (optional)
+ */
+export const researcherAgentWallet = (() => {
+  const key = getAgentWalletKey('PRIVATE_KEY3');
+  if (!key) return null;
+  const formattedKey = key.startsWith('0x') ? key : `0x${key}`;
+  return new ethers.Wallet(formattedKey, provider);
+})();
+
+/**
+ * Validator agent wallet address - Receives exploit fee payments
+ * Uses PRIVATE_KEY4 environment variable (optional, only needed for address derivation)
+ */
+export const validatorAgentWallet = (() => {
+  const key = getAgentWalletKey('PRIVATE_KEY4');
+  if (!key) return null;
+  const formattedKey = key.startsWith('0x') ? key : `0x${key}`;
+  return new ethers.Wallet(formattedKey, provider);
+})();
 
 /**
  * @deprecated Use payerWallet instead for explicit wallet role clarity
@@ -119,6 +153,8 @@ export default {
   getSigner,
   payerWallet,
   researcherWallet,
+  researcherAgentWallet,
+  validatorAgentWallet,
   RESEARCHER_ADDRESS,
   contractAddresses,
   validateContractAddresses,

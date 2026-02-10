@@ -47,10 +47,26 @@ const ERC20_ABI = [
   },
 ] as const;
 
+type PaymentType = 'PROTOCOL_REGISTRATION' | 'SCAN_REQUEST_FEE';
+
+const PAYMENT_TYPE_CONFIG: Record<PaymentType, { title: string; subtitle: string; description: string }> = {
+  PROTOCOL_REGISTRATION: {
+    title: 'Protocol Registration Fee',
+    subtitle: 'HTTP 402 — x.402 payment gated endpoint',
+    description: '$1.00 USDC protocol registration fee',
+  },
+  SCAN_REQUEST_FEE: {
+    title: 'Scan Request Fee',
+    subtitle: 'HTTP 402 — x.402 scan request fee',
+    description: '$10.00 USDC scan request fee to fee wallet',
+  },
+};
+
 interface PaymentRequiredModalProps {
   isOpen: boolean;
   onClose: () => void;
   onRetry: (txHash: string) => void;
+  paymentType?: PaymentType;
   paymentTerms?: {
     amount: string;
     asset: string;
@@ -67,8 +83,10 @@ export default function PaymentRequiredModal({
   isOpen,
   onClose,
   onRetry,
+  paymentType = 'PROTOCOL_REGISTRATION',
   paymentTerms,
 }: PaymentRequiredModalProps) {
+  const typeConfig = PAYMENT_TYPE_CONFIG[paymentType];
   const [step, setStep] = useState<PaymentStep>('idle');
   const [error, setError] = useState<string | null>(null);
   const hasRetried = useRef(false);
@@ -345,12 +363,12 @@ export default function PaymentRequiredModal({
           </div>
           <div>
             <h2 className="text-lg font-semibold text-white">
-              {step === 'complete' ? 'Payment Complete' : 'Payment Required'}
+              {step === 'complete' ? 'Payment Complete' : typeConfig.title}
             </h2>
             <p className="text-sm text-gray-400">
               {step === 'complete'
                 ? 'Your request will be retried automatically'
-                : 'HTTP 402 — x.402 payment gated endpoint'}
+                : typeConfig.subtitle}
             </p>
           </div>
         </div>
