@@ -587,6 +587,7 @@ model X402PaymentRequest {
   protocolId    String?             // For protocol registration
   paymentReceipt String?            // x.402 receipt data
   txHash        String?
+  recipientAddress String?           // Tracks different recipients per stream
   expiresAt     DateTime
   createdAt     DateTime            @default(now())
   completedAt   DateTime?
@@ -594,11 +595,14 @@ model X402PaymentRequest {
   @@index([requesterAddress])
   @@index([status])
   @@index([protocolId])
+  @@index([requestType])
 }
 
 enum X402RequestType {
   PROTOCOL_REGISTRATION
   FINDING_SUBMISSION
+  SCAN_REQUEST_FEE
+  EXPLOIT_SUBMISSION_FEE
 }
 
 enum X402PaymentStatus {

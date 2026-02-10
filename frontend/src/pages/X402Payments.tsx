@@ -1,10 +1,29 @@
+import { useState, useMemo } from 'react';
 import { CreditCard, DollarSign, CheckCircle, Clock } from 'lucide-react';
 import { useX402Payments } from '../hooks/useX402Payments';
 import X402PaymentTimeline from '../components/agents/X402PaymentTimeline';
 import { formatUSDC } from '../lib/utils';
+import type { X402RequestType } from '../types/dashboard';
+
+type FilterTab = 'ALL' | X402RequestType;
+
+const FILTER_TABS: { key: FilterTab; label: string }[] = [
+  { key: 'ALL', label: 'All' },
+  { key: 'PROTOCOL_REGISTRATION', label: 'Registration' },
+  { key: 'SCAN_REQUEST_FEE', label: 'Scan Fees' },
+  { key: 'EXPLOIT_SUBMISSION_FEE', label: 'Exploit Fees' },
+  { key: 'FINDING_SUBMISSION', label: 'Submissions' },
+];
 
 export default function X402Payments() {
   const { data: payments, isLoading } = useX402Payments();
+  const [activeFilter, setActiveFilter] = useState<FilterTab>('ALL');
+
+  const filteredPayments = useMemo(() => {
+    if (!payments) return [];
+    if (activeFilter === 'ALL') return payments;
+    return payments.filter((p) => p.requestType === activeFilter);
+  }, [payments, activeFilter]);
 
   const totalPayments = payments?.length || 0;
   const completedPayments = payments?.filter((p) => p.status === 'COMPLETED').length || 0;
@@ -77,7 +96,24 @@ export default function X402Payments() {
         })}
       </div>
 
-      <X402PaymentTimeline payments={payments || []} isLoading={isLoading} />
+      {/* Filter Tabs */}
+      <div className="flex gap-1 rounded-lg bg-gray-800 p-1 border border-gray-700">
+        {FILTER_TABS.map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveFilter(tab.key)}
+            className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+              activeFilter === tab.key
+                ? 'bg-gray-700 text-white'
+                : 'text-gray-400 hover:text-gray-300'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      <X402PaymentTimeline payments={filteredPayments} isLoading={isLoading} />
     </div>
   );
 }

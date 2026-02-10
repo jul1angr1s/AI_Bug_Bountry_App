@@ -4,7 +4,7 @@ import { ScanState, AnalysisMethod } from '@prisma/client';
 import { scanRepository, findingRepository } from '../db/repositories.js';
 import { requireAuth } from '../middleware/auth.js';
 import { sseAuthenticate } from '../middleware/sse-auth.js';
-import { x402FindingSubmissionGate } from '../middleware/x402-payment-gate.middleware.js';
+import { x402ScanRequestFeeGate } from '../middleware/x402-payment-gate.middleware.js';
 import { escrowService } from '../services/escrow.service.js';
 import { ValidationError, NotFoundError } from '../errors/CustomError.js';
 import { getRedisClient } from '../lib/redis.js';
@@ -22,7 +22,7 @@ const createScanSchema = z.object({
   researcherAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/).optional(),
 });
 
-router.post('/', requireAuth, x402FindingSubmissionGate(), async (req, res, next) => {
+router.post('/', requireAuth, x402ScanRequestFeeGate(), async (req, res, next) => {
   try {
     const result = createScanSchema.safeParse(req.body);
     if (!result.success) {

@@ -202,7 +202,7 @@ export interface EscrowTransaction {
 
 // ========== x.402 Payment Types ==========
 
-export type X402RequestType = 'PROTOCOL_REGISTRATION' | 'FINDING_SUBMISSION';
+export type X402RequestType = 'PROTOCOL_REGISTRATION' | 'FINDING_SUBMISSION' | 'SCAN_REQUEST_FEE' | 'EXPLOIT_SUBMISSION_FEE';
 export type X402PaymentStatus = 'PENDING' | 'COMPLETED' | 'EXPIRED' | 'FAILED';
 
 export interface X402PaymentEvent {
@@ -214,6 +214,7 @@ export interface X402PaymentEvent {
   protocolId?: string | null;
   paymentReceipt?: string | null;
   txHash?: string | null;
+  recipientAddress?: string | null;
   expiresAt: string;
   createdAt: string;
   completedAt?: string | null;
