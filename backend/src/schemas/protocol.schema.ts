@@ -9,6 +9,9 @@ export const protocolRegistrationSchema = z.object({
   ownerAddress: z.string().min(1, { message: 'Owner address is required' }),
   // Funding Gate: requested bounty pool amount in USDC
   bountyPoolAmount: z.number().min(25, { message: 'Minimum bounty pool is 25 USDC' }).optional(),
+  // Agent Selection: selected researcher and validator agents
+  researcherAgentId: z.string().uuid({ message: 'Invalid researcher agent ID' }).optional(),
+  validatorAgentId: z.string().uuid({ message: 'Invalid validator agent ID' }).optional(),
 });
 
 export const protocolFundingSchema = z.object({
