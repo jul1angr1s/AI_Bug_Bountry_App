@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X, AlertTriangle, CreditCard, ExternalLink, CheckCircle, Zap } from 'lucide-react';
 import {
   useAccount,

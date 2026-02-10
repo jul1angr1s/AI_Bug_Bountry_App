@@ -388,6 +388,122 @@ async function main() {
   }
 
   // =============================================
+  // Phase F: Agent-Protocol Associations (WS1)
+  // =============================================
+  console.log('\n6. Creating agent-protocol associations...');
+
+  // Find demo protocol (if one exists)
+  const demoProtocol = await prisma.protocol.findFirst({
+    orderBy: { createdAt: 'desc' },
+  });
+
+  if (demoProtocol) {
+    // Associate researcher with protocol
+    await prisma.protocolAgentAssociation.upsert({
+      where: {
+        protocolId_role: { protocolId: demoProtocol.id, role: 'RESEARCHER' },
+      },
+      update: { agentIdentityId: researcher.id },
+      create: {
+        protocolId: demoProtocol.id,
+        agentIdentityId: researcher.id,
+        role: 'RESEARCHER',
+      },
+    });
+    console.log(`   Researcher → Protocol ${demoProtocol.id.slice(0, 8)}...`);
+
+    // Associate validator with protocol
+    await prisma.protocolAgentAssociation.upsert({
+      where: {
+        protocolId_role: { protocolId: demoProtocol.id, role: 'VALIDATOR' },
+      },
+      update: { agentIdentityId: validator.id },
+      create: {
+        protocolId: demoProtocol.id,
+        agentIdentityId: validator.id,
+        role: 'VALIDATOR',
+      },
+    });
+    console.log(`   Validator → Protocol ${demoProtocol.id.slice(0, 8)}...`);
+  } else {
+    console.log('   ⚠️  No protocol found, skipping associations');
+  }
+
+  // =============================================
+  // Phase G: Bidirectional Feedback (WS2)
+  // =============================================
+  console.log('\n7. Creating bidirectional feedback records...');
+
+  const reverseEntries = [
+    { type: 'CONFIRMED_HIGH' as const, validationId: 'demo-reverse-feedback-001' },
+    { type: 'CONFIRMED_MEDIUM' as const, validationId: 'demo-reverse-feedback-002' },
+  ];
+
+  for (const entry of reverseEntries) {
+    await prisma.agentFeedback.create({
+      data: {
+        researcherAgentId: researcher.id,
+        validatorAgentId: validator.id,
+        feedbackType: entry.type,
+        feedbackDirection: 'RESEARCHER_RATES_VALIDATOR',
+        validationId: entry.validationId,
+      },
+    });
+    console.log(`   RESEARCHER_RATES_VALIDATOR: ${entry.type}`);
+  }
+
+  // Update validator reputation scores
+  await prisma.agentReputation.update({
+    where: { agentIdentityId: validator.id },
+    data: {
+      validatorConfirmedCount: reverseEntries.length,
+      validatorTotalSubmissions: reverseEntries.length,
+      validatorReputationScore: 100,
+      validatorLastUpdated: new Date(),
+    },
+  });
+
+  // =============================================
+  // Phase H: New Payment Types (WS3)
+  // =============================================
+  console.log('\n8. Creating new payment type records...');
+
+  const newPayments = [
+    {
+      requestType: 'SCAN_REQUEST_FEE' as const,
+      requesterAddress: RESEARCHER_WALLET.toLowerCase(),
+      amount: BigInt(10000000), // $10 USDC
+      status: 'COMPLETED' as const,
+      recipientAddress: '0x0000000000000000000000000000000000000000',
+      expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+      completedAt: new Date(),
+    },
+    {
+      requestType: 'EXPLOIT_SUBMISSION_FEE' as const,
+      requesterAddress: RESEARCHER_WALLET.toLowerCase(),
+      amount: BigInt(5000000), // $5 USDC
+      status: 'COMPLETED' as const,
+      recipientAddress: VALIDATOR_WALLET.toLowerCase(),
+      expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+      completedAt: new Date(Date.now() - 1800000),
+    },
+    {
+      requestType: 'SCAN_REQUEST_FEE' as const,
+      requesterAddress: '0xabcdef1234567890abcdef1234567890abcdef12',
+      amount: BigInt(10000000),
+      status: 'PENDING' as const,
+      recipientAddress: null,
+      expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+      completedAt: null,
+    },
+  ];
+
+  for (const payment of newPayments) {
+    const p = await prisma.x402PaymentRequest.create({ data: payment });
+    console.log(`   ${payment.requestType} - ${payment.status}: ${p.id}`);
+  }
+
+  // =============================================
   // Summary
   // =============================================
   console.log('\n=== Demo Data Summary ===');
@@ -396,7 +512,9 @@ async function main() {
   console.log(`  Validator NFT: tokenId=${validatorNftId}${validatorTxHash ? ' (on-chain)' : ' (db-only)'}`);
   console.log(`Reputation: score=${reputationScore}, confirmed=${confirmedCount}/${totalSubmissions}`);
   console.log(`On-chain feedback: ${totalOnChain}/${feedbackEntries.length}`);
-  console.log(`X.402 payments: 3`);
+  console.log(`Agent-Protocol associations: ${demoProtocol ? 2 : 0}`);
+  console.log(`Bidirectional feedback: ${reverseEntries.length} RESEARCHER_RATES_VALIDATOR records`);
+  console.log(`X.402 payments: 6 (3 original + 3 new types)`);
   console.log(`Escrow: 1 account, 2 transactions`);
 
   if (researcherTxHash || validatorTxHash || totalOnChain > 0) {

@@ -21,7 +21,6 @@ import {
 } from '../services/protocol.service.js';
 import { addProtocolRegistrationJob } from '../queues/protocol.queue.js';
 import { getRedisClient } from '../lib/redis.js';
-import type { Request, Response } from 'express';
 
 const router = Router();
 

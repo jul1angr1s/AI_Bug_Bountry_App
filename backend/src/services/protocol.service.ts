@@ -469,7 +469,7 @@ export async function listProtocols(params: {
     const whereClause: Prisma.ProtocolWhereInput = {};
 
     if (params.status) {
-      whereClause.status = params.status;
+      whereClause.status = params.status as any;
     }
 
     if (params.userId) {
