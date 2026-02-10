@@ -488,6 +488,13 @@ model AgentReputation {
   reputationScore  Int      @default(0) // 0-100 scale
   lastUpdated      DateTime @default(now())
 
+  // Validator reputation fields (bidirectional scoring)
+  validatorConfirmedCount   Int       @default(0)
+  validatorRejectedCount    Int       @default(0)
+  validatorTotalSubmissions Int       @default(0)
+  validatorReputationScore  Int       @default(0)
+  validatorLastUpdated      DateTime?
+
   agentIdentity AgentIdentity @relation(fields: [agentIdentityId], references: [id], onDelete: Cascade)
 
   @@index([reputationScore])
@@ -495,15 +502,16 @@ model AgentReputation {
 }
 
 model AgentFeedback {
-  id                  String            @id @default(uuid())
+  id                  String              @id @default(uuid())
   researcherAgentId   String
   validatorAgentId    String
-  validationId        String?           // Reference to on-chain validation
-  findingId           String?           // Reference to Finding
+  validationId        String?             // Reference to on-chain validation
+  findingId           String?             // Reference to Finding
   feedbackType        FeedbackType
-  onChainFeedbackId   String?           // bytes32 from AgentReputationRegistry
-  txHash              String?           // Transaction hash for on-chain feedback
-  createdAt           DateTime          @default(now())
+  feedbackDirection   FeedbackDirection   @default(VALIDATOR_RATES_RESEARCHER)
+  onChainFeedbackId   String?             // bytes32 from AgentReputationRegistry
+  txHash              String?             // Transaction hash for on-chain feedback
+  createdAt           DateTime            @default(now())
 
   researcherAgent AgentIdentity @relation("ResearcherFeedbacks", fields: [researcherAgentId], references: [id], onDelete: Cascade)
   validatorAgent  AgentIdentity @relation("ValidatorFeedbacks", fields: [validatorAgentId], references: [id], onDelete: Cascade)
@@ -511,6 +519,12 @@ model AgentFeedback {
   @@index([researcherAgentId])
   @@index([validatorAgentId])
   @@index([feedbackType])
+  @@index([feedbackDirection])
+}
+
+enum FeedbackDirection {
+  VALIDATOR_RATES_RESEARCHER
+  RESEARCHER_RATES_VALIDATOR
 }
 
 enum FeedbackType {

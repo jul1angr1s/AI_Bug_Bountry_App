@@ -1,3 +1,4 @@
+import { ArrowRight } from 'lucide-react';
 import type { AgentFeedback, FeedbackType } from '../../types/dashboard';
 import { formatDate, truncateHash } from '../../lib/utils';
 
@@ -15,10 +16,25 @@ const feedbackBadgeConfig: Record<FeedbackType, { bg: string; text: string; labe
   REJECTED: { bg: 'bg-red-900/50', text: 'text-red-400', label: 'Rejected' },
 };
 
+function DirectionBadge({ direction }: { direction?: string }) {
+  const isValidatorRates = !direction || direction === 'VALIDATOR_RATES_RESEARCHER';
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${
+      isValidatorRates
+        ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20'
+        : 'bg-purple-500/10 text-purple-400 border border-purple-500/20'
+    }`}>
+      {isValidatorRates ? 'V' : 'R'}
+      <ArrowRight className="h-2.5 w-2.5" />
+      {isValidatorRates ? 'R' : 'V'}
+    </span>
+  );
+}
+
 function SkeletonRow() {
   return (
     <tr className="animate-pulse">
-      {Array.from({ length: 5 }).map((_, i) => (
+      {Array.from({ length: 6 }).map((_, i) => (
         <td key={i} className="px-4 py-3">
           <div className="h-4 w-20 rounded bg-gray-700" />
         </td>
@@ -33,7 +49,7 @@ export default function FeedbackHistoryList({ feedbacks, isLoading }: FeedbackHi
       <table className="min-w-full divide-y divide-gray-700">
         <thead className="bg-gray-900">
           <tr>
-            {['Type', 'Validator', 'Finding', 'Verification', 'Date'].map((h) => (
+            {['Type', 'Direction', 'Validator', 'Finding', 'Verification', 'Date'].map((h) => (
               <th
                 key={h}
                 className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400"
@@ -54,7 +70,7 @@ export default function FeedbackHistoryList({ feedbacks, isLoading }: FeedbackHi
 
           {!isLoading && feedbacks.length === 0 && (
             <tr>
-              <td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-500">
+              <td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-500">
                 No feedback events found.
               </td>
             </tr>
@@ -74,6 +90,9 @@ export default function FeedbackHistoryList({ feedbacks, isLoading }: FeedbackHi
                     >
                       {badge.label}
                     </span>
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3 text-sm">
+                    <DirectionBadge direction={fb.feedbackDirection} />
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-sm font-mono text-gray-300">
                     {truncateHash(validatorAddr)}

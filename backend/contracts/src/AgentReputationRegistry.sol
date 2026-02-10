@@ -44,9 +44,11 @@ contract AgentReputationRegistry is AccessControl {
     uint256 private _feedbackCounter;
 
     mapping(uint256 => ReputationRecord) public reputations;
+    mapping(uint256 => ReputationRecord) public validatorReputations;
     mapping(address => uint256) public walletToAgentId;
     mapping(bytes32 => FeedbackRecord) public feedbackRecords;
     mapping(uint256 => bytes32[]) private _agentFeedbacks;
+    mapping(uint256 => bytes32[]) private _validatorFeedbacks;
 
     bytes32[] public allFeedbackIds;
 
@@ -65,6 +67,24 @@ contract AgentReputationRegistry is AccessControl {
         uint256 indexed validatorAgentId,
         bytes32 validationId,
         FeedbackType feedbackType,
+        uint256 timestamp
+    );
+
+    event ValidatorFeedbackRecorded(
+        bytes32 indexed feedbackId,
+        uint256 indexed validatorAgentId,
+        uint256 indexed researcherAgentId,
+        bytes32 validationId,
+        FeedbackType feedbackType,
+        uint256 timestamp
+    );
+
+    event ValidatorReputationUpdated(
+        uint256 indexed agentId,
+        address indexed wallet,
+        uint256 confirmedCount,
+        uint256 rejectedCount,
+        uint256 reputationScore,
         uint256 timestamp
     );
 
@@ -102,6 +122,17 @@ contract AgentReputationRegistry is AccessControl {
         });
 
         walletToAgentId[wallet] = agentId;
+
+        validatorReputations[agentId] = ReputationRecord({
+            agentId: agentId,
+            wallet: wallet,
+            confirmedCount: 0,
+            rejectedCount: 0,
+            inconclusiveCount: 0,
+            totalSubmissions: 0,
+            reputationScore: 0,
+            lastUpdated: block.timestamp
+        });
     }
 
     /**
@@ -180,6 +211,115 @@ contract AgentReputationRegistry is AccessControl {
         );
 
         return feedbackId;
+    }
+
+    /**
+     * @notice Record researcher's assessment of validator and update validator reputation
+     * @param validatorAgentId Validator's agent ID being rated
+     * @param researcherAgentId Researcher's agent ID doing the rating
+     * @param validationId Validation ID from ValidationRegistry
+     * @param feedbackType Type of feedback
+     * @return feedbackId Unique identifier for the feedback
+     */
+    function recordValidatorFeedback(
+        uint256 validatorAgentId,
+        uint256 researcherAgentId,
+        bytes32 validationId,
+        FeedbackType feedbackType
+    ) external onlyRole(SCORER_ROLE) returns (bytes32 feedbackId) {
+        if (validatorAgentId == 0) {
+            revert InvalidAgentId();
+        }
+
+        ReputationRecord storage rep = validatorReputations[validatorAgentId];
+
+        if (rep.lastUpdated == 0) {
+            revert AgentNotRegistered(validatorAgentId);
+        }
+
+        _feedbackCounter++;
+        feedbackId = keccak256(abi.encodePacked(
+            validatorAgentId,
+            researcherAgentId,
+            validationId,
+            block.timestamp,
+            _feedbackCounter
+        ));
+
+        FeedbackRecord memory feedback = FeedbackRecord({
+            feedbackId: feedbackId,
+            researcherAgentId: researcherAgentId,
+            validatorAgentId: validatorAgentId,
+            validationId: validationId,
+            feedbackType: feedbackType,
+            timestamp: block.timestamp
+        });
+
+        feedbackRecords[feedbackId] = feedback;
+        _validatorFeedbacks[validatorAgentId].push(feedbackId);
+        allFeedbackIds.push(feedbackId);
+
+        rep.totalSubmissions++;
+
+        if (feedbackType == FeedbackType.REJECTED) {
+            rep.rejectedCount++;
+        } else {
+            rep.confirmedCount++;
+        }
+
+        rep.reputationScore = _calculateScore(rep.confirmedCount, rep.totalSubmissions);
+        rep.lastUpdated = block.timestamp;
+
+        emit ValidatorFeedbackRecorded(
+            feedbackId,
+            validatorAgentId,
+            researcherAgentId,
+            validationId,
+            feedbackType,
+            block.timestamp
+        );
+
+        emit ValidatorReputationUpdated(
+            validatorAgentId,
+            rep.wallet,
+            rep.confirmedCount,
+            rep.rejectedCount,
+            rep.reputationScore,
+            block.timestamp
+        );
+
+        return feedbackId;
+    }
+
+    /**
+     * @notice Get validator reputation
+     * @param agentId Agent identifier
+     * @return ReputationRecord
+     */
+    function getValidatorReputation(uint256 agentId) external view returns (ReputationRecord memory) {
+        ReputationRecord memory rep = validatorReputations[agentId];
+
+        if (rep.lastUpdated == 0) {
+            revert AgentNotRegistered(agentId);
+        }
+
+        return rep;
+    }
+
+    /**
+     * @notice Get all validator feedback for an agent
+     * @param agentId Agent identifier
+     * @return FeedbackRecord[] Array of feedback records
+     */
+    function getValidatorFeedbacks(uint256 agentId) external view returns (FeedbackRecord[] memory) {
+        bytes32[] memory feedbackIds = _validatorFeedbacks[agentId];
+        FeedbackRecord[] memory results = new FeedbackRecord[](feedbackIds.length);
+
+        for (uint256 i = 0; i < feedbackIds.length; i++) {
+            results[i] = feedbackRecords[feedbackIds[i]];
+        }
+
+        return results;
     }
 
     /**
