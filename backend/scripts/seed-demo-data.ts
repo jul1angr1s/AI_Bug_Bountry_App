@@ -430,38 +430,128 @@ async function main() {
   }
 
   // =============================================
-  // Phase G: Bidirectional Feedback (WS2)
+  // Phase G: Bidirectional Feedback for ALL agents (WS2)
   // =============================================
-  console.log('\n7. Creating bidirectional feedback records...');
+  console.log('\n7. Creating bidirectional feedback for all agents...');
 
-  const reverseEntries = [
-    { type: 'CONFIRMED_HIGH' as const, validationId: 'demo-reverse-feedback-001' },
-    { type: 'CONFIRMED_MEDIUM' as const, validationId: 'demo-reverse-feedback-002' },
-  ];
+  // Get ALL agents in the system
+  const allAgents = await prisma.agentIdentity.findMany();
+  const allResearchers = allAgents.filter(a => a.agentType === 'RESEARCHER');
+  const allValidators = allAgents.filter(a => a.agentType === 'VALIDATOR');
 
-  for (const entry of reverseEntries) {
-    await prisma.agentFeedback.create({
-      data: {
-        researcherAgentId: researcher.id,
-        validatorAgentId: validator.id,
-        feedbackType: entry.type,
-        feedbackDirection: 'RESEARCHER_RATES_VALIDATOR',
-        validationId: entry.validationId,
-      },
-    });
-    console.log(`   RESEARCHER_RATES_VALIDATOR: ${entry.type}`);
+  const feedbackTypes = [
+    'CONFIRMED_CRITICAL',
+    'CONFIRMED_HIGH',
+    'CONFIRMED_MEDIUM',
+    'CONFIRMED_LOW',
+    'REJECTED',
+  ] as const;
+
+  let totalFeedbackCreated = 0;
+
+  // For every researcher-validator pair, create bidirectional feedback
+  for (const r of allResearchers) {
+    for (const v of allValidators) {
+      // Delete existing feedback between this pair to avoid duplicates
+      await prisma.agentFeedback.deleteMany({
+        where: {
+          researcherAgentId: r.id,
+          validatorAgentId: v.id,
+        },
+      });
+
+      // Pick random feedback types for variety
+      const numFeedbacks = 3 + Math.floor(Math.random() * 3); // 3-5 feedbacks per pair
+      let confirmedAsResearcher = 0;
+      let rejectedAsResearcher = 0;
+      let confirmedAsValidator = 0;
+      let rejectedAsValidator = 0;
+
+      for (let i = 0; i < numFeedbacks; i++) {
+        const ft = feedbackTypes[i % feedbackTypes.length];
+        const isRejected = ft === 'REJECTED';
+
+        // Validator rates researcher
+        await prisma.agentFeedback.create({
+          data: {
+            researcherAgentId: r.id,
+            validatorAgentId: v.id,
+            feedbackType: ft,
+            feedbackDirection: 'VALIDATOR_RATES_RESEARCHER',
+            validationId: `demo-v2r-${r.id.slice(0, 8)}-${v.id.slice(0, 8)}-${i}`,
+          },
+        });
+        if (isRejected) rejectedAsResearcher++;
+        else confirmedAsResearcher++;
+
+        // Researcher rates validator (bidirectional)
+        const reverseFt = feedbackTypes[(i + 1) % feedbackTypes.length];
+        const reverseRejected = reverseFt === 'REJECTED';
+
+        await prisma.agentFeedback.create({
+          data: {
+            researcherAgentId: r.id,
+            validatorAgentId: v.id,
+            feedbackType: reverseFt,
+            feedbackDirection: 'RESEARCHER_RATES_VALIDATOR',
+            validationId: `demo-r2v-${r.id.slice(0, 8)}-${v.id.slice(0, 8)}-${i}`,
+          },
+        });
+        if (reverseRejected) rejectedAsValidator++;
+        else confirmedAsValidator++;
+
+        totalFeedbackCreated += 2;
+      }
+
+      console.log(`   ${r.walletAddress.slice(0, 10)}... <-> ${v.walletAddress.slice(0, 10)}...: ${numFeedbacks * 2} feedbacks`);
+
+      // Update researcher reputation (as researcher)
+      const rTotal = confirmedAsResearcher + rejectedAsResearcher;
+      const rScore = rTotal > 0 ? Math.round((confirmedAsResearcher * 100) / rTotal) : 0;
+
+      await prisma.agentReputation.upsert({
+        where: { agentIdentityId: r.id },
+        update: {
+          confirmedCount: { increment: confirmedAsResearcher },
+          rejectedCount: { increment: rejectedAsResearcher },
+          totalSubmissions: { increment: rTotal },
+          reputationScore: rScore,
+          lastUpdated: new Date(),
+        },
+        create: {
+          agentIdentityId: r.id,
+          confirmedCount: confirmedAsResearcher,
+          rejectedCount: rejectedAsResearcher,
+          totalSubmissions: rTotal,
+          reputationScore: rScore,
+        },
+      });
+
+      // Update validator reputation (as validator)
+      const vTotal = confirmedAsValidator + rejectedAsValidator;
+      const vScore = vTotal > 0 ? Math.round((confirmedAsValidator * 100) / vTotal) : 0;
+
+      await prisma.agentReputation.upsert({
+        where: { agentIdentityId: v.id },
+        update: {
+          validatorConfirmedCount: { increment: confirmedAsValidator },
+          validatorRejectedCount: { increment: rejectedAsValidator },
+          validatorTotalSubmissions: { increment: vTotal },
+          validatorReputationScore: vScore,
+          validatorLastUpdated: new Date(),
+        },
+        create: {
+          agentIdentityId: v.id,
+          validatorConfirmedCount: confirmedAsValidator,
+          validatorRejectedCount: rejectedAsValidator,
+          validatorTotalSubmissions: vTotal,
+          validatorReputationScore: vScore,
+        },
+      });
+    }
   }
 
-  // Update validator reputation scores
-  await prisma.agentReputation.update({
-    where: { agentIdentityId: validator.id },
-    data: {
-      validatorConfirmedCount: reverseEntries.length,
-      validatorTotalSubmissions: reverseEntries.length,
-      validatorReputationScore: 100,
-      validatorLastUpdated: new Date(),
-    },
-  });
+  console.log(`   Total: ${totalFeedbackCreated} feedback records across ${allResearchers.length} researchers x ${allValidators.length} validators`);
 
   // =============================================
   // Phase H: New Payment Types (WS3)
@@ -513,7 +603,7 @@ async function main() {
   console.log(`Reputation: score=${reputationScore}, confirmed=${confirmedCount}/${totalSubmissions}`);
   console.log(`On-chain feedback: ${totalOnChain}/${feedbackEntries.length}`);
   console.log(`Agent-Protocol associations: ${demoProtocol ? 2 : 0}`);
-  console.log(`Bidirectional feedback: ${reverseEntries.length} RESEARCHER_RATES_VALIDATOR records`);
+  console.log(`Bidirectional feedback: ${totalFeedbackCreated} records across all agent pairs`);
   console.log(`X.402 payments: 6 (3 original + 3 new types)`);
   console.log(`Escrow: 1 account, 2 transactions`);
 
