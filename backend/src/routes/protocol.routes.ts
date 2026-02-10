@@ -1,10 +1,13 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
+import { PrismaClient } from '@prisma/client';
 import { requireAuth } from '../middleware/auth.js';
 import { requireAdmin } from '../middleware/admin.js';
 import { sseAuthenticate } from '../middleware/sse-auth.js';
 import { validateRequest } from '../middleware/validation.js';
 import { dashboardRateLimits } from '../middleware/rate-limit.js';
 import { x402ProtocolRegistrationGate } from '../middleware/x402-payment-gate.middleware.js';
+
+const prismaForDupCheck = new PrismaClient();
 import {
   protocolRegistrationSchema,
   protocolFundingSchema,
@@ -90,12 +93,37 @@ router.get(
   }
 );
 
+// Pre-payment duplicate check — prevents users from paying for a protocol that already exists
+async function checkDuplicateBeforePayment(req: Request, res: Response, next: NextFunction) {
+  const githubUrl = req.body?.githubUrl;
+  if (!githubUrl) return next();
+
+  try {
+    const existing = await prismaForDupCheck.protocol.findUnique({
+      where: { githubUrl },
+      select: { id: true },
+    });
+    if (existing) {
+      return res.status(409).json({
+        error: {
+          code: 'DUPLICATE_GITHUB_URL',
+          message: 'A protocol with this GitHub URL already exists',
+        },
+      });
+    }
+  } catch {
+    // Non-fatal: let the route handler catch it
+  }
+  next();
+}
+
 // POST /api/v1/protocols - Register new protocol
 // x.402 payment gate: Requires 1 USDC payment before registration (can be skipped via SKIP_X402_PAYMENT_GATE=true)
 router.post(
   '/',
   requireAuth,
   dashboardRateLimits.protocols,
+  checkDuplicateBeforePayment,
   x402ProtocolRegistrationGate(),
   validateRequest({ body: protocolRegistrationSchema }),
   async (req: Request, res: Response) => {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { MaterialIcon } from '../components/shared/MaterialIcon';
@@ -107,7 +107,7 @@ export default function ProtocolRegistration() {
     }
   };
 
-  const handlePaymentRetry = async (txHash: string) => {
+  const handlePaymentRetry = useCallback(async (txHash: string) => {
     if (!pendingProtocolRequest) return;
 
     try {
@@ -132,6 +132,15 @@ export default function ProtocolRegistration() {
           description: 'Your transaction was sent but the server could not verify it. Please try again shortly.',
           duration: 7000,
         });
+      } else if (err.duplicate) {
+        setShowPaymentModal(false);
+        toast.info('Protocol already exists', {
+          description: 'A protocol with this GitHub URL is already registered. Redirecting to your protocols...',
+          duration: 5000,
+        });
+        setTimeout(() => {
+          navigate('/protocols');
+        }, 1500);
       } else {
         const errorMessage = err instanceof Error ? err.message : 'Failed to register after payment';
         setError(errorMessage);
@@ -143,7 +152,12 @@ export default function ProtocolRegistration() {
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [pendingProtocolRequest, navigate]);
+
+  const handlePaymentClose = useCallback(() => {
+    setShowPaymentModal(false);
+    setPendingProtocolRequest(null);
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#0f1723] py-8 px-4 sm:px-6 lg:px-8">
@@ -288,10 +302,7 @@ export default function ProtocolRegistration() {
       {/* x.402 Payment Required Modal */}
       <PaymentRequiredModal
         isOpen={showPaymentModal}
-        onClose={() => {
-          setShowPaymentModal(false);
-          setPendingProtocolRequest(null);
-        }}
+        onClose={handlePaymentClose}
         onRetry={handlePaymentRetry}
         paymentTerms={paymentTerms}
       />

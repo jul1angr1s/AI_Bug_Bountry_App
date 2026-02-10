@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { X, AlertTriangle, CreditCard, ExternalLink, CheckCircle, Zap } from 'lucide-react';
 import {
   useAccount,
@@ -87,6 +87,10 @@ export default function PaymentRequiredModal({
     resetBatch,
   } = useSmartAccountBatching();
 
+  // Stable ref for onRetry to prevent infinite effect loops
+  const onRetryRef = useRef(onRetry);
+  onRetryRef.current = onRetry;
+
   const amountBigInt = paymentTerms
     ? BigInt(paymentTerms.amount)
     : BigInt(0);
@@ -150,18 +154,18 @@ export default function PaymentRequiredModal({
     if (isTransferConfirmed && transferTxHash && !hasRetried.current) {
       hasRetried.current = true;
       setStep('complete');
-      onRetry(transferTxHash);
+      onRetryRef.current(transferTxHash);
     }
-  }, [isTransferring, isTransferConfirming, isTransferConfirmed, transferTxHash, onRetry]);
+  }, [isTransferring, isTransferConfirming, isTransferConfirmed, transferTxHash]);
 
   // Handle batch completion (EIP-7702 flow)
   useEffect(() => {
     if (batchStatus === 'success' && batchTxHash && !hasRetried.current) {
       hasRetried.current = true;
       setStep('complete');
-      onRetry(batchTxHash);
+      onRetryRef.current(batchTxHash);
     }
-  }, [batchStatus, batchTxHash, onRetry]);
+  }, [batchStatus, batchTxHash]);
 
   useEffect(() => {
     if (approveError) {
@@ -182,15 +186,18 @@ export default function PaymentRequiredModal({
     }
   }, [batchError]);
 
-  // Reset state when modal opens/closes
+  // Reset state when modal opens — only trigger on isOpen changes, not resetBatch identity
+  const resetBatchRef = useRef(resetBatch);
+  resetBatchRef.current = resetBatch;
+
   useEffect(() => {
     if (isOpen) {
       setStep('idle');
       setError(null);
       hasRetried.current = false;
-      resetBatch();
+      resetBatchRef.current();
     }
-  }, [isOpen, resetBatch]);
+  }, [isOpen]);
 
   // Auto-transfer after approval (sequential flow only)
   useEffect(() => {

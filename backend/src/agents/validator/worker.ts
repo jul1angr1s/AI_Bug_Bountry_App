@@ -462,12 +462,8 @@ async function processValidation(submission: ProofSubmissionMessage): Promise<vo
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error(`[Validator] Validation failed:`, errorMessage);
 
-    // Update proof status to FAILED
+    // Mark proof as rejected on validation failure
     try {
-      await proofRepository.updateProofStatus(submission.proofId, 'FAILED');
-
-      // Mark proof as failed — no separate validation model exists
-      // The proof status tracks the validation outcome
       await proofRepository.updateProofStatus(submission.proofId, 'REJECTED');
     } catch (dbError) {
       console.error('[Validator] Failed to update database:', dbError);

@@ -2,12 +2,14 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useValidations } from '../hooks/useValidations';
 import ValidationCard from '../components/validations/ValidationCard';
+import ValidationDetailModal from '../components/validations/ValidationDetailModal';
 import { ActiveValidationPanel } from '../components/validations/ActiveValidationPanel';
 import { LoadingSkeleton } from '../components/shared/LoadingSkeleton';
 import { api } from '../lib/api';
 
 export default function Validations() {
   const [statusFilter, setStatusFilter] = useState<string>('');
+  const [selectedFindingId, setSelectedFindingId] = useState<string | null>(null);
   const { data, isLoading, error } = useValidations({ status: statusFilter });
 
   // Poll for any actively validating proof
@@ -72,7 +74,11 @@ export default function Validations() {
           <div className="space-y-4">
             {data?.validations && data.validations.length > 0 ? (
               data.validations.map((validation: any) => (
-                <ValidationCard key={validation.id} validation={validation} />
+                <ValidationCard
+                  key={validation.id}
+                  validation={validation}
+                  onClick={() => setSelectedFindingId(validation.findingId)}
+                />
               ))
             ) : (
               <div className="text-center py-12 bg-white rounded-lg">
@@ -82,6 +88,14 @@ export default function Validations() {
           </div>
         )}
       </div>
+
+      {/* Detail Modal */}
+      {selectedFindingId && (
+        <ValidationDetailModal
+          findingId={selectedFindingId}
+          onClose={() => setSelectedFindingId(null)}
+        />
+      )}
     </div>
   );
 }

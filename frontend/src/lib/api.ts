@@ -381,6 +381,23 @@ export async function fetchScanFindings(scanId: string): Promise<{
 }
 
 /**
+ * Fetch detailed validation info for a finding
+ */
+export async function fetchValidationDetail(findingId: string) {
+  const headers = await getAuthHeaders();
+  const response = await fetch(`${API_BASE_URL}/api/v1/validations/${findingId}/detail`, {
+    headers,
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch validation detail: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
  * Subscribe to scan progress via SSE
  */
 export function subscribeToScanProgress(
@@ -566,9 +583,16 @@ export async function retryCreateProtocolWithPayment(
     (retryError as any).retryFailed = true;
     throw retryError;
   }
+  if (response.status === 409) {
+    const err = await response.json().catch(() => ({}));
+    const conflictError = new Error(err.error?.message || 'A protocol with this GitHub URL already exists. Your payment was processed — please check your existing protocols.');
+    (conflictError as any).status = 409;
+    (conflictError as any).duplicate = true;
+    throw conflictError;
+  }
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
-    throw new Error(err.message || response.statusText);
+    throw new Error(err.error?.message || err.message || response.statusText);
   }
   const data = await response.json();
   return data.data || data;

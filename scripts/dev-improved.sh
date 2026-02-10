@@ -11,15 +11,22 @@ load_env_safe() {
   local env_file="$1"
   if [ -f "$env_file" ]; then
     # Export variables line by line, handling special characters
-    while IFS='=' read -r key value; do
+    while IFS='=' read -r key value || [[ -n "$key" ]]; do
+      # Trim leading/trailing whitespace from key
+      key="${key#"${key%%[![:space:]]*}"}"
+      key="${key%"${key##*[![:space:]]}"}"
       # Skip empty lines and comments
-      [[ -z "$key" || "$key" =~ ^[[:space:]]*# ]] && continue
+      [[ -z "$key" || "$key" =~ ^# ]] && continue
       # Remove quotes if present
+      value="${value#"${value%%[![:space:]]*}"}"
+      value="${value%"${value##*[![:space:]]}"}"
       value="${value%\"}"
       value="${value#\"}"
+      value="${value%\'}"
+      value="${value#\'}"
       # Export the variable
       export "$key=$value"
-    done < <(grep -v '^#' "$env_file" | grep -v '^[[:space:]]*$')
+    done < "$env_file"
     echo "✓ Loaded env: $env_file"
   fi
 }

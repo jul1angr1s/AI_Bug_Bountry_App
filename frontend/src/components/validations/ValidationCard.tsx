@@ -1,4 +1,4 @@
-import { CheckCircle, XCircle, Clock } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Loader2 } from 'lucide-react';
 
 interface ValidationCardProps {
   validation: {
@@ -10,15 +10,18 @@ interface ValidationCardProps {
     confidence?: number;
     validatedAt?: string;
   };
+  onClick?: () => void;
 }
 
-export default function ValidationCard({ validation }: ValidationCardProps) {
+export default function ValidationCard({ validation, onClick }: ValidationCardProps) {
   const getStatusIcon = () => {
     switch (validation.status) {
       case 'VALIDATED':
         return <CheckCircle className="w-5 h-5 text-green-500" />;
       case 'REJECTED':
         return <XCircle className="w-5 h-5 text-red-500" />;
+      case 'VALIDATING':
+        return <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />;
       default:
         return <Clock className="w-5 h-5 text-yellow-500" />;
     }
@@ -30,6 +33,8 @@ export default function ValidationCard({ validation }: ValidationCardProps) {
         return 'bg-green-100 text-green-800';
       case 'REJECTED':
         return 'bg-red-100 text-red-800';
+      case 'VALIDATING':
+        return 'bg-blue-100 text-blue-800';
       default:
         return 'bg-yellow-100 text-yellow-800';
     }
@@ -49,7 +54,13 @@ export default function ValidationCard({ validation }: ValidationCardProps) {
   };
 
   return (
-    <div className="bg-white rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow border border-gray-200">
+    <div
+      className={`bg-white rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow border border-gray-200 ${onClick ? 'cursor-pointer' : ''}`}
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') onClick(); } : undefined}
+    >
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <div className="flex items-center gap-3 mb-2">

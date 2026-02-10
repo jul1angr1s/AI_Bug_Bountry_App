@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import {
   useAccount,
   useCapabilities,
@@ -58,17 +59,17 @@ export function useSmartAccountBatching() {
   const isWaitingForBatch = !!sendCallsId && isPollingStatus;
 
   // Wrapper to send a batch of calls
-  const sendBatch = (calls: readonly unknown[]) => {
+  const sendBatch = useCallback((calls: readonly unknown[]) => {
     sendCalls({ calls } as Parameters<typeof sendCalls>[0]);
-  };
+  }, [sendCalls]);
 
-  const sendBatchAsync = (calls: readonly unknown[]) => {
+  const sendBatchAsync = useCallback((calls: readonly unknown[]) => {
     return sendCallsAsync({ calls } as Parameters<typeof sendCallsAsync>[0]);
-  };
+  }, [sendCallsAsync]);
 
-  const resetBatch = () => {
+  const resetBatch = useCallback(() => {
     resetSendCalls();
-  };
+  }, [resetSendCalls]);
 
   return {
     supportsBatching,

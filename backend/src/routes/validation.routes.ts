@@ -84,11 +84,90 @@ router.get('/', async (req, res) => {
   }
 });
 
+// GET /api/v1/validations/:id - Get detailed validation info for a finding
+router.get('/:id/detail', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const finding = await prisma.finding.findUnique({
+      where: { id },
+      include: {
+        scan: {
+          include: {
+            protocol: {
+              select: {
+                id: true,
+                githubUrl: true,
+              },
+            },
+          },
+        },
+        proofs: {
+          select: {
+            id: true,
+            status: true,
+            submittedAt: true,
+            validatedAt: true,
+            onChainValidationId: true,
+            onChainTxHash: true,
+          },
+          orderBy: { submittedAt: 'desc' },
+          take: 1,
+        },
+      },
+    });
+
+    if (!finding) {
+      res.status(404).json({ error: 'Validation not found' });
+      return;
+    }
+
+    const proof = finding.proofs[0] || null;
+
+    res.json({
+      id: finding.id,
+      findingTitle: `${finding.vulnerabilityType} in ${finding.filePath}`,
+      protocolName: finding.scan?.protocol?.githubUrl.split('/').pop() || 'Unknown',
+      protocolUrl: finding.scan?.protocol?.githubUrl || null,
+      severity: finding.severity,
+      status: finding.status,
+      confidence: Math.round(finding.confidenceScore * 100),
+      validatedAt: finding.validatedAt?.toISOString(),
+
+      // Vulnerability details
+      vulnerabilityType: finding.vulnerabilityType,
+      filePath: finding.filePath,
+      lineNumber: finding.lineNumber,
+      description: finding.description,
+      codeSnippet: finding.codeSnippet,
+      remediationSuggestion: finding.remediationSuggestion,
+      analysisMethod: finding.analysisMethod,
+      aiConfidenceScore: finding.aiConfidenceScore ? Math.round(finding.aiConfidenceScore * 100) : null,
+
+      // Proof info
+      proof: proof ? {
+        id: proof.id,
+        status: proof.status,
+        submittedAt: proof.submittedAt.toISOString(),
+        validatedAt: proof.validatedAt?.toISOString(),
+        onChainValidationId: proof.onChainValidationId,
+        onChainTxHash: proof.onChainTxHash,
+      } : null,
+
+      // Scan context
+      scanId: finding.scanId,
+    });
+  } catch (error) {
+    console.error('[ValidationController] getDetail error:', error);
+    res.status(500).json({ error: 'Failed to get validation detail' });
+  }
+});
+
 // GET /api/v1/validations/active - Find any actively validating proof
 router.get('/active', async (req, res) => {
   try {
     const activeProof = await prisma.proof.findFirst({
-      where: { status: 'VALIDATING' as any },
+      where: { status: 'VALIDATING' },
       orderBy: { submittedAt: 'desc' },
       select: {
         id: true,
@@ -144,7 +223,7 @@ router.get('/:id/progress', sseAuthenticate, async (req, res, next) => {
       protocolId,
       data: {
         currentStep: 'DECRYPT_PROOF',
-        state: (proof.status as string) === 'VALIDATING' ? 'RUNNING' : proof.status,
+        state: proof.status === 'VALIDATING' ? 'RUNNING' : proof.status,
         progress: 0,
         message: 'Connected to validation progress stream',
         workerType: 'LLM',
