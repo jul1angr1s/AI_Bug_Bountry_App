@@ -39,38 +39,62 @@ export async function registerProtocol(
       };
     }
 
-    // Create protocol with PENDING registration state
-    const protocol = await prisma.protocol.create({
-      data: {
-        authUserId: userId,
-        ownerAddress: input.ownerAddress,
-        githubUrl: input.githubUrl,
-        branch: input.branch,
-        contractPath: input.contractPath,
-        contractName: input.contractName,
-        bountyTerms: input.bountyTerms,
-        status: 'PENDING',
-        registrationState: 'PENDING',
-        totalBountyPool: 0,
-        availableBounty: 0,
-        paidBounty: 0,
-        // Funding Gate fields
-        bountyPoolAmount: input.bountyPoolAmount,
-      },
-    });
-
-    // Create audit log entry
-    await prisma.auditLog.create({
-      data: {
-        protocolId: protocol.id,
-        action: 'REGISTRATION_ATTEMPT',
-        metadata: {
+    // Create protocol and agent associations in a single transaction
+    const protocol = await prisma.$transaction(async (tx) => {
+      const newProtocol = await tx.protocol.create({
+        data: {
+          authUserId: userId,
+          ownerAddress: input.ownerAddress,
           githubUrl: input.githubUrl,
           branch: input.branch,
           contractPath: input.contractPath,
           contractName: input.contractName,
+          bountyTerms: input.bountyTerms,
+          status: 'PENDING',
+          registrationState: 'PENDING',
+          totalBountyPool: 0,
+          availableBounty: 0,
+          paidBounty: 0,
+          bountyPoolAmount: input.bountyPoolAmount,
         },
-      },
+      });
+
+      // Create agent associations if provided
+      if (input.researcherAgentId) {
+        await tx.protocolAgentAssociation.create({
+          data: {
+            protocolId: newProtocol.id,
+            agentIdentityId: input.researcherAgentId,
+            role: 'RESEARCHER',
+          },
+        });
+      }
+      if (input.validatorAgentId) {
+        await tx.protocolAgentAssociation.create({
+          data: {
+            protocolId: newProtocol.id,
+            agentIdentityId: input.validatorAgentId,
+            role: 'VALIDATOR',
+          },
+        });
+      }
+
+      await tx.auditLog.create({
+        data: {
+          protocolId: newProtocol.id,
+          action: 'REGISTRATION_ATTEMPT',
+          metadata: {
+            githubUrl: input.githubUrl,
+            branch: input.branch,
+            contractPath: input.contractPath,
+            contractName: input.contractName,
+            researcherAgentId: input.researcherAgentId,
+            validatorAgentId: input.validatorAgentId,
+          },
+        },
+      });
+
+      return newProtocol;
     });
 
     return {
@@ -280,6 +304,18 @@ export interface ProtocolOverview {
   fundingVerifiedAt: string | null;
   minimumBountyRequired: number;
   canRequestScan: boolean;
+  agentAssociations: Array<{
+    id: string;
+    role: string;
+    associatedAt: string;
+    agentIdentity: {
+      id: string;
+      walletAddress: string;
+      agentType: string;
+      isActive: boolean;
+      reputation: { reputationScore: number; totalSubmissions: number } | null;
+    };
+  }>;
   stats: {
     vulnerabilityCount: number;
     scanCount: number;
@@ -314,6 +350,17 @@ export async function getProtocolById(
             },
           },
           orderBy: { startedAt: 'desc' },
+        },
+        agentAssociations: {
+          include: {
+            agentIdentity: {
+              include: {
+                reputation: {
+                  select: { reputationScore: true, totalSubmissions: true },
+                },
+              },
+            },
+          },
         },
       },
     });
@@ -355,6 +402,23 @@ export async function getProtocolById(
       fundingVerifiedAt: protocol.fundingVerifiedAt?.toISOString() || null,
       minimumBountyRequired: protocol.minimumBountyRequired,
       canRequestScan,
+      agentAssociations: (protocol.agentAssociations || []).map((a) => ({
+        id: a.id,
+        role: a.role,
+        associatedAt: a.associatedAt.toISOString(),
+        agentIdentity: {
+          id: a.agentIdentity.id,
+          walletAddress: a.agentIdentity.walletAddress,
+          agentType: a.agentIdentity.agentType,
+          isActive: a.agentIdentity.isActive,
+          reputation: a.agentIdentity.reputation
+            ? {
+                reputationScore: a.agentIdentity.reputation.reputationScore,
+                totalSubmissions: a.agentIdentity.reputation.totalSubmissions,
+              }
+            : null,
+        },
+      })),
       stats: {
         vulnerabilityCount: totalFindings, // Count findings instead of vulnerabilities
         scanCount: protocol.scans.length,

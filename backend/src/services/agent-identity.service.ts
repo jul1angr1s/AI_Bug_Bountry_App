@@ -133,6 +133,44 @@ export class AgentIdentityService {
     });
   }
 
+  async associateAgentsWithProtocol(
+    protocolId: string,
+    researcherAgentId: string,
+    validatorAgentId: string
+  ) {
+    return prisma.$transaction([
+      prisma.protocolAgentAssociation.upsert({
+        where: { protocolId_role: { protocolId, role: 'RESEARCHER' } },
+        update: { agentIdentityId: researcherAgentId },
+        create: {
+          protocolId,
+          agentIdentityId: researcherAgentId,
+          role: 'RESEARCHER',
+        },
+      }),
+      prisma.protocolAgentAssociation.upsert({
+        where: { protocolId_role: { protocolId, role: 'VALIDATOR' } },
+        update: { agentIdentityId: validatorAgentId },
+        create: {
+          protocolId,
+          agentIdentityId: validatorAgentId,
+          role: 'VALIDATOR',
+        },
+      }),
+    ]);
+  }
+
+  async getProtocolAgents(protocolId: string) {
+    return prisma.protocolAgentAssociation.findMany({
+      where: { protocolId },
+      include: {
+        agentIdentity: {
+          include: { reputation: true },
+        },
+      },
+    });
+  }
+
   async deactivateAgent(walletAddress: string) {
     return prisma.agentIdentity.update({
       where: { walletAddress: walletAddress.toLowerCase() },

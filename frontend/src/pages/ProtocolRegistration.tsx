@@ -5,17 +5,25 @@ import { MaterialIcon } from '../components/shared/MaterialIcon';
 import { GradientButton } from '../components/shared/GradientButton';
 import { GlowCard } from '../components/shared/GlowCard';
 import ProtocolForm from '../components/protocols/ProtocolForm';
+import AgentSelectionStep from '../components/protocols/AgentSelectionStep';
 import PaymentRequiredModal from '../components/agents/PaymentRequiredModal';
 import { createProtocol, retryCreateProtocolWithPayment, type CreateProtocolRequest } from '../lib/api';
 import { logDiagnostics } from '../lib/diagnostics';
 import { useAuth } from '../lib/auth';
 
+type RegistrationStep = 'agent-selection' | 'protocol-details';
+
 export default function ProtocolRegistration() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
+  const [currentStep, setCurrentStep] = useState<RegistrationStep>('agent-selection');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [initialValues, setInitialValues] = useState<Partial<CreateProtocolRequest> | undefined>(undefined);
+
+  // Agent selection state
+  const [selectedResearcherAgentId, setSelectedResearcherAgentId] = useState<string | null>(null);
+  const [selectedValidatorAgentId, setSelectedValidatorAgentId] = useState<string | null>(null);
 
   // x.402 payment modal state
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -29,6 +37,16 @@ export default function ProtocolRegistration() {
     }
   }, []);
 
+  const handleAgentSelectionComplete = (researcherAgentId: string, validatorAgentId: string) => {
+    setSelectedResearcherAgentId(researcherAgentId);
+    setSelectedValidatorAgentId(validatorAgentId);
+    setCurrentStep('protocol-details');
+    toast.success('Agents selected', {
+      description: 'Now fill in your protocol details.',
+      duration: 2000,
+    });
+  };
+
   const handleAutofill = () => {
     if (!user?.wallet) {
       toast.error('Wallet Required', {
@@ -38,9 +56,6 @@ export default function ProtocolRegistration() {
       return;
     }
 
-    console.log('User wallet:', user.wallet);
-    console.log('User object:', user);
-
     const autofillData = {
       githubUrl: 'https://github.com/Cyfrin/2023-11-Thunder-Loan',
       branch: 'main',
@@ -49,7 +64,6 @@ export default function ProtocolRegistration() {
       ownerAddress: user.wallet,
     };
 
-    console.log('Autofill data:', autofillData);
     setInitialValues(autofillData);
 
     toast.success('Form autofilled', {
@@ -59,7 +73,6 @@ export default function ProtocolRegistration() {
   };
 
   const handleSubmit = async (data: CreateProtocolRequest) => {
-    // Check authentication before submitting
     if (!user) {
       const authError = 'Please connect your wallet to register a protocol.';
       setError(authError);
@@ -73,23 +86,27 @@ export default function ProtocolRegistration() {
     setIsSubmitting(true);
     setError(null);
 
-    try {
-      const response = await createProtocol(data);
+    // Inject selected agent IDs into the request
+    const requestData: CreateProtocolRequest = {
+      ...data,
+      researcherAgentId: selectedResearcherAgentId || undefined,
+      validatorAgentId: selectedValidatorAgentId || undefined,
+    };
 
-      // Show success toast
+    try {
+      const response = await createProtocol(requestData);
+
       toast.success('Protocol registered! Redirecting to funding...', {
         description: `Your protocol is now being analyzed by our Protocol Agent. You'll be redirected to set up funding.`,
         duration: 5000,
       });
 
-      // Navigate to protocol detail page (where FundingGate lives) after short delay
       setTimeout(() => {
         navigate(`/protocols/${response.id}`);
       }, 1500);
     } catch (err) {
-      // Handle x.402 Payment Required
       if ((err as any).status === 402) {
-        setPendingProtocolRequest(data);
+        setPendingProtocolRequest(requestData);
         setPaymentTerms((err as any).paymentTerms);
         setShowPaymentModal(true);
         setIsSubmitting(false);
@@ -151,11 +168,19 @@ export default function ProtocolRegistration() {
         {/* Header */}
         <div className="mb-8">
           <button
-            onClick={() => navigate(-1)}
+            onClick={() => {
+              if (currentStep === 'protocol-details') {
+                setCurrentStep('agent-selection');
+              } else {
+                navigate(-1);
+              }
+            }}
             className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-6"
           >
             <MaterialIcon name="arrow_back" className="text-lg" />
-            <span className="text-sm font-medium">Back</span>
+            <span className="text-sm font-medium">
+              {currentStep === 'protocol-details' ? 'Back to Agent Selection' : 'Back'}
+            </span>
           </button>
 
           <div className="flex items-center gap-5">
@@ -168,6 +193,31 @@ export default function ProtocolRegistration() {
                 Add your smart contract protocol to our automated bug bounty system
               </p>
             </div>
+          </div>
+        </div>
+
+        {/* Step Indicator */}
+        <div className="mb-6 flex items-center gap-3">
+          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium ${
+            currentStep === 'agent-selection'
+              ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/40'
+              : 'bg-green-500/20 text-green-400 border border-green-500/40'
+          }`}>
+            {currentStep === 'agent-selection' ? (
+              <MaterialIcon name="radio_button_checked" className="text-sm" />
+            ) : (
+              <MaterialIcon name="check_circle" className="text-sm" />
+            )}
+            Step 1: Select Agents
+          </div>
+          <MaterialIcon name="arrow_forward" className="text-gray-600 text-sm" />
+          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium ${
+            currentStep === 'protocol-details'
+              ? 'bg-purple-500/20 text-purple-400 border border-purple-500/40'
+              : 'bg-gray-500/10 text-gray-500 border border-gray-500/20'
+          }`}>
+            <MaterialIcon name={currentStep === 'protocol-details' ? 'radio_button_checked' : 'radio_button_unchecked'} className="text-sm" />
+            Step 2: Protocol Details
           </div>
         </div>
 
@@ -194,6 +244,7 @@ export default function ProtocolRegistration() {
             <div className="text-gray-300">
               <p className="font-semibold text-white mb-3 text-base">What happens next?</p>
               <ol className="list-decimal list-inside space-y-2 text-gray-400 text-sm">
+                <li>Select researcher and validator agents for your protocol</li>
                 <li>Our Protocol Agent will clone and verify your repository</li>
                 <li>Smart contracts will be compiled and analyzed for complexity</li>
                 <li>A risk score will be calculated based on code patterns</li>
@@ -222,27 +273,36 @@ export default function ProtocolRegistration() {
           </div>
         )}
 
-        {/* Form Card */}
-        <GlowCard glowColor="purple" className="bg-[#162030] border-[#2f466a] p-8">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <MaterialIcon name="description" className="text-2xl text-purple-400" />
-              <h2 className="text-2xl font-bold text-white font-['Space_Grotesk']">Protocol Details</h2>
+        {/* Step 1: Agent Selection */}
+        {currentStep === 'agent-selection' && (
+          <GlowCard glowColor="cyan" className="bg-[#162030] border-[#2f466a] p-8">
+            <AgentSelectionStep onComplete={handleAgentSelectionComplete} />
+          </GlowCard>
+        )}
+
+        {/* Step 2: Protocol Details Form */}
+        {currentStep === 'protocol-details' && (
+          <GlowCard glowColor="purple" className="bg-[#162030] border-[#2f466a] p-8">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <MaterialIcon name="description" className="text-2xl text-purple-400" />
+                <h2 className="text-2xl font-bold text-white font-['Space_Grotesk']">Protocol Details</h2>
+              </div>
+              <GradientButton
+                variant="secondary"
+                onClick={handleAutofill}
+                disabled={isSubmitting || !user}
+                className="px-4 py-2"
+              >
+                <span className="flex items-center gap-2">
+                  <MaterialIcon name="bolt" className="text-base" />
+                  Try with ThunderLoan Example
+                </span>
+              </GradientButton>
             </div>
-            <GradientButton
-              variant="secondary"
-              onClick={handleAutofill}
-              disabled={isSubmitting || !user}
-              className="px-4 py-2"
-            >
-              <span className="flex items-center gap-2">
-                <MaterialIcon name="bolt" className="text-base" />
-                Try with ThunderLoan Example
-              </span>
-            </GradientButton>
-          </div>
-          <ProtocolForm onSubmit={handleSubmit} isSubmitting={isSubmitting} initialValues={initialValues} />
-        </GlowCard>
+            <ProtocolForm onSubmit={handleSubmit} isSubmitting={isSubmitting} initialValues={initialValues} />
+          </GlowCard>
+        )}
 
         {/* Help Section */}
         <div className="mt-8 p-6 bg-[#162030] border border-[#2f466a] rounded-xl">

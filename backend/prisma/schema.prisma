@@ -120,14 +120,30 @@ model Protocol {
   fundingVerifiedAt     DateTime? // On-chain verification timestamp
   minimumBountyRequired Float     @default(25) // Minimum USDC for prototype
 
-  vulnerabilities Vulnerability[]
-  scans           Scan[]
-  auditLogs       AuditLog[]
-  fundingEvents   FundingEvent[]
+  vulnerabilities        Vulnerability[]
+  scans                  Scan[]
+  auditLogs              AuditLog[]
+  fundingEvents          FundingEvent[]
+  agentAssociations      ProtocolAgentAssociation[]
 
   @@index([ownerAddress])
   @@index([registrationState])
   @@index([githubUrl])
+}
+
+model ProtocolAgentAssociation {
+  id              String            @id @default(uuid())
+  protocolId      String
+  agentIdentityId String
+  role            AgentIdentityType // RESEARCHER or VALIDATOR
+  associatedAt    DateTime          @default(now())
+
+  protocol        Protocol          @relation(fields: [protocolId], references: [id], onDelete: Cascade)
+  agentIdentity   AgentIdentity     @relation(fields: [agentIdentityId], references: [id], onDelete: Cascade)
+
+  @@unique([protocolId, role])
+  @@index([protocolId])
+  @@index([agentIdentityId])
 }
 
 model Vulnerability {
@@ -450,10 +466,11 @@ model AgentIdentity {
   onChainTxHash String? // Registration transaction hash
 
   // Relations
-  reputation      AgentReputation?
-  escrowBalance   AgentEscrow?
-  feedbacksGiven  AgentFeedback[]  @relation("ValidatorFeedbacks")
-  feedbacksReceived AgentFeedback[] @relation("ResearcherFeedbacks")
+  reputation             AgentReputation?
+  escrowBalance          AgentEscrow?
+  feedbacksGiven         AgentFeedback[]              @relation("ValidatorFeedbacks")
+  feedbacksReceived      AgentFeedback[]              @relation("ResearcherFeedbacks")
+  protocolAssociations   ProtocolAgentAssociation[]
 
   @@index([walletAddress])
   @@index([agentType])

@@ -21,6 +21,19 @@ export interface Agent {
   scansCompleted?: number;
 }
 
+export interface ProtocolAgentAssociation {
+  id: string;
+  role: AgentIdentityType;
+  associatedAt: string;
+  agentIdentity: {
+    id: string;
+    walletAddress: string;
+    agentType: AgentIdentityType;
+    isActive: boolean;
+    reputation: { reputationScore: number; totalSubmissions: number } | null;
+  };
+}
+
 export interface Protocol {
   id: string;
   contractName: string;
@@ -39,6 +52,7 @@ export interface Protocol {
   scansCount?: number;
   vulnerabilitiesCount?: number;
   lastScanAt?: string | null;
+  agentAssociations?: ProtocolAgentAssociation[];
   stats?: {
     vulnerabilityCount: number;
     scanCount: number;

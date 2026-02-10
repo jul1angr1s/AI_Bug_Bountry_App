@@ -423,6 +423,8 @@ export interface CreateProtocolRequest {
   bountyTerms: string;
   ownerAddress: string;
   bountyPoolAmount?: number; // Requested bounty pool in USDC (min 25)
+  researcherAgentId?: string;
+  validatorAgentId?: string;
 }
 
 export interface CreateProtocolResponse {
@@ -1037,6 +1039,14 @@ import type {
   X402PaymentEvent,
   AgentIdentityType,
 } from '../types/dashboard';
+
+export async function fetchAgentsByType(type: AgentIdentityType): Promise<AgentIdentity[]> {
+  const headers = await getAuthHeaders();
+  const response = await fetch(`${API_BASE_URL}/api/v1/agent-identities/type/${type}`, { headers, credentials: 'include' });
+  if (!response.ok) throw new Error(`Failed to fetch agents by type: ${response.statusText}`);
+  const result = await response.json();
+  return result.data || [];
+}
 
 export async function fetchAgentIdentities(): Promise<AgentIdentity[]> {
   const headers = await getAuthHeaders();
