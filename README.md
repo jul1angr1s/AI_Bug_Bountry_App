@@ -134,6 +134,11 @@ Protocol list with security scores, status filters, and one-click registration.
 
 ![Protocols](project/UI/protocols1.png)
 
+### Register Protocol
+Multi-step registration wizard — select researcher and validator agents by wallet, reputation score, and status, then continue to protocol details. Shows expected workflow and ~60 second processing time.
+
+![Register Protocol](project/UI/protocol2.png)
+
 ### Agent Registry
 Agent Registry with stat cards (Total Agents, Active, On-Chain Verified, Avg Reputation), agent table with wallet, type, NFT ID, score, verification status, and reputation leaderboard sidebar.
 
