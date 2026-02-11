@@ -281,6 +281,8 @@ async function processValidation(submission: ProofSubmissionMessage): Promise<vo
     await emitValidationProgress(vId, pId, 'RECORD_ONCHAIN', 'RUNNING', 'EXECUTION', 85, 'Recording validation on-chain...');
     await emitValidationLog(vId, pId, 'DEFAULT', '> Recording validation on Base Sepolia...');
 
+    let validationIdForReputation: string | null = null;
+
     try {
       // Get protocol to access onChainProtocolId
       const protocol = await prisma.protocol.findUnique({
@@ -341,7 +343,7 @@ async function processValidation(submission: ProofSubmissionMessage): Promise<vo
 
           const onChainResult = await validationClient.recordValidation(
             protocol.onChainProtocolId,
-            finding.id, // Using database ID as findingId
+            ethers.id(finding.id), // Hash database ID to bytes32 for on-chain storage
             finding.vulnerabilityType,
             onChainSeverity,
             outcome,
@@ -352,6 +354,9 @@ async function processValidation(submission: ProofSubmissionMessage): Promise<vo
           console.log('[Validator] On-chain validation recorded successfully!');
           console.log(`  Validation ID: ${onChainResult.validationId}`);
           console.log(`  TX Hash: ${onChainResult.txHash}`);
+
+          // Capture validationId for reputation recording
+          validationIdForReputation = onChainResult.validationId;
 
           // Update proof with on-chain validation ID and transaction hash
           await prisma.proof.update({
@@ -365,87 +370,6 @@ async function processValidation(submission: ProofSubmissionMessage): Promise<vo
           console.log('[Validator] Database updated with on-chain validation IDs');
           await emitValidationLog(vId, pId, 'INFO', `[INFO] On-chain TX: ${onChainResult.txHash}`);
           await emitValidationProgress(vId, pId, 'RECORD_ONCHAIN', 'RUNNING', 'EXECUTION', 95, 'On-chain recording complete');
-
-          // =================
-          // STEP 10: Record reputation feedback (ERC-8004)
-          // =================
-          try {
-            // Get researcher wallet from scan context
-            const scan = await prisma.scan.findUnique({
-              where: { id: proof.scanId },
-              include: { agent: true },
-            });
-
-            // Map severity + outcome to FeedbackType
-            // INFO severity maps to CONFIRMED_INFORMATIONAL
-            const severityToFeedback: Record<string, FeedbackType> = {
-              'CRITICAL': 'CONFIRMED_CRITICAL',
-              'HIGH': 'CONFIRMED_HIGH',
-              'MEDIUM': 'CONFIRMED_MEDIUM',
-              'LOW': 'CONFIRMED_LOW',
-              'INFO': 'CONFIRMED_INFORMATIONAL',
-            };
-
-            const feedbackType: FeedbackType = executionResult.validated
-              ? (severityToFeedback[finding.severity] || 'CONFIRMED_INFORMATIONAL')
-              : 'REJECTED';
-
-            // Resolve researcher identity from AgentIdentity table
-            // Look up RESEARCHER agents - if a scan has an associated agent, use that agent's identity
-            let researcherWallet = '';
-            if (scan?.agent) {
-              // Look up agent identity by the platform agent's linked wallet
-              const researcherIdentity = await prisma.agentIdentity.findFirst({
-                where: { agentType: 'RESEARCHER', isActive: true },
-                orderBy: { registeredAt: 'asc' },
-              });
-              if (researcherIdentity) {
-                researcherWallet = researcherIdentity.walletAddress;
-              }
-            }
-            // Fallback: check env var
-            if (!researcherWallet) {
-              researcherWallet = process.env.RESEARCHER_WALLET_ADDRESS || '';
-            }
-
-            // Resolve validator identity dynamically
-            let validatorWallet = '';
-            const validatorIdentity = await prisma.agentIdentity.findFirst({
-              where: { agentType: 'VALIDATOR', isActive: true },
-              orderBy: { registeredAt: 'asc' },
-            });
-            if (validatorIdentity) {
-              validatorWallet = validatorIdentity.walletAddress;
-            }
-            // Fallback: check env vars
-            if (!validatorWallet) {
-              validatorWallet = process.env.VALIDATOR_WALLET_ADDRESS || process.env.PLATFORM_WALLET_ADDRESS || '';
-            }
-
-            if (researcherWallet && validatorWallet) {
-              console.log('[Validator] Recording reputation feedback...');
-              console.log(`  Researcher: ${researcherWallet}`);
-              console.log(`  Validator: ${validatorWallet}`);
-              console.log(`  Feedback Type: ${feedbackType}`);
-
-              await reputationService.recordFeedback(
-                researcherWallet,
-                validatorWallet,
-                onChainResult.validationId,
-                finding.id,
-                feedbackType
-              );
-
-              console.log('[Validator] Reputation feedback recorded successfully');
-            } else {
-              console.log('[Validator] Skipping reputation feedback - agent wallets not found');
-              console.log(`  Researcher: ${researcherWallet || '(not found)'}`);
-              console.log(`  Validator: ${validatorWallet || '(not found)'}`);
-            }
-          } catch (reputationError) {
-            // Don't fail validation if reputation recording fails
-            console.error('[Validator] Failed to record reputation feedback:', reputationError);
-          }
         }
       }
     } catch (onChainError) {
@@ -453,6 +377,94 @@ async function processValidation(submission: ProofSubmissionMessage): Promise<vo
       console.error('[Validator] Failed to record validation on-chain:', onChainError);
       console.error('  Continuing with off-chain validation only');
       await emitValidationLog(vId, pId, 'WARN', '[WARN] On-chain recording failed, continuing with off-chain validation');
+    }
+
+    // =================
+    // STEP 10: Record reputation feedback on-chain (ERC-8004)
+    // Runs independently of on-chain validation success
+    // =================
+    try {
+      const finding = await prisma.finding.findUnique({
+        where: { id: proof.findingId },
+      });
+
+      if (!finding) {
+        console.warn('[Validator] Finding not found, skipping reputation feedback');
+      } else {
+        // Get researcher wallet from scan context
+        const scan = await prisma.scan.findUnique({
+          where: { id: proof.scanId },
+          include: { agent: true },
+        });
+
+        // Map severity + outcome to FeedbackType
+        const severityToFeedback: Record<string, FeedbackType> = {
+          'CRITICAL': 'CONFIRMED_CRITICAL',
+          'HIGH': 'CONFIRMED_HIGH',
+          'MEDIUM': 'CONFIRMED_MEDIUM',
+          'LOW': 'CONFIRMED_LOW',
+          'INFO': 'CONFIRMED_INFORMATIONAL',
+        };
+
+        const feedbackType: FeedbackType = executionResult.validated
+          ? (severityToFeedback[finding.severity] || 'CONFIRMED_INFORMATIONAL')
+          : 'REJECTED';
+
+        // Use on-chain validationId if available, otherwise derive fallback from proof ID
+        const repValidationId = validationIdForReputation || ethers.id(proof.proofId);
+
+        // Resolve researcher identity from AgentIdentity table
+        let researcherWallet = '';
+        if (scan?.agent) {
+          const researcherIdentity = await prisma.agentIdentity.findFirst({
+            where: { agentType: 'RESEARCHER', isActive: true },
+            orderBy: { registeredAt: 'asc' },
+          });
+          if (researcherIdentity) {
+            researcherWallet = researcherIdentity.walletAddress;
+          }
+        }
+        if (!researcherWallet) {
+          researcherWallet = process.env.RESEARCHER_WALLET_ADDRESS || '';
+        }
+
+        // Resolve validator identity dynamically
+        let validatorWallet = '';
+        const validatorIdentity = await prisma.agentIdentity.findFirst({
+          where: { agentType: 'VALIDATOR', isActive: true },
+          orderBy: { registeredAt: 'asc' },
+        });
+        if (validatorIdentity) {
+          validatorWallet = validatorIdentity.walletAddress;
+        }
+        if (!validatorWallet) {
+          validatorWallet = process.env.VALIDATOR_WALLET_ADDRESS || process.env.PLATFORM_WALLET_ADDRESS || '';
+        }
+
+        if (researcherWallet && validatorWallet) {
+          console.log('[Validator] Recording reputation feedback on-chain...');
+          console.log(`  Researcher: ${researcherWallet}`);
+          console.log(`  Validator: ${validatorWallet}`);
+          console.log(`  Feedback Type: ${feedbackType}`);
+
+          await reputationService.recordFeedbackOnChain(
+            researcherWallet,
+            validatorWallet,
+            repValidationId,
+            finding.id,
+            feedbackType
+          );
+
+          console.log('[Validator] Reputation feedback recorded on-chain successfully');
+        } else {
+          console.log('[Validator] Skipping reputation feedback - agent wallets not found');
+          console.log(`  Researcher: ${researcherWallet || '(not found)'}`);
+          console.log(`  Validator: ${validatorWallet || '(not found)'}`);
+        }
+      }
+    } catch (reputationError) {
+      // Don't fail validation if reputation recording fails
+      console.error('[Validator] Failed to record reputation feedback:', reputationError);
     }
 
     await emitValidationProgress(vId, pId, 'COMPLETE', 'COMPLETED', 'EXECUTION', 100, `Validation complete: ${validationStatus}`);
