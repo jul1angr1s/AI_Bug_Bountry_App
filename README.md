@@ -1750,6 +1750,8 @@ All sensitive values are in `.env` files (gitignored).
 ### 🚀 Phase 7: Scale & Enhance (Q3-Q4 2026)
 
 #### 🤖 **AI Agent Evolution**
+- [ ] **Agent-to-Agent Protocol (A2A)** - Standardized inter-agent communication so Researcher, Validator, and Payment agents negotiate tasks, share findings, and coordinate autonomously without backend routing
+- [ ] **MCP Server** - Model Context Protocol server exposing platform tools (scan, validate, pay, query reputation) so any MCP-compatible AI client can orchestrate bug bounty workflows
 - [ ] **Quimera AI** - Automatic exploit code generation
 - [ ] **Multi-model ensemble** - GPT-4, Claude, Gemini for consensus
 - [ ] **Agent specialization** - DeFi-specific, NFT, governance agents
@@ -1776,6 +1778,9 @@ All sensitive values are in `.env` files (gitignored).
 - [ ] **Governance token** - Decentralized platform governance
 - [ ] **NFT credentials** - On-chain reputation as NFTs
 - [ ] **Liquidity mining** - Rewards for protocol owners & researchers
+
+#### 🔐 **Auth & Identity Evolution**
+- [ ] **ERC-8128 on-chain auth** - Replace JWT session tokens with ERC-8128 payloads — agents and users authenticate via signed on-chain credentials, eliminating server-side token storage and enabling trustless cross-platform identity
 
 #### 🌐 **Developer Experience**
 - [ ] **SDK & API** - Integrate security scanning in CI/CD
