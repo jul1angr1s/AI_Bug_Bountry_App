@@ -102,6 +102,14 @@ export const X402_DESCRIPTIONS: Record<string, { label: string; description: str
     label: 'Protocol Registration',
     description: 'One-time fee to register a smart contract for security analysis.',
   },
+  SCAN_REQUEST_FEE: {
+    label: 'Scan Request Fee',
+    description: 'Fee charged to initiate a security scan on a protocol.',
+  },
+  EXPLOIT_SUBMISSION_FEE: {
+    label: 'Exploit Submission Fee',
+    description: 'Fee paid to the validator for each exploit submission.',
+  },
   FINDING_SUBMISSION: {
     label: 'Finding Submission',
     description: 'Fee deducted from escrow when submitting a vulnerability finding.',
