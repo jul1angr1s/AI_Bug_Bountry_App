@@ -11,6 +11,8 @@ node_modules/
 CLAUDE.md
 **/CLAUDE.md
 settings.json
+.npm-cache/
+**/.npm-cache/
 test-results/
 playwright-report/
 **/test-results/
