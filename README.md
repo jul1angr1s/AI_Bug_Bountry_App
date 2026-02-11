@@ -1271,8 +1271,6 @@ KIMI_MODEL=moonshotai/kimi-k2.5
 
 **Documentation**:
 - [Kimi API Setup Guide](backend/KIMI_API_SETUP.md) - Complete setup instructions
-- [AI Deep Analysis](backend/AI_DEEP_ANALYSIS_COMPLETE.md) - Feature documentation
-- [Changes Summary](backend/CHANGES_SUMMARY.md) - Implementation details
 
 ---
 
@@ -1466,7 +1464,6 @@ graph TD
 
 - [**Backend README**](backend/README.md) - Complete backend documentation with migration strategy
 - [**Kimi API Setup**](backend/KIMI_API_SETUP.md) - Complete setup instructions for AI integration
-- [**AI Deep Analysis**](backend/AI_DEEP_ANALYSIS_COMPLETE.md) - Feature documentation and proven results
 - [**Backend E2E Tests**](backend/tests/e2e/README.md) - Comprehensive E2E testing documentation
 
 ### Testing Documentation

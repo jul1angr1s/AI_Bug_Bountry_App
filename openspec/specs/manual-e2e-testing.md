@@ -43,8 +43,6 @@ End-to-end workflow covering:
 
 Complete details and API reference:
 - **Primary Guide**: [docs/DEMONSTRATION.md](../../docs/DEMONSTRATION.md)
-- **Validation Report**: [VALIDATION_REPORT.md](../../VALIDATION_REPORT.md) (Phase 4)
-- **Improvement Plan**: [Improvement_plan.md](../../Improvement_plan.md) (Phase 4)
 - **Architecture**: [docs/ARCHITECTURE.md](../../docs/ARCHITECTURE.md)
 
 ---
