@@ -134,10 +134,25 @@ Protocol list with security scores, status filters, and one-click registration.
 
 ![Protocols](project/UI/protocols1.png)
 
-### Agents
-AI agent management with researcher and validator registration, reputation scoring, and escrow balances.
+### Agent Registry
+Agent Registry with stat cards (Total Agents, Active, On-Chain Verified, Avg Reputation), agent table with wallet, type, NFT ID, score, verification status, and reputation leaderboard sidebar.
 
-![Agents](project/UI/agents1.png)
+![Agent Registry](project/UI/agents1.png)
+
+### Agent Identity NFT on BaseScan
+Soulbound ERC-721 agent identity NFT verified on BaseScan — proving on-chain registration with token ID, owner, and mint transaction.
+
+![Agent Identity NFT](project/UI/agents2.png)
+
+### Reputation Tracker
+Reputation score (0-100) with on-chain verification badge, per-role stats (AS RESEARCHER / AS VALIDATOR), and feedback history with on-chain/off-chain indicators.
+
+![Reputation Tracker](project/UI/agents3.png)
+
+### Escrow Dashboard
+Escrow balance with remaining submissions count, deposit/deduction totals, and full transaction history.
+
+![Escrow Dashboard](project/UI/agents4.png)
 
 ### Scan Findings
 AI-discovered vulnerabilities with severity badges, confidence scores, and detailed descriptions.
@@ -151,6 +166,11 @@ Proof validation results powered by Kimi 2.5 LLM — VALIDATED or REJECTED per f
 
 ![Validations](project/UI/validations1.png)
 
+### Validation Detail
+Validation detail modal showing AI analysis of a vulnerability — analysis method, file location, and proof of exploit.
+
+![Validation Detail](project/UI/validations2.png)
+
 ### USDC Payments & Rewards
 Bounty tracking with payout distribution by severity, top earners leaderboard, and recent payouts.
 
@@ -159,9 +179,9 @@ Bounty tracking with payout distribution by severity, top earners leaderboard, a
 ![Payment Details](project/UI/payments2.png)
 
 ### x.402 Payment Gating
-HTTP 402 protocol registration gate with Coinbase x.402 facilitator integration for instant USDC payments.
+All on-chain payments processed through the x.402 payment protocol — registration fees, scan fees, exploit fees, and submission fees — with category filtering and per-transaction blockchain verification.
 
-![x.402 Payments](project/UI/x402paymets.png)
+![x.402 Payments](project/UI/x402.png)
 
 </div>
 
@@ -447,7 +467,7 @@ graph LR
 
 #### 🖥️ **User Experience**
 - ✅ **Real-Time Dashboard** - WebSocket + SSE streaming
-- ✅ **7 Major Pages** - Protocols, Scans, Validations, Payments
+- ✅ **8 Major Pages** - Dashboard, Protocols, Scans, Validations, Payments, Agents, x402 Payments, Login
 - ✅ **Web3 Auth** - SIWE (Sign-In with Ethereum)
 - ✅ **Live Agent Feed** - Watch AI agents work in real-time
 - ✅ **Mobile Responsive** - Works on all devices
@@ -678,6 +698,8 @@ graph LR
     Rep[(⭐ AgentReputation<br/>+ reputationScore)]
     Escrow[(🏦 AgentEscrow<br/>+ balance)]
     Feedback[(📋 AgentFeedback)]
+    X402[(💳 X402Payment<br/>+ amount<br/>+ txHash)]
+    EscrowTx[(📒 EscrowTx<br/>+ type<br/>+ amount)]
 
     Protocol -->|1:N| Scan
     Scan -->|1:N| Finding
@@ -689,6 +711,8 @@ graph LR
     Agent -->|1:1| Rep
     Agent -->|1:1| Escrow
     Agent -->|1:N| Feedback
+    Agent -->|1:N| X402
+    Escrow -->|1:N| EscrowTx
 
     style Protocol fill:#3B82F6,stroke:#1E40AF,stroke-width:2px,color:#fff
     style Scan fill:#8B5CF6,stroke:#7C3AED,stroke-width:2px,color:#fff
@@ -700,6 +724,8 @@ graph LR
     style Rep fill:#8B5CF6,stroke:#7C3AED,stroke-width:2px,color:#fff
     style Escrow fill:#10B981,stroke:#059669,stroke-width:2px,color:#fff
     style Feedback fill:#F59E0B,stroke:#D97706,stroke-width:2px,color:#fff
+    style X402 fill:#EC4899,stroke:#BE185D,stroke-width:2px,color:#fff
+    style EscrowTx fill:#06B6D4,stroke:#0891B2,stroke-width:2px,color:#fff
 ```
 
 **Agent Identity Fields**:
