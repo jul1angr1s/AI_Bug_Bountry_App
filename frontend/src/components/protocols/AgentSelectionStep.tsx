@@ -108,7 +108,7 @@ export default function AgentSelectionStep({ onComplete }: AgentSelectionStepPro
           <option value="">Select a validator agent...</option>
           {validators.map((agent) => (
             <option key={agent.id} value={agent.id}>
-              {truncateAddress(agent.walletAddress)} — Score: {agent.reputation?.reputationScore ?? 0} — {agent.isActive ? 'Active' : 'Inactive'}
+              {truncateAddress(agent.walletAddress)} — Score: {agent.reputation?.validatorReputationScore ?? 0} — {agent.isActive ? 'Active' : 'Inactive'}
             </option>
           ))}
         </select>
