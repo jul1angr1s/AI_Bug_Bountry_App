@@ -116,6 +116,12 @@ async function processValidationLLM(submission: ProofSubmissionMessage): Promise
     const vId = submission.proofId;
     const pId = submission.protocolId;
 
+    // Update proof status to VALIDATING (enables frontend ActiveValidationPanel detection)
+    await prisma.proof.update({
+      where: { id: submission.proofId },
+      data: { status: 'VALIDATING' },
+    });
+
     await emitValidationProgress(vId, pId, 'DECRYPT_PROOF', 'RUNNING', 'LLM', 0, 'Decrypting proof payload...');
     await emitValidationLog(vId, pId, 'DEFAULT', '> Decrypting proof payload...');
 

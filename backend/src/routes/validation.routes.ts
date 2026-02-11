@@ -84,6 +84,64 @@ router.get('/', async (req, res) => {
   }
 });
 
+// SSE stream for global validation activity (detects any validation start/end instantly)
+router.get('/activity/stream', sseAuthenticate, async (req, res, next) => {
+  try {
+    // Setup SSE
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+
+    // Check for currently active validation and send initial state
+    const activeProof = await prisma.proof.findFirst({
+      where: { status: 'VALIDATING' },
+      orderBy: { submittedAt: 'desc' },
+      select: { id: true },
+    });
+
+    if (activeProof) {
+      res.write(`data: ${JSON.stringify({
+        eventType: 'validation:activity',
+        activeValidationId: activeProof.id,
+        state: 'RUNNING',
+      })}\n\n`);
+    } else {
+      res.write(`data: ${JSON.stringify({
+        eventType: 'validation:activity',
+        activeValidationId: null,
+        state: 'IDLE',
+      })}\n\n`);
+    }
+
+    // Subscribe to all validation progress channels via pattern
+    const redis = getRedisClient();
+    const subscriber = redis.duplicate();
+    await subscriber.psubscribe('validation:*:progress');
+
+    subscriber.on('pmessage', (_pattern: string, _channel: string, message: string) => {
+      try {
+        const data = JSON.parse(message);
+        const validationId = data.validationId;
+        const state = data.data?.state;
+
+        res.write(`data: ${JSON.stringify({
+          eventType: 'validation:activity',
+          activeValidationId: validationId,
+          state: state === 'COMPLETED' || state === 'FAILED' ? state : 'RUNNING',
+        })}\n\n`);
+      } catch { /* ignore parse errors */ }
+    });
+
+    // Handle client disconnect
+    req.on('close', () => {
+      subscriber.punsubscribe();
+      subscriber.quit();
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // GET /api/v1/validations/:id - Get detailed validation info for a finding
 router.get('/:id/detail', async (req, res) => {
   try {
