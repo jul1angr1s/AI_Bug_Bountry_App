@@ -63,9 +63,9 @@ export const protocolIdParamSchema = z.object({
 export const proposePaymentSchema = z.object({
   protocolId: z.string().uuid('Invalid protocol ID'),
   recipientAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/, 'Invalid Ethereum address'),
-  severity: z.enum(['HIGH', 'MEDIUM', 'LOW'], {
+  severity: z.enum(['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'], {
     required_error: 'Severity is required',
-    invalid_type_error: 'Severity must be HIGH, MEDIUM, or LOW',
+    invalid_type_error: 'Severity must be CRITICAL, HIGH, MEDIUM, or LOW',
   }),
   justification: z.string().min(20, 'Justification must be at least 20 characters').max(500, 'Justification must be less than 500 characters'),
 });

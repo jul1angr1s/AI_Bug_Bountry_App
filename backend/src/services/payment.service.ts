@@ -1263,7 +1263,7 @@ export async function getPoolStatus(protocolId: string): Promise<PoolStatusResul
 export async function proposeManualPayment(data: {
   protocolId: string;
   recipientAddress: string;
-  severity: 'HIGH' | 'MEDIUM' | 'LOW';
+  severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
   justification: string;
   proposedBy: string;
 }): Promise<{
@@ -1289,6 +1289,7 @@ export async function proposeManualPayment(data: {
 
     // Calculate amount based on severity
     const severityMap: Record<string, number> = {
+      CRITICAL: 10,
       HIGH: 5,
       MEDIUM: 3,
       LOW: 1,
