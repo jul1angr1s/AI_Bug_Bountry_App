@@ -6,6 +6,8 @@ import { ProtocolStatsCard } from '../components/protocols/ProtocolStatsCard';
 import { StatusFilterChips } from '../components/protocols/StatusFilterChips';
 import { ProtocolSearchBar } from '../components/protocols/ProtocolSearchBar';
 import { LoadingSkeleton } from '../components/shared/LoadingSkeleton';
+import ContractBadge from '../components/shared/ContractBadge';
+import { getContractByName } from '../lib/contracts';
 import { useProtocols, useProtocolsRealtime } from '../hooks/useProtocols';
 import type { ProtocolListItem } from '../lib/api';
 import type { Protocol } from '../types/dashboard';
@@ -154,7 +156,12 @@ export default function Protocols() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-white font-['Space_Grotesk']">Protocols</h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl font-bold text-white font-['Space_Grotesk']">Protocols</h1>
+              {getContractByName('ProtocolRegistry') && (
+                <ContractBadge variant="inline" contract={getContractByName('ProtocolRegistry')!} />
+              )}
+            </div>
             <p className="text-gray-400 mt-1">
               {data?.pagination.total || 0} registered protocol{data?.pagination.total !== 1 ? 's' : ''}
             </p>

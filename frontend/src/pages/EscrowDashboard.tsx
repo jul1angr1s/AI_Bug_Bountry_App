@@ -6,6 +6,8 @@ import { useEscrowBalance, useEscrowTransactions } from '../hooks/useEscrow';
 import { EscrowBalanceCard } from '../components/agents/EscrowBalanceCard';
 import { EscrowTransactionList } from '../components/agents/EscrowTransactionList';
 import { EscrowDepositFlow } from '../components/agents/EscrowDepositFlow';
+import ContractBadge from '../components/shared/ContractBadge';
+import { getContractByName } from '../lib/contracts';
 
 export default function EscrowDashboard() {
   const { id } = useParams<{ id: string }>();
@@ -25,7 +27,12 @@ export default function EscrowDashboard() {
       <div className="flex items-center gap-3">
         <Wallet className="w-6 h-6 text-green-400" />
         <div>
-          <h1 className="text-2xl font-bold text-white">Escrow Dashboard</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-white">Escrow Dashboard</h1>
+            {getContractByName('PlatformEscrow') && (
+              <ContractBadge variant="inline" contract={getContractByName('PlatformEscrow')!} />
+            )}
+          </div>
           {agent && (
             <p className="text-sm text-gray-400">
               {agent.walletAddress.slice(0, 6)}...{agent.walletAddress.slice(-4)} &middot; {agent.agentType}

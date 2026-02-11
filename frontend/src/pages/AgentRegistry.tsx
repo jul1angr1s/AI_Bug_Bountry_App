@@ -6,6 +6,8 @@ import { AgentRegistryTable } from '../components/agents/AgentRegistryTable';
 import { RegisterAgentModal } from '../components/agents/RegisterAgentModal';
 import ReputationLeaderboard from '../components/agents/ReputationLeaderboard';
 import { registerAgent } from '../lib/api';
+import ContractBadge from '../components/shared/ContractBadge';
+import { getContractByName } from '../lib/contracts';
 import type { AgentIdentityType } from '../types/dashboard';
 
 export default function AgentRegistry() {
@@ -47,6 +49,9 @@ export default function AgentRegistry() {
         <div className="flex items-center gap-3">
           <Users className="w-6 h-6 text-blue-400" />
           <h1 className="text-2xl font-bold text-white">Agent Registry</h1>
+          {getContractByName('AgentIdentityRegistry') && (
+            <ContractBadge variant="inline" contract={getContractByName('AgentIdentityRegistry')!} />
+          )}
         </div>
         <button
           onClick={() => setIsModalOpen(true)}

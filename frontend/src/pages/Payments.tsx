@@ -8,6 +8,8 @@ import { PayoutChart } from '../components/payments/PayoutChart';
 import { RecentPaymentsTable } from '../components/payments/RecentPaymentsTable';
 import { TopEarnersLeaderboard } from '../components/payments/TopEarnersLeaderboard';
 import { ProposePaymentModal, PaymentProposal } from '../components/payments/ProposePaymentModal';
+import ContractBadge from '../components/shared/ContractBadge';
+import { getContractByName } from '../lib/contracts';
 import { api } from '../lib/api';
 
 export default function Payments() {
@@ -47,9 +49,14 @@ export default function Payments() {
       <header className="w-full px-6 py-8 md:px-10">
         <div className="flex flex-wrap justify-between items-end gap-4">
           <div className="flex flex-col gap-2">
-            <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900 dark:text-white">
-              USDC Payments & Rewards
-            </h2>
+            <div className="flex items-center gap-3">
+              <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900 dark:text-white">
+                USDC Payments & Rewards
+              </h2>
+              {getContractByName('BountyPool') && (
+                <ContractBadge variant="inline" contract={getContractByName('BountyPool')!} />
+              )}
+            </div>
             <p className="text-slate-500 dark:text-slate-400 text-base max-w-2xl">
               Manage automated payouts and view metrics. Real-time settlement on Base Sepolia.
             </p>

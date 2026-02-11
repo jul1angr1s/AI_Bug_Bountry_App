@@ -37,6 +37,129 @@ const DepositEscrowSchema = z.object({
 });
 
 // =============================================
+// SVG Generation Helpers
+// =============================================
+
+function generateAgentSvg(
+  tokenId: number,
+  agentType: 'RESEARCHER' | 'VALIDATOR',
+  walletAddress: string,
+  reputationScore: number,
+) {
+  const isResearcher = agentType === 'RESEARCHER';
+  const accentColor = isResearcher ? '#3b82f6' : '#8b5cf6';
+  const accentGlow = isResearcher ? '#3b82f680' : '#8b5cf680';
+  const typeLabel = isResearcher ? 'RESEARCHER' : 'VALIDATOR';
+  const truncWallet = `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`;
+  // Reputation arc: full circle = 283 (circumference of r=45), score maps 0-100
+  const circumference = 283;
+  const arcOffset = circumference - (reputationScore / 100) * circumference;
+
+  // Distinct agent type icons
+  const icon = isResearcher
+    // Shield icon for researcher
+    ? `<path d="M200 105 L200 105" fill="none"/>
+       <path d="M200 90 C210 90 225 95 230 100 L230 120 C230 140 218 155 200 162 C182 155 170 140 170 120 L170 100 C175 95 190 90 200 90Z" fill="none" stroke="${accentColor}" stroke-width="2.5"/>
+       <path d="M190 125 L197 132 L212 117" fill="none" stroke="${accentColor}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`
+    // Checkmark-circle icon for validator
+    : `<circle cx="200" cy="126" r="22" fill="none" stroke="${accentColor}" stroke-width="2.5"/>
+       <path d="M190 126 L197 133 L212 118" fill="none" stroke="${accentColor}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`;
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400">
+  <defs>
+    <linearGradient id="bg-${tokenId}" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0a0e1a"/>
+      <stop offset="50%" stop-color="#111827"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <radialGradient id="glow-${tokenId}" cx="50%" cy="35%" r="40%">
+      <stop offset="0%" stop-color="${accentGlow}"/>
+      <stop offset="100%" stop-color="transparent"/>
+    </radialGradient>
+    <pattern id="grid-${tokenId}" width="20" height="20" patternUnits="userSpaceOnUse">
+      <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#1e293b" stroke-width="0.5" opacity="0.4"/>
+    </pattern>
+  </defs>
+
+  <!-- Background layers -->
+  <rect width="400" height="400" fill="url(#bg-${tokenId})" rx="16"/>
+  <rect width="400" height="400" fill="url(#grid-${tokenId})" rx="16"/>
+  <rect width="400" height="400" fill="url(#glow-${tokenId})" rx="16"/>
+
+  <!-- Border -->
+  <rect x="8" y="8" width="384" height="384" rx="12" fill="none" stroke="${accentColor}" stroke-width="1" opacity="0.3"/>
+  <rect x="12" y="12" width="376" height="376" rx="10" fill="none" stroke="${accentColor}" stroke-width="0.5" opacity="0.15"/>
+
+  <!-- Token ID badge (top-left) -->
+  <rect x="24" y="24" width="72" height="28" rx="14" fill="${accentColor}" opacity="0.15"/>
+  <text x="60" y="43" text-anchor="middle" fill="${accentColor}" font-family="monospace" font-size="13" font-weight="bold">#${tokenId}</text>
+
+  <!-- Agent type icon (center) -->
+  <circle cx="200" cy="126" r="42" fill="${accentColor}" opacity="0.08"/>
+  ${icon}
+
+  <!-- Agent type label -->
+  <rect x="145" y="178" width="110" height="24" rx="12" fill="${accentColor}" opacity="0.12"/>
+  <text x="200" y="195" text-anchor="middle" fill="${accentColor}" font-family="monospace" font-size="11" font-weight="bold" letter-spacing="1.5">${typeLabel}</text>
+
+  <!-- Name -->
+  <text x="200" y="232" text-anchor="middle" fill="white" font-family="monospace" font-size="20" font-weight="bold">BBAGENT #${tokenId}</text>
+
+  <!-- Wallet address -->
+  <text x="200" y="258" text-anchor="middle" fill="#64748b" font-family="monospace" font-size="11">${truncWallet}</text>
+
+  <!-- Reputation meter -->
+  <circle cx="200" cy="310" r="45" fill="none" stroke="#1e293b" stroke-width="5"/>
+  <circle cx="200" cy="310" r="45" fill="none" stroke="${accentColor}" stroke-width="5"
+    stroke-dasharray="${circumference}" stroke-dashoffset="${arcOffset}"
+    stroke-linecap="round" transform="rotate(-90 200 310)" opacity="0.8"/>
+  <text x="200" y="306" text-anchor="middle" fill="white" font-family="monospace" font-size="18" font-weight="bold">${reputationScore}</text>
+  <text x="200" y="322" text-anchor="middle" fill="#64748b" font-family="monospace" font-size="9">REPUTATION</text>
+
+  <!-- Branding -->
+  <text x="200" y="385" text-anchor="middle" fill="#334155" font-family="monospace" font-size="9" letter-spacing="2">THUNDER SECURITY</text>
+</svg>`;
+}
+
+function generateUnregisteredSvg(tokenId: number) {
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400">
+  <defs>
+    <linearGradient id="ubg-${tokenId}" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0a0e1a"/>
+      <stop offset="100%" stop-color="#111827"/>
+    </linearGradient>
+    <pattern id="ugrid-${tokenId}" width="20" height="20" patternUnits="userSpaceOnUse">
+      <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#1e293b" stroke-width="0.5" opacity="0.3"/>
+    </pattern>
+  </defs>
+
+  <rect width="400" height="400" fill="url(#ubg-${tokenId})" rx="16"/>
+  <rect width="400" height="400" fill="url(#ugrid-${tokenId})" rx="16"/>
+  <rect x="8" y="8" width="384" height="384" rx="12" fill="none" stroke="#475569" stroke-width="1" opacity="0.3"/>
+
+  <!-- Token ID -->
+  <rect x="24" y="24" width="72" height="28" rx="14" fill="#475569" opacity="0.15"/>
+  <text x="60" y="43" text-anchor="middle" fill="#64748b" font-family="monospace" font-size="13" font-weight="bold">#${tokenId}</text>
+
+  <!-- Placeholder icon -->
+  <circle cx="200" cy="140" r="36" fill="#475569" opacity="0.1"/>
+  <circle cx="200" cy="140" r="36" fill="none" stroke="#475569" stroke-width="1.5" stroke-dasharray="6 4" opacity="0.4"/>
+  <text x="200" y="147" text-anchor="middle" fill="#475569" font-family="monospace" font-size="28">?</text>
+
+  <!-- Title -->
+  <text x="200" y="215" text-anchor="middle" fill="#94a3b8" font-family="monospace" font-size="18" font-weight="bold">BBAGENT #${tokenId}</text>
+  <text x="200" y="242" text-anchor="middle" fill="#475569" font-family="monospace" font-size="12">Unregistered Agent</text>
+
+  <!-- Info text -->
+  <text x="200" y="290" text-anchor="middle" fill="#334155" font-family="monospace" font-size="10">This token has been minted but</text>
+  <text x="200" y="305" text-anchor="middle" fill="#334155" font-family="monospace" font-size="10">not yet linked to an agent profile.</text>
+
+  <!-- Branding -->
+  <text x="200" y="385" text-anchor="middle" fill="#334155" font-family="monospace" font-size="9" letter-spacing="2">THUNDER SECURITY</text>
+</svg>`;
+}
+
+// =============================================
 // STATIC ROUTES (must be before /:id param)
 // =============================================
 
@@ -44,7 +167,7 @@ const DepositEscrowSchema = z.object({
 router.get('/metadata/:tokenId', async (req: Request, res: Response) => {
   try {
     const tokenId = parseInt(req.params.tokenId);
-    if (isNaN(tokenId) || tokenId <= 0) {
+    if (isNaN(tokenId) || tokenId < 0) {
       return res.status(404).json({ error: 'Token not found' });
     }
 
@@ -53,36 +176,30 @@ router.get('/metadata/:tokenId', async (req: Request, res: Response) => {
       include: { reputation: true },
     });
 
+    // Fallback metadata for minted tokens not yet linked to a DB agent
     if (!agent) {
-      return res.status(404).json({ error: 'Token not found' });
+      const fallbackSvg = generateUnregisteredSvg(tokenId);
+      const svgBase64 = Buffer.from(fallbackSvg).toString('base64');
+
+      const metadata = {
+        name: `BugBounty Agent #${tokenId}`,
+        description: 'Unregistered agent on the Thunder Security Bug Bounty Platform. This soulbound NFT (ERC-8004) has been minted but not yet linked to an agent profile.',
+        image: `data:image/svg+xml;base64,${svgBase64}`,
+        external_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/agents`,
+        attributes: [
+          { trait_type: 'Agent Type', value: 'Unregistered' },
+          { trait_type: 'Active', value: 'No' },
+        ],
+      };
+
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Cache-Control', 'public, max-age=300');
+      return res.json(metadata);
     }
 
     const agentTypeLabel = agent.agentType === 'RESEARCHER' ? 'Security Researcher' : 'Validation Agent';
-    const badgeColor = agent.agentType === 'RESEARCHER' ? '#3b82f6' : '#8b5cf6';
-    const iconPath = agent.agentType === 'RESEARCHER'
-      ? 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z'
-      : 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z';
-
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400">
-  <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#0f172a"/>
-      <stop offset="100%" style="stop-color:#1e293b"/>
-    </linearGradient>
-  </defs>
-  <rect width="400" height="400" fill="url(#bg)" rx="20"/>
-  <rect x="20" y="20" width="360" height="360" rx="12" fill="none" stroke="${badgeColor}" stroke-width="2" opacity="0.5"/>
-  <circle cx="200" cy="120" r="50" fill="${badgeColor}" opacity="0.2"/>
-  <svg x="176" y="96" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="${badgeColor}" stroke-width="1.5">
-    <path d="${iconPath}"/>
-  </svg>
-  <text x="200" y="210" text-anchor="middle" fill="white" font-family="monospace" font-size="18" font-weight="bold">BBAGENT #${tokenId}</text>
-  <text x="200" y="240" text-anchor="middle" fill="${badgeColor}" font-family="monospace" font-size="14">${agentTypeLabel}</text>
-  <text x="200" y="280" text-anchor="middle" fill="#94a3b8" font-family="monospace" font-size="10">${agent.walletAddress.slice(0, 6)}...${agent.walletAddress.slice(-4)}</text>
-  <text x="200" y="310" text-anchor="middle" fill="#94a3b8" font-family="monospace" font-size="10">Score: ${agent.reputation?.reputationScore ?? 0}/100</text>
-  <text x="200" y="370" text-anchor="middle" fill="#475569" font-family="monospace" font-size="9">Thunder Security Platform</text>
-</svg>`;
-
+    const reputationScore = agent.reputation?.reputationScore ?? 0;
+    const svg = generateAgentSvg(tokenId, agent.agentType as 'RESEARCHER' | 'VALIDATOR', agent.walletAddress, reputationScore);
     const svgBase64 = Buffer.from(svg).toString('base64');
 
     const metadata = {
@@ -94,7 +211,7 @@ router.get('/metadata/:tokenId', async (req: Request, res: Response) => {
         { trait_type: 'Agent Type', value: agent.agentType },
         { trait_type: 'Wallet', value: agent.walletAddress },
         { trait_type: 'Registration Date', value: agent.registeredAt.toISOString() },
-        { trait_type: 'Reputation Score', display_type: 'number', value: agent.reputation?.reputationScore ?? 0 },
+        { trait_type: 'Reputation Score', display_type: 'number', value: reputationScore },
         { trait_type: 'Active', value: agent.isActive ? 'Yes' : 'No' },
       ],
     };

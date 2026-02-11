@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { label: 'Payments', path: '/payments' },
   { label: 'Agents', path: '/agents' },
   { label: 'x402 Payments', path: '/x402-payments' },
+  { label: 'Contracts', path: '/contracts' },
 ];
 
 export default function Sidebar() {

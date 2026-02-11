@@ -5,6 +5,8 @@ import { useAgentIdentity } from '../hooks/useAgentIdentities';
 import { useAgentReputation, useAgentFeedback } from '../hooks/useReputation';
 import ReputationScoreCard from '../components/agents/ReputationScoreCard';
 import FeedbackHistoryList from '../components/agents/FeedbackHistoryList';
+import ContractBadge from '../components/shared/ContractBadge';
+import { getContractByName } from '../lib/contracts';
 
 type FeedbackFilter = 'ALL' | 'AS_RESEARCHER' | 'AS_VALIDATOR';
 
@@ -39,7 +41,12 @@ export default function ReputationTracker() {
       <div className="flex items-center gap-3">
         <Award className="w-6 h-6 text-yellow-400" />
         <div>
-          <h1 className="text-2xl font-bold text-white">Reputation Tracker</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-white">Reputation Tracker</h1>
+            {getContractByName('AgentReputationRegistry') && (
+              <ContractBadge variant="inline" contract={getContractByName('AgentReputationRegistry')!} />
+            )}
+          </div>
           {agent && (
             <p className="text-sm text-gray-400">
               {agent.walletAddress.slice(0, 6)}...{agent.walletAddress.slice(-4)} &middot; {agent.agentType}
