@@ -3,10 +3,11 @@
  * 
  * Updates the deployed BountyPool contract on Base Sepolia with demo-friendly amounts:
  * - Base: 1 USDC (from 100 USDC)
+ * - CRITICAL: 10x multiplier = 10 USDC
  * - HIGH: 5x multiplier = 5 USDC
  * - MEDIUM: 3x multiplier = 3 USDC
  * - LOW: 1x multiplier = 1 USDC
- * 
+ *
  * This allows efficient use of the 50 USDC pool for demonstrations.
  */
 
@@ -41,11 +42,13 @@ async function main() {
   // Read current values
   console.log('📊 Current values:');
   const currentBase = await bountyPool.baseBountyAmount();
+  const currentCriticalMultiplier = await bountyPool.severityMultipliers(0); // CRITICAL
   const currentHighMultiplier = await bountyPool.severityMultipliers(1); // HIGH
   const currentMediumMultiplier = await bountyPool.severityMultipliers(2); // MEDIUM
   const currentLowMultiplier = await bountyPool.severityMultipliers(3); // LOW
-  
+
   console.log('   Base:', ethers.formatUnits(currentBase, 6), 'USDC');
+  console.log('   CRITICAL multiplier:', currentCriticalMultiplier.toString(), 'basis points');
   console.log('   HIGH multiplier:', currentHighMultiplier.toString(), 'basis points');
   console.log('   MEDIUM multiplier:', currentMediumMultiplier.toString(), 'basis points');
   console.log('   LOW multiplier:', currentLowMultiplier.toString(), 'basis points\n');
@@ -70,10 +73,17 @@ async function main() {
   console.log('2️⃣  Updating severity multipliers...\n');
   
   const updates = [
-    { 
-      severity: 1, 
-      multiplier: 50000, 
-      name: 'HIGH', 
+    {
+      severity: 0,
+      multiplier: 100000,
+      name: 'CRITICAL',
+      result: '10 USDC',
+      enumValue: 'Severity.CRITICAL'
+    },
+    {
+      severity: 1,
+      multiplier: 50000,
+      name: 'HIGH',
       result: '5 USDC',
       enumValue: 'Severity.HIGH'
     },
@@ -114,11 +124,13 @@ async function main() {
   console.log('3️⃣  Verifying updates...\n');
   
   const updatedBase = await bountyPool.baseBountyAmount();
+  const criticalAmount = await bountyPool.calculateBountyAmount(0); // CRITICAL
   const highAmount = await bountyPool.calculateBountyAmount(1); // HIGH
   const mediumAmount = await bountyPool.calculateBountyAmount(2); // MEDIUM
   const lowAmount = await bountyPool.calculateBountyAmount(3); // LOW
-  
+
   console.log('   ✅ Base amount:', ethers.formatUnits(updatedBase, 6), 'USDC');
+  console.log('   ✅ CRITICAL severity:', ethers.formatUnits(criticalAmount, 6), 'USDC');
   console.log('   ✅ HIGH severity:', ethers.formatUnits(highAmount, 6), 'USDC');
   console.log('   ✅ MEDIUM severity:', ethers.formatUnits(mediumAmount, 6), 'USDC');
   console.log('   ✅ LOW severity:', ethers.formatUnits(lowAmount, 6), 'USDC\n');
@@ -127,20 +139,23 @@ async function main() {
   console.log('4️⃣  Budget calculation with 50 USDC pool:\n');
   
   const poolBudget = 50_000_000n; // 50 USDC
+  const maxCritical = Number(poolBudget) / Number(criticalAmount);
   const maxHigh = Number(poolBudget) / Number(highAmount);
   const maxMedium = Number(poolBudget) / Number(mediumAmount);
   const maxLow = Number(poolBudget) / Number(lowAmount);
-  
+
   console.log('   Maximum payments possible:');
+  console.log('   • CRITICAL (10 USDC):', Math.floor(maxCritical), 'payments');
   console.log('   • HIGH (5 USDC):', Math.floor(maxHigh), 'payments');
   console.log('   • MEDIUM (3 USDC):', Math.floor(maxMedium), 'payments');
   console.log('   • LOW (1 USDC):', Math.floor(maxLow), 'payments\n');
-  
-  console.log('   Demo plan (3 payments):');
+
+  console.log('   Demo plan (4 payments):');
+  console.log('   • 1x CRITICAL = 10 USDC');
   console.log('   • 1x HIGH = 5 USDC');
   console.log('   • 1x MEDIUM = 3 USDC');
   console.log('   • 1x LOW = 1 USDC');
-  console.log('   • Total = 9 USDC (18% of budget)\n');
+  console.log('   • Total = 19 USDC (38% of budget)\n');
   
   console.log('✅ All updates completed successfully!');
   console.log('\n🎯 Next steps:');

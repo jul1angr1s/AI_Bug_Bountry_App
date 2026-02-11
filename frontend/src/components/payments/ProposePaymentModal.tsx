@@ -5,7 +5,7 @@ import { fetchProtocols } from '../../lib/api';
 export interface PaymentProposal {
   protocolId: string;
   recipientAddress: string;
-  severity: 'HIGH' | 'MEDIUM' | 'LOW';
+  severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
   justification: string;
 }
 
@@ -110,6 +110,7 @@ export function ProposePaymentModal({ isOpen, onClose, onSubmit }: ProposePaymen
 
   const getSeverityAmount = (severity: string) => {
     const amounts: Record<string, string> = {
+      CRITICAL: '10 USDC',
       HIGH: '5 USDC',
       MEDIUM: '3 USDC',
       LOW: '1 USDC',
@@ -236,6 +237,7 @@ export function ProposePaymentModal({ isOpen, onClose, onSubmit }: ProposePaymen
                   onChange={(e) => setFormData({ ...formData, severity: e.target.value as any })}
                   className="w-full bg-background-dark border border-slate-700 rounded-lg pl-10 pr-10 py-3 text-white focus:border-accent-gold focus:ring-1 focus:ring-accent-gold outline-none transition-all appearance-none cursor-pointer text-sm"
                 >
+                  <option value="CRITICAL">Critical ({getSeverityAmount('CRITICAL')})</option>
                   <option value="HIGH">High ({getSeverityAmount('HIGH')})</option>
                   <option value="MEDIUM">Medium ({getSeverityAmount('MEDIUM')})</option>
                   <option value="LOW">Low ({getSeverityAmount('LOW')})</option>

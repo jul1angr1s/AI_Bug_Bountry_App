@@ -21,8 +21,8 @@ export function PayoutChart({ onSeverityClick, isLoading }: PayoutChartProps) {
     return (
       <div className="bg-white dark:bg-card-dark rounded-xl border border-slate-200 dark:border-slate-800 p-6">
         <div className="h-6 bg-slate-200 dark:bg-slate-700 rounded w-1/3 mb-6 animate-pulse"></div>
-        <div className="grid grid-cols-3 h-[200px] items-end gap-4 px-2">
-          {[1, 2, 3].map((i) => (
+        <div className="grid grid-cols-4 h-[200px] items-end gap-4 px-2">
+          {[1, 2, 3, 4].map((i) => (
             <div key={i} className="w-full bg-slate-200 dark:bg-slate-700 rounded-t-lg animate-pulse" style={{ height: `${30 + i * 20}%` }}></div>
           ))}
         </div>
@@ -33,9 +33,10 @@ export function PayoutChart({ onSeverityClick, isLoading }: PayoutChartProps) {
   // Calculate severity distribution
   // For demo purposes, using fixed distribution based on new amounts
   const severityData: SeverityData[] = [
-    { label: 'High', amount: 5, color: 'from-orange-900 to-orange-500', percentage: 100 },
-    { label: 'Medium', amount: 3, color: 'from-yellow-900 to-yellow-500', percentage: 60 },
-    { label: 'Low', amount: 1, color: 'from-blue-900 to-blue-500', percentage: 20 },
+    { label: 'Critical', amount: 10, color: 'from-red-900 to-red-500', percentage: 100 },
+    { label: 'High', amount: 5, color: 'from-orange-900 to-orange-500', percentage: 50 },
+    { label: 'Medium', amount: 3, color: 'from-yellow-900 to-yellow-500', percentage: 30 },
+    { label: 'Low', amount: 1, color: 'from-blue-900 to-blue-500', percentage: 10 },
   ];
 
   const maxAmount = Math.max(...severityData.map(d => d.amount));
@@ -49,7 +50,7 @@ export function PayoutChart({ onSeverityClick, isLoading }: PayoutChartProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 h-[200px] items-end gap-4 px-2">
+      <div className="grid grid-cols-4 h-[200px] items-end gap-4 px-2">
         {severityData.map((data, index) => {
           const height = (data.amount / maxAmount) * 100;
           const isHovered = hoveredIndex === index;

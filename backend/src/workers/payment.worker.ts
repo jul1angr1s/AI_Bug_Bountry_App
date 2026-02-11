@@ -323,6 +323,9 @@ async function processPayment(job: Job<PaymentJobData>): Promise<void> {
 
     const paidAt = new Date();
 
+    // Reconcile DB amount with actual on-chain amount to prevent stale values
+    const actualAmount = Number(ethers.formatUnits(releaseResult.amount, usdcConfig.decimals));
+
     await prisma.payment.update({
       where: { id: paymentId },
       data: {
@@ -330,16 +333,20 @@ async function processPayment(job: Job<PaymentJobData>): Promise<void> {
         txHash: releaseResult.txHash,
         paidAt,
         onChainBountyId: releaseResult.bountyId,
+        amount: actualAmount,
       },
     });
 
     console.log('[PaymentWorker] Payment record updated to COMPLETED');
+    if (actualAmount !== payment.amount) {
+      console.log(`[PaymentWorker] Reconciled amount: ${payment.amount} -> ${actualAmount} USDC`);
+    }
 
     // Step 8: Emit WebSocket event on success (Task 5.5)
     await emitPaymentReleased(
       protocolId,
       paymentId,
-      payment.amount,
+      actualAmount,
       releaseResult.txHash,
       researcherAddress,
       paidAt,
