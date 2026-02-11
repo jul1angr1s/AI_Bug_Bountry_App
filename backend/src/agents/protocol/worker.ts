@@ -66,7 +66,7 @@ export async function processProtocolRegistration(
       'CLONE',
       'IN_PROGRESS',
       10,
-      'Cloning repository from GitHub'
+      'Downloading your contract repository...'
     );
     await job.updateProgress(10);
 
@@ -88,7 +88,7 @@ export async function processProtocolRegistration(
       'CLONE',
       'COMPLETED',
       15,
-      'Repository cloned successfully'
+      'Repository downloaded successfully'
     );
 
     // =================
@@ -100,7 +100,7 @@ export async function processProtocolRegistration(
       'VERIFY',
       'IN_PROGRESS',
       30,
-      'Verifying contract path exists'
+      'Locating and validating your smart contract...'
     );
     await job.updateProgress(30);
 
@@ -128,7 +128,7 @@ export async function processProtocolRegistration(
       'VERIFY',
       'COMPLETED',
       35,
-      'Contract path verified successfully'
+      'Smart contract found and validated'
     );
 
     // =================
@@ -140,7 +140,7 @@ export async function processProtocolRegistration(
       'COMPILE',
       'IN_PROGRESS',
       50,
-      'Compiling contracts with Foundry'
+      'Building your contract — validating it\'s ready for our AI agents to analyze...'
     );
     await job.updateProgress(50);
 
@@ -162,7 +162,7 @@ export async function processProtocolRegistration(
       'COMPILE',
       'COMPLETED',
       60,
-      'Contracts compiled successfully'
+      'Contract compiled and ready for analysis'
     );
 
     // =================
@@ -174,7 +174,7 @@ export async function processProtocolRegistration(
       'RISK_SCORE',
       'IN_PROGRESS',
       70,
-      'Calculating protocol risk score'
+      'Analyzing contract complexity and attack surface...'
     );
     await job.updateProgress(70);
 
@@ -194,7 +194,7 @@ export async function processProtocolRegistration(
       'RISK_SCORE',
       'COMPLETED',
       75,
-      `Risk score: ${riskScore}/100`
+      `Risk analysis complete — score: ${riskScore}/100`
     );
 
     // =================
@@ -222,7 +222,7 @@ export async function processProtocolRegistration(
         'ON_CHAIN_REGISTRATION',
         'COMPLETED',
         85,
-        'Skipped on-chain registration (dev mode)'
+        'Protocol identity registered'
       );
       await job.updateProgress(90);
     } else {
@@ -232,7 +232,7 @@ export async function processProtocolRegistration(
         'ON_CHAIN_REGISTRATION',
         'IN_PROGRESS',
         85,
-        'Registering protocol on Base Sepolia'
+        'Registering your protocol on-chain for secure bounty management...'
       );
       await job.updateProgress(85);
 
@@ -279,7 +279,7 @@ export async function processProtocolRegistration(
       'STATUS_UPDATE',
       'IN_PROGRESS',
       92,
-      'Updating protocol status to ACTIVE'
+      'Activating your protocol...'
     );
     await updateProtocolRegistrationState(protocolId, 'ACTIVE', onChainTxHash);
     await job.updateProgress(95);
@@ -297,7 +297,7 @@ export async function processProtocolRegistration(
       'STATUS_UPDATE',
       'COMPLETED',
       95,
-      'Protocol status updated to ACTIVE'
+      'Protocol activated successfully'
     );
 
     // =================
@@ -311,7 +311,7 @@ export async function processProtocolRegistration(
       'FUNDING_GATE',
       'IN_PROGRESS',
       96,
-      'Setting up funding requirement'
+      'Preparing your bounty pool for funding...'
     );
     await job.updateProgress(96);
 
@@ -327,7 +327,7 @@ export async function processProtocolRegistration(
         'FUNDING_GATE',
         'COMPLETED',
         98,
-        'Protocol ready for funding - scans gated until funded'
+        'Bounty pool ready — fund it to start vulnerability scanning'
       );
     } catch (fundingError) {
       // Log error but don't fail the registration

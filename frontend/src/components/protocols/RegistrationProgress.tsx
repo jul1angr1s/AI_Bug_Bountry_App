@@ -6,13 +6,13 @@ interface RegistrationProgressProps {
 }
 
 const REGISTRATION_STEPS = [
-  { key: 'CLONE', label: 'Clone Repository', description: 'Cloning from GitHub' },
-  { key: 'VERIFY', label: 'Verify Contract', description: 'Verifying contract path' },
-  { key: 'COMPILE', label: 'Compile Contracts', description: 'Compiling with Foundry' },
-  { key: 'RISK_SCORE', label: 'Calculate Risk', description: 'Analyzing contract risk' },
-  { key: 'ON_CHAIN_REGISTRATION', label: 'On-chain Registration', description: 'Registering on Base Sepolia' },
-  { key: 'STATUS_UPDATE', label: 'Update Status', description: 'Setting protocol to ACTIVE' },
-  { key: 'TRIGGER_SCAN', label: 'Start Scan', description: 'Triggering vulnerability scan' },
+  { key: 'CLONE', label: 'Clone Repository', description: 'Downloading your contract repository for analysis' },
+  { key: 'VERIFY', label: 'Verify Contract', description: 'Validating your smart contract is ready for security scanning' },
+  { key: 'COMPILE', label: 'Compile Contracts', description: 'Building and validating your contract for our AI security agents' },
+  { key: 'RISK_SCORE', label: 'Calculate Risk', description: 'Analyzing contract complexity and potential attack surface' },
+  { key: 'ON_CHAIN_REGISTRATION', label: 'On-chain Registration', description: 'Registering your protocol on the blockchain for secure bounty management' },
+  { key: 'STATUS_UPDATE', label: 'Activate Protocol', description: 'Activating your protocol on the platform' },
+  { key: 'FUNDING_GATE', label: 'Setup Bounty Pool', description: 'Preparing your bounty pool for researcher payouts' },
 ];
 
 /**

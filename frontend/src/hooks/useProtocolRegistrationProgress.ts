@@ -187,5 +187,7 @@ export function useProtocolRegistrationProgress(protocolId: string | null) {
     return cleanup;
   }, [protocolId, connect, cleanup]);
 
-  return progressState;
+  const isCompleted = progressState.state === 'COMPLETED';
+
+  return { ...progressState, isCompleted };
 }

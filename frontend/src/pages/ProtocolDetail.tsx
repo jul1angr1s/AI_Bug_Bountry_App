@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Github, ExternalLink, Play, FileText, Shield, AlertCircle, Clock, CheckCircle, XCircle } from 'lucide-react';
+import { ArrowLeft, Github, ExternalLink, Play, FileText, Shield, AlertCircle, Clock, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { useProtocol, useProtocolRealtime } from '../hooks/useProtocol';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchScans, fetchScanFindings, type FundingState } from '../lib/api';
@@ -10,6 +10,7 @@ import StatusBadge from '../components/shared/StatusBadge';
 import RegistrationProgress from '../components/protocols/RegistrationProgress';
 import ScanProgressLive from '../components/protocols/ScanProgressLive';
 import FundingGate from '../components/protocols/FundingGate';
+import { useProtocolRegistrationProgress } from '../hooks/useProtocolRegistrationProgress';
 import ScanConfirmationModal from '../components/protocols/ScanConfirmationModal';
 import { useLatestScan } from '../hooks/useLatestScan';
 import { useScanProgressLive } from '../hooks/useScanProgressLive';
@@ -32,6 +33,18 @@ export default function ProtocolDetail() {
   useProtocolRealtime(id || '');
   const { data: latestScan } = useLatestScan(id || '');
   const progressState = useScanProgressLive(latestScan?.id || null);
+
+  // SSE registration progress - bridges completion to React Query refetch
+  const registrationProgress = useProtocolRegistrationProgress(
+    protocol?.status === 'PENDING' ? id || null : null
+  );
+
+  // When SSE reports registration COMPLETED, immediately refetch protocol data
+  useEffect(() => {
+    if (registrationProgress.isCompleted && protocol?.status === 'PENDING') {
+      queryClient.invalidateQueries({ queryKey: ['protocol', id] });
+    }
+  }, [registrationProgress.isCompleted, protocol?.status, queryClient, id]);
 
   // Derived state for funding
   const canRequestScan = protocol?.canRequestScan || false;
@@ -305,10 +318,23 @@ export default function ProtocolDetail() {
                 <h3 className="text-lg font-semibold text-white mb-4">Protocol Overview</h3>
 
                 {/* Live Progress Card */}
-                {protocol.status === 'PENDING' && (
+                {protocol.status === 'PENDING' && !registrationProgress.isCompleted && (
                   <div className="bg-purple-500/5 border border-purple-500/20 rounded-lg p-6 mb-6">
                     <h4 className="text-base font-semibold text-white mb-4">Registration Progress</h4>
                     <RegistrationProgress protocolId={id || ''} />
+                  </div>
+                )}
+
+                {/* Transition state: SSE completed but protocol data hasn't refetched yet */}
+                {protocol.status === 'PENDING' && registrationProgress.isCompleted && (
+                  <div className="bg-green-500/5 border border-green-500/20 rounded-lg p-6 mb-6">
+                    <div className="flex items-center gap-3">
+                      <Loader2 className="w-5 h-5 text-green-400 animate-spin" />
+                      <div>
+                        <h4 className="text-base font-semibold text-green-400">Registration complete!</h4>
+                        <p className="text-sm text-gray-400 mt-1">Preparing your bounty pool...</p>
+                      </div>
+                    </div>
                   </div>
                 )}
 
