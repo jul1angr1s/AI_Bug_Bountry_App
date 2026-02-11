@@ -273,28 +273,17 @@ router.get('/:id/progress', sseAuthenticate, async (req, res, next) => {
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
 
-    // Send initial state
-    res.write(`data: ${JSON.stringify({
-      eventType: 'validation:progress',
-      timestamp: new Date().toISOString(),
-      validationId: id,
-      protocolId,
-      data: {
-        currentStep: 'DECRYPT_PROOF',
-        state: proof.status === 'VALIDATING' ? 'RUNNING' : proof.status,
-        progress: 0,
-        message: 'Connected to validation progress stream',
-        workerType: 'LLM',
-      },
-    })}\n\n`);
-
-    // Subscribe to Redis for real-time updates
+    // Subscribe to Redis FIRST so we don't miss events during the initial state read
     const redis = getRedisClient();
     const subscriber = redis.duplicate();
-
-    await subscriber.subscribe(`validation:${id}:progress`);
+    const bufferedMessages: string[] = [];
+    let streaming = false;
 
     subscriber.on('message', (_channel: string, message: string) => {
+      if (!streaming) {
+        bufferedMessages.push(message);
+        return;
+      }
       res.write(`data: ${message}\n\n`);
 
       // Check if validation completed
@@ -307,6 +296,48 @@ router.get('/:id/progress', sseAuthenticate, async (req, res, next) => {
         }
       } catch { /* ignore parse errors */ }
     });
+
+    await subscriber.subscribe(`validation:${id}:progress`);
+
+    // Read cached latest progress (set by emitValidationProgress)
+    const cachedProgress = await redis.get(`validation:${id}:current-progress`);
+    const initialState = cachedProgress
+      ? cachedProgress
+      : JSON.stringify({
+          eventType: 'validation:progress',
+          timestamp: new Date().toISOString(),
+          validationId: id,
+          protocolId,
+          data: {
+            currentStep: 'DECRYPT_PROOF',
+            state: proof.status === 'VALIDATING' ? 'RUNNING' : proof.status,
+            progress: 0,
+            message: 'Connected to validation progress stream',
+            workerType: 'LLM',
+          },
+        });
+
+    // Send initial state (real current progress or fallback)
+    res.write(`data: ${initialState}\n\n`);
+
+    // Flush any events that arrived while we were reading the cache
+    for (const msg of bufferedMessages) {
+      res.write(`data: ${msg}\n\n`);
+    }
+    streaming = true;
+
+    // Check if cached state was already terminal (validation finished before SSE connected)
+    if (cachedProgress) {
+      try {
+        const cached = JSON.parse(cachedProgress);
+        if (cached.data?.state === 'COMPLETED' || cached.data?.state === 'FAILED') {
+          subscriber.unsubscribe();
+          subscriber.quit();
+          res.end();
+          return;
+        }
+      } catch { /* ignore */ }
+    }
 
     // Handle client disconnect
     req.on('close', () => {

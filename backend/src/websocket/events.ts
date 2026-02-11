@@ -555,6 +555,14 @@ export async function emitValidationProgress(
   const { getRedisClient } = await import('../lib/redis.js');
   const redis = getRedisClient();
   await redis.publish(`validation:${validationId}:progress`, JSON.stringify(event));
+
+  // Cache latest progress so late-connecting SSE clients get current state
+  await redis.set(
+    `validation:${validationId}:current-progress`,
+    JSON.stringify(event),
+    'EX',
+    300 // 5 min TTL
+  );
 }
 
 export async function emitValidationLog(
