@@ -1,7 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { getPrismaClient } from '../lib/prisma.js';
 import type { ProtocolRegistrationInput, ProtocolFundingInput } from '../schemas/protocol.schema.js';
-import { invalidateCache, CACHE_KEYS } from '../lib/cache.js';
+import { invalidateCache, invalidateCachePattern, CACHE_KEYS } from '../lib/cache.js';
 
 const prisma = getPrismaClient();
 
@@ -430,6 +430,59 @@ export async function getProtocolById(
   } catch (error) {
     console.error('Error fetching protocol:', error);
     return null;
+  }
+}
+
+export interface DeleteProtocolResult {
+  success: boolean;
+  error?: {
+    code: string;
+    message: string;
+  };
+}
+
+export async function deleteProtocol(
+  protocolId: string,
+  userId: string
+): Promise<DeleteProtocolResult> {
+  try {
+    // Verify protocol exists and user owns it
+    const protocol = await prisma.protocol.findFirst({
+      where: {
+        id: protocolId,
+        authUserId: userId,
+      },
+    });
+
+    if (!protocol) {
+      return {
+        success: false,
+        error: {
+          code: 'PROTOCOL_NOT_FOUND',
+          message: 'Protocol not found or access denied',
+        },
+      };
+    }
+
+    // Delete protocol (cascade rules handle related records)
+    await prisma.protocol.delete({
+      where: { id: protocolId },
+    });
+
+    // Invalidate caches
+    await invalidateCache(CACHE_KEYS.DASHBOARD_STATS(protocolId));
+    await invalidateCachePattern(`protocol:vulnerabilities:${protocolId}:*`);
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting protocol:', error);
+    return {
+      success: false,
+      error: {
+        code: 'DELETE_FAILED',
+        message: 'Failed to delete protocol',
+      },
+    };
   }
 }
 

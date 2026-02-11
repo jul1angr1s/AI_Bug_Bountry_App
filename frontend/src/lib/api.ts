@@ -625,6 +625,25 @@ export async function fetchProtocols(params?: {
   return response.json();
 }
 
+/**
+ * Delete a protocol
+ */
+export async function deleteProtocol(protocolId: string): Promise<{ message: string }> {
+  const headers = await getMutationHeaders();
+  const response = await fetch(`${API_BASE_URL}/api/v1/protocols/${protocolId}`, {
+    method: 'DELETE',
+    headers,
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error?.message || `Failed to delete protocol: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
 // ========== API Client Object ==========
 
 /**
