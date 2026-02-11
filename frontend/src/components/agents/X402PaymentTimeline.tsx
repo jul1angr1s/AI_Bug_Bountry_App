@@ -1,5 +1,5 @@
 import type { X402PaymentEvent } from '../../types/dashboard';
-import { Shield, Search, ExternalLink } from 'lucide-react';
+import { Shield, Search, Zap, FileText, ExternalLink } from 'lucide-react';
 import {
   getExplorerTxUrl,
   isValidTxHash,
@@ -22,26 +22,23 @@ const statusBadge: Record<X402PaymentEvent['status'], { bg: string; text: string
   FAILED: { bg: 'bg-red-900/50', text: 'text-red-300' },
 };
 
+const REQUEST_TYPE_CONFIG: Record<string, { icon: typeof Shield; color: string; fallbackLabel: string }> = {
+  PROTOCOL_REGISTRATION: { icon: Shield, color: 'text-blue-400', fallbackLabel: 'Protocol Registration' },
+  SCAN_REQUEST_FEE: { icon: Search, color: 'text-cyan-400', fallbackLabel: 'Scan Request Fee' },
+  EXPLOIT_SUBMISSION_FEE: { icon: Zap, color: 'text-orange-400', fallbackLabel: 'Exploit Submission Fee' },
+  FINDING_SUBMISSION: { icon: FileText, color: 'text-purple-400', fallbackLabel: 'Finding Submission' },
+};
+
 function RequestTypeCell({ type }: { type: X402PaymentEvent['requestType'] }) {
   const desc = X402_DESCRIPTIONS[type];
-  if (type === 'PROTOCOL_REGISTRATION') {
-    return (
-      <div>
-        <span className="inline-flex items-center gap-1.5 text-gray-300">
-          <Shield className="h-4 w-4 text-blue-400" />
-          {desc?.label || 'Protocol Registration'}
-        </span>
-        {desc?.description && (
-          <p className="text-[11px] text-gray-500 mt-0.5">{desc.description}</p>
-        )}
-      </div>
-    );
-  }
+  const config = REQUEST_TYPE_CONFIG[type] || REQUEST_TYPE_CONFIG.FINDING_SUBMISSION;
+  const Icon = config.icon;
+
   return (
     <div>
       <span className="inline-flex items-center gap-1.5 text-gray-300">
-        <Search className="h-4 w-4 text-purple-400" />
-        {desc?.label || 'Finding Submission'}
+        <Icon className={`h-4 w-4 ${config.color}`} />
+        {desc?.label || config.fallbackLabel}
       </span>
       {desc?.description && (
         <p className="text-[11px] text-gray-500 mt-0.5">{desc.description}</p>
