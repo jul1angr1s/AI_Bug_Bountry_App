@@ -18,6 +18,7 @@ import {
   fundProtocol,
   listProtocols,
   getProtocolById,
+  deleteProtocol,
 } from '../services/protocol.service.js';
 import { addProtocolRegistrationJob } from '../queues/protocol.queue.js';
 import { getRedisClient } from '../lib/redis.js';
@@ -229,6 +230,61 @@ router.post(
       });
     } catch (error) {
       console.error('Error in protocol funding:', error);
+      res.status(500).json({
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Internal server error',
+          requestId: req.id,
+        },
+      });
+    }
+  }
+);
+
+// DELETE /api/v1/protocols/:id - Delete a protocol
+router.delete(
+  '/:id',
+  requireAuth,
+  dashboardRateLimits.protocols,
+  validateRequest({ params: protocolIdSchema }),
+  async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'User ID not found',
+            requestId: req.id,
+          },
+        });
+      }
+
+      const { id } = req.params;
+      const result = await deleteProtocol(id, userId);
+
+      if (!result.success) {
+        if (result.error?.code === 'PROTOCOL_NOT_FOUND') {
+          return res.status(404).json({
+            error: {
+              code: 'PROTOCOL_NOT_FOUND',
+              message: result.error.message,
+              requestId: req.id,
+            },
+          });
+        }
+        return res.status(500).json({
+          error: {
+            code: 'DELETE_FAILED',
+            message: result.error?.message || 'Failed to delete protocol',
+            requestId: req.id,
+          },
+        });
+      }
+
+      res.status(200).json({ message: 'Protocol deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting protocol:', error);
       res.status(500).json({
         error: {
           code: 'INTERNAL_ERROR',

@@ -265,7 +265,7 @@ export default function Protocols() {
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
               {filteredProtocols.map((protocol) => (
-                <ModernProtocolCard key={protocol.id} protocol={adaptProtocolListItem(protocol)} />
+                <ModernProtocolCard key={protocol.id} protocol={adaptProtocolListItem(protocol)} onDelete={() => refetch()} />
               ))}
             </div>
 

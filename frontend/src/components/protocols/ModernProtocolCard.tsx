@@ -1,20 +1,53 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { Protocol } from '@/types/dashboard';
 import { GlowCard } from '../shared/GlowCard';
 import { MaterialIcon } from '../shared/MaterialIcon';
 import { PulseIndicator } from '../shared/PulseIndicator';
 import { ScanProgressModal } from './ScanProgressModal';
 import { useLatestScan } from '@/hooks/useLatestScan';
+import { deleteProtocol } from '@/lib/api';
 
 interface ModernProtocolCardProps {
   protocol: Protocol;
+  onDelete?: () => void;
 }
 
-export default function ModernProtocolCard({ protocol }: ModernProtocolCardProps) {
+export default function ModernProtocolCard({ protocol, onDelete }: ModernProtocolCardProps) {
   const navigate = useNavigate();
   const [showProgressModal, setShowProgressModal] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const { data: latestScan } = useLatestScan(protocol.id);
+
+  // Close menu on outside click
+  useEffect(() => {
+    if (!showMenu) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showMenu]);
+
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    try {
+      await deleteProtocol(protocol.id);
+      toast.success(`"${protocol.contractName}" has been deleted`);
+      setShowDeleteModal(false);
+      onDelete?.();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete protocol');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const handleClick = () => {
     navigate(`/protocols/${protocol.id}`);
@@ -158,12 +191,42 @@ export default function ModernProtocolCard({ protocol }: ModernProtocolCardProps
           </div>
         </div>
 
-        {/* Status Badge with Pulse */}
-        <div
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border ${statusConfig.color}`}
-        >
-          <PulseIndicator status={statusConfig.pulseStatus} size="sm" />
-          <span>{statusConfig.label}</span>
+        <div className="flex items-center gap-2">
+          {/* Status Badge with Pulse */}
+          <div
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border ${statusConfig.color}`}
+          >
+            <PulseIndicator status={statusConfig.pulseStatus} size="sm" />
+            <span>{statusConfig.label}</span>
+          </div>
+
+          {/* Kebab Menu */}
+          <div ref={menuRef} className="relative">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowMenu((prev) => !prev);
+              }}
+              className="p-1 rounded-lg text-gray-500 hover:text-gray-300 hover:bg-navy-900/80 transition-colors"
+            >
+              <MaterialIcon name="more_vert" className="text-xl" />
+            </button>
+            {showMenu && (
+              <div className="absolute right-0 top-full mt-1 w-40 bg-[#1a1f2e] border border-gray-700 rounded-lg shadow-xl z-30 overflow-hidden">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowMenu(false);
+                    setShowDeleteModal(true);
+                  }}
+                  className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
+                >
+                  <MaterialIcon name="delete" className="text-lg" />
+                  Delete
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -276,6 +339,74 @@ export default function ModernProtocolCard({ protocol }: ModernProtocolCardProps
           protocolId={protocol.id}
           onClose={() => setShowProgressModal(false)}
         />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => !isDeleting && setShowDeleteModal(false)}
+          />
+          <div className="relative bg-[#1a1f2e] border border-gray-700 rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center gap-3 p-6 border-b border-gray-700">
+              <div className="p-2 bg-red-500/20 rounded-full">
+                <MaterialIcon name="warning" className="text-2xl text-red-400" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-white">Delete Protocol</h2>
+                <p className="text-sm text-gray-400">{protocol.contractName}</p>
+              </div>
+              <button
+                onClick={() => !isDeleting && setShowDeleteModal(false)}
+                className="ml-auto p-2 hover:bg-gray-700 rounded-lg transition-colors"
+              >
+                <MaterialIcon name="close" className="text-xl text-gray-400" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-gray-300">
+                Are you sure you want to delete <span className="font-semibold text-white">{protocol.contractName}</span>? This action is permanent and cannot be undone.
+              </p>
+              <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+                <p className="text-xs text-red-400">
+                  All associated data will be removed, including scans, findings, and payment records.
+                </p>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex gap-3 p-6 border-t border-gray-700 bg-[#0f1723]">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                disabled={isDeleting}
+                className="flex-1 px-4 py-3 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg font-medium transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className="flex-1 px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isDeleting ? (
+                  <>
+                    <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <MaterialIcon name="delete" className="text-lg" />
+                    Delete Protocol
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </GlowCard>
   );
