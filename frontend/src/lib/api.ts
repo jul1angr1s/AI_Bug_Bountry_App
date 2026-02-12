@@ -157,6 +157,7 @@ export async function fetchProtocol(protocolId: string): Promise<any> {
       contractName: protocol.contractName,
       status: protocol.status,
       registrationState: protocol.registrationState,
+      failureReason: protocol.failureReason,
       ownerAddress: protocol.ownerAddress,
       riskScore: protocol.riskScore,
       totalBountyPool: protocol.totalBountyPool,

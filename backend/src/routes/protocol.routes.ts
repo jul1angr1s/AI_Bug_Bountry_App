@@ -355,7 +355,7 @@ router.get(
         subscriber.quit();
         res.end();
         return;
-      } else if (protocol.status === 'FAILED') {
+      } else if (protocol.status === 'FAILED' || protocol.registrationState === 'FAILED') {
         const failureEvent = {
           type: 'registration_progress',
           data: {

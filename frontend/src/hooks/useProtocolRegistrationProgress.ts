@@ -188,6 +188,7 @@ export function useProtocolRegistrationProgress(protocolId: string | null) {
   }, [protocolId, connect, cleanup]);
 
   const isCompleted = progressState.state === 'COMPLETED';
+  const isFailed = progressState.state === 'FAILED';
 
-  return { ...progressState, isCompleted };
+  return { ...progressState, isCompleted, isFailed };
 }

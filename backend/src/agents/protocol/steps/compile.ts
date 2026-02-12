@@ -79,31 +79,41 @@ mainnet = { key = "demo" }
     }
 
     // Read compiled artifacts
-    // Foundry outputs to: out/<ContractName>.sol/<ContractName>.json
-    const contractFileName = contractName.endsWith('.sol') ? contractName : `${contractName}.sol`;
-    const artifactPath = path.join(
-      repoPath,
-      'out',
-      contractFileName,
-      `${contractName}.json`
-    );
+    // Foundry outputs to: out/<SourceFileName>.sol/<ContractName>.json
+    // The source file name comes from contractPath, NOT contractName
+    // e.g., contractPath="src/test/Reentrancy.sol", contractName="EtherStore"
+    //   → artifact at out/Reentrancy.sol/EtherStore.json
+    const sourceFileName = path.basename(contractPath); // e.g., "Reentrancy.sol"
+    const sourceFileWithSol = sourceFileName.endsWith('.sol') ? sourceFileName : `${sourceFileName}.sol`;
+    const contractNameClean = contractName.replace(/\.sol$/, '');
+
+    // Primary: out/<SourceFileName>.sol/<ContractName>.json
+    const artifactPath = path.join(repoPath, 'out', sourceFileWithSol, `${contractNameClean}.json`);
+    // Fallback 1: out/<ContractName>.sol/<ContractName>.json (when contract name matches file name)
+    const fallbackPath1 = path.join(repoPath, 'out', `${contractNameClean}.sol`, `${contractNameClean}.json`);
+    // Fallback 2: out/<ContractName>.json (flat structure)
+    const fallbackPath2 = path.join(repoPath, 'out', `${contractNameClean}.json`);
 
     console.log(`Reading artifact from ${artifactPath}`);
 
     let artifactContent: string;
     try {
       artifactContent = await fs.readFile(artifactPath, 'utf-8');
-    } catch (error) {
-      // Try alternative path structure
-      const altArtifactPath = path.join(repoPath, 'out', `${contractName}.json`);
+    } catch {
       try {
-        artifactContent = await fs.readFile(altArtifactPath, 'utf-8');
+        console.log(`Primary path not found, trying ${fallbackPath1}`);
+        artifactContent = await fs.readFile(fallbackPath1, 'utf-8');
       } catch {
-        return {
-          success: false,
-          compilationOutput: stdout,
-          error: `Artifact file not found at ${artifactPath} or ${altArtifactPath}`,
-        };
+        try {
+          console.log(`Fallback 1 not found, trying ${fallbackPath2}`);
+          artifactContent = await fs.readFile(fallbackPath2, 'utf-8');
+        } catch {
+          return {
+            success: false,
+            compilationOutput: stdout,
+            error: `Artifact file not found. Tried:\n  ${artifactPath}\n  ${fallbackPath1}\n  ${fallbackPath2}`,
+          };
+        }
       }
     }
 

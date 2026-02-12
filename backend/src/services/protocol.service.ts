@@ -296,6 +296,7 @@ export interface ProtocolOverview {
   riskScore: number | null;
   createdAt: string;
   updatedAt: string;
+  failureReason: string | null;
   // Funding Gate fields
   onChainProtocolId: string | null;
   bountyPoolAmount: number | null;
@@ -386,6 +387,7 @@ export async function getProtocolById(
       contractName: protocol.contractName,
       status: protocol.status,
       registrationState: protocol.registrationState,
+      failureReason: protocol.failureReason,
       ownerAddress: protocol.ownerAddress,
       bountyTerms: protocol.bountyTerms,
       totalBountyPool: protocol.totalBountyPool,

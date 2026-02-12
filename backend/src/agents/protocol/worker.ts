@@ -239,36 +239,61 @@ export async function processProtocolRegistration(
       // Register protocol on-chain using ProtocolRegistry contract
       const registryClient = new ProtocolRegistryClient();
 
-      const onChainResult = await registryClient.registerProtocol(
-        protocol.githubUrl,
-        protocol.contractPath,
-        protocol.contractName,
-        JSON.stringify(protocol.bountyTerms || {})
-      );
+      // Check if protocol is already registered on-chain (by GitHub URL)
+      const existingProtocolId = await registryClient.getProtocolIdByGithubUrl(protocol.githubUrl);
 
-      console.log(`[Protocol Agent] On-chain registration successful`);
-      console.log(`  Protocol ID: ${onChainResult.protocolId}`);
-      console.log(`  TX Hash: ${onChainResult.txHash}`);
-      console.log(`  Block: ${onChainResult.blockNumber}`);
+      if (existingProtocolId) {
+        // Protocol already exists on-chain — reuse existing registration
+        console.log(`[Protocol Agent] Protocol already registered on-chain`);
+        console.log(`  Existing Protocol ID: ${existingProtocolId}`);
 
-      onChainTxHash = onChainResult.txHash;
+        await prisma.protocol.update({
+          where: { id: protocolId },
+          data: {
+            onChainProtocolId: existingProtocolId,
+          },
+        });
 
-      // Update database with on-chain protocol ID and transaction hash
-      await prisma.protocol.update({
-        where: { id: protocolId },
-        data: {
-          onChainProtocolId: onChainResult.protocolId,
-          registrationTxHash: onChainResult.txHash,
-        },
-      });
+        await emitProtocolRegistrationProgress(
+          protocolId,
+          'ON_CHAIN_REGISTRATION',
+          'COMPLETED',
+          90,
+          'Protocol already registered on-chain — linked existing registration'
+        );
+      } else {
+        // Register new protocol on-chain
+        const onChainResult = await registryClient.registerProtocol(
+          protocol.githubUrl,
+          protocol.contractPath,
+          protocol.contractName,
+          JSON.stringify(protocol.bountyTerms || {})
+        );
 
-      await emitProtocolRegistrationProgress(
-        protocolId,
-        'ON_CHAIN_REGISTRATION',
-        'COMPLETED',
-        90,
-        `Protocol registered on-chain (TX: ${onChainResult.txHash.substring(0, 10)}...)`
-      );
+        console.log(`[Protocol Agent] On-chain registration successful`);
+        console.log(`  Protocol ID: ${onChainResult.protocolId}`);
+        console.log(`  TX Hash: ${onChainResult.txHash}`);
+        console.log(`  Block: ${onChainResult.blockNumber}`);
+
+        onChainTxHash = onChainResult.txHash;
+
+        // Update database with on-chain protocol ID and transaction hash
+        await prisma.protocol.update({
+          where: { id: protocolId },
+          data: {
+            onChainProtocolId: onChainResult.protocolId,
+            registrationTxHash: onChainResult.txHash,
+          },
+        });
+
+        await emitProtocolRegistrationProgress(
+          protocolId,
+          'ON_CHAIN_REGISTRATION',
+          'COMPLETED',
+          90,
+          `Protocol registered on-chain (TX: ${onChainResult.txHash.substring(0, 10)}...)`
+        );
+      }
     }
 
     // =================

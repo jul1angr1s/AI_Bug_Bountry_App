@@ -149,6 +149,7 @@ export const FundingGate: React.FC<FundingGateProps> = ({
         abi: BOUNTY_POOL_ABI,
         functionName: 'depositBounty',
         args: [effectiveProtocolId as `0x${string}`, amountInWei],
+        gas: BigInt(300_000),
       });
     } catch (error) {
       console.error('[FundingGate] Deposit error:', error);
@@ -386,6 +387,8 @@ export const FundingGate: React.FC<FundingGateProps> = ({
                     ? 'Insufficient ETH for gas fees. Make sure you have ETH on Base Sepolia.'
                     : writeError?.message.includes('exceeds allowance')
                     ? 'USDC approval insufficient. Please go back and re-approve.'
+                    : writeError?.message.includes('gas limit')
+                    ? 'Transaction gas limit exceeded. Please try again or contact support.'
                     : writeError?.message || depositError || 'Transaction failed'}
                 </p>
                 {writeError && !writeError.message.includes('User rejected') && (

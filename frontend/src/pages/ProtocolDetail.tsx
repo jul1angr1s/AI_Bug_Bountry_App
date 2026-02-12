@@ -39,12 +39,24 @@ export default function ProtocolDetail() {
     protocol?.status === 'PENDING' ? id || null : null
   );
 
-  // When SSE reports registration COMPLETED, immediately refetch protocol data
+  // When SSE reports registration COMPLETED or FAILED, poll until protocol data catches up
+  // COMPLETED: polls until status becomes ACTIVE (worker sets status to ACTIVE on success)
+  // FAILED: polls until registrationState becomes FAILED (status stays PENDING since it's not in the enum)
   useEffect(() => {
-    if (registrationProgress.isCompleted && protocol?.status === 'PENDING') {
+    const sseTerminal = registrationProgress.isCompleted || registrationProgress.isFailed;
+    const backendCaughtUp =
+      protocol?.status !== 'PENDING' || protocol?.registrationState === 'FAILED';
+
+    if (sseTerminal && !backendCaughtUp) {
       queryClient.invalidateQueries({ queryKey: ['protocol', id] });
+
+      const interval = setInterval(() => {
+        queryClient.invalidateQueries({ queryKey: ['protocol', id] });
+      }, 2000);
+
+      return () => clearInterval(interval);
     }
-  }, [registrationProgress.isCompleted, protocol?.status, queryClient, id]);
+  }, [registrationProgress.isCompleted, registrationProgress.isFailed, protocol?.status, protocol?.registrationState, queryClient, id]);
 
   // Derived state for funding
   const canRequestScan = protocol?.canRequestScan || false;
@@ -317,8 +329,23 @@ export default function ProtocolDetail() {
               <div>
                 <h3 className="text-lg font-semibold text-white mb-4">Protocol Overview</h3>
 
+                {/* Registration Failed */}
+                {protocol.status === 'PENDING' && (protocol.registrationState === 'FAILED' || registrationProgress.isFailed) && (
+                  <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-6 mb-6">
+                    <div className="flex items-center gap-3">
+                      <XCircle className="w-5 h-5 text-red-400" />
+                      <div>
+                        <h4 className="text-base font-semibold text-red-400">Registration failed</h4>
+                        <p className="text-sm text-gray-400 mt-1">
+                          {protocol.failureReason || registrationProgress.message || 'An error occurred during registration. Please try again.'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Live Progress Card */}
-                {protocol.status === 'PENDING' && !registrationProgress.isCompleted && (
+                {protocol.status === 'PENDING' && protocol.registrationState !== 'FAILED' && !registrationProgress.isCompleted && !registrationProgress.isFailed && (
                   <div className="bg-purple-500/5 border border-purple-500/20 rounded-lg p-6 mb-6">
                     <h4 className="text-base font-semibold text-white mb-4">Registration Progress</h4>
                     <RegistrationProgress protocolId={id || ''} />
@@ -326,7 +353,7 @@ export default function ProtocolDetail() {
                 )}
 
                 {/* Transition state: SSE completed but protocol data hasn't refetched yet */}
-                {protocol.status === 'PENDING' && registrationProgress.isCompleted && (
+                {protocol.status === 'PENDING' && protocol.registrationState !== 'FAILED' && registrationProgress.isCompleted && (
                   <div className="bg-green-500/5 border border-green-500/20 rounded-lg p-6 mb-6">
                     <div className="flex items-center gap-3">
                       <Loader2 className="w-5 h-5 text-green-400 animate-spin" />

@@ -174,8 +174,6 @@ export async function emitProtocolStatusChange(
     failureReason?: string;
   }
 ): Promise<void> {
-  if (!ioInstance) return;
-
   const event: ProtocolStatusChangedEvent = {
     eventType: 'protocol:status_changed',
     timestamp: new Date().toISOString(),
@@ -183,11 +181,13 @@ export async function emitProtocolStatusChange(
     data,
   };
 
-  // Emit to both protocols room and specific protocol room
-  ioInstance.to('protocols').emit('protocol:status_changed', event);
-  ioInstance.to(`protocol:${protocolId}`).emit('protocol:status_changed', event);
+  // Emit to Socket.IO rooms (if available)
+  if (ioInstance) {
+    ioInstance.to('protocols').emit('protocol:status_changed', event);
+    ioInstance.to(`protocol:${protocolId}`).emit('protocol:status_changed', event);
+  }
 
-  // Invalidate caches
+  // Always invalidate caches (independent of Socket.IO)
   await invalidateCachePattern(`dashboard:stats:*`);
   await invalidateCache(`protocol:${protocolId}`);
 }
@@ -199,8 +199,6 @@ export async function emitProtocolRegistrationProgress(
   progress: number,
   message: string
 ): Promise<void> {
-  if (!ioInstance) return;
-
   const event: ProtocolRegistrationProgressEvent = {
     eventType: 'protocol:registration_progress',
     timestamp: new Date().toISOString(),
@@ -213,14 +211,20 @@ export async function emitProtocolRegistrationProgress(
     },
   };
 
-  // Emit to protocol room
-  ioInstance.to(`protocol:${protocolId}`).emit('protocol:registration_progress', event);
-  ioInstance.to('protocols').emit('protocol:registration_progress', event);
+  // Emit to Socket.IO rooms (if available)
+  if (ioInstance) {
+    ioInstance.to(`protocol:${protocolId}`).emit('protocol:registration_progress', event);
+    ioInstance.to('protocols').emit('protocol:registration_progress', event);
+  }
 
-  // Also publish to Redis for SSE subscribers
-  const { getRedisClient } = await import('../lib/redis.js');
-  const redis = await getRedisClient();
-  await redis.publish(`protocol:${protocolId}:registration`, JSON.stringify(event));
+  // Always publish to Redis for SSE subscribers (independent of Socket.IO)
+  try {
+    const { getRedisClient } = await import('../lib/redis.js');
+    const redis = await getRedisClient();
+    await redis.publish(`protocol:${protocolId}:registration`, JSON.stringify(event));
+  } catch (err) {
+    console.error('[Events] Failed to publish registration progress to Redis:', err);
+  }
 }
 
 // Task 2.5: Scan WebSocket Event Types
