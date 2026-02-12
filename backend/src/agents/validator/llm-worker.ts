@@ -8,6 +8,11 @@ import { validateMessage, ProofSubmissionSchema } from '../../messages/schemas.j
 import type { ProofSubmissionMessage } from '../../messages/schemas.js';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { ValidationRegistryClient, ValidationOutcome, Severity as OnChainSeverity } from '../../blockchain/index.js';
+import { ethers } from 'ethers';
+import { reputationService } from '../../services/reputation.service.js';
+import { agentIdentityService } from '../../services/agent-identity.service.js';
+import type { FeedbackType, AgentIdentityType } from '@prisma/client';
 
 const prisma = getPrismaClient();
 
@@ -272,8 +277,191 @@ async function processValidationLLM(submission: ProofSubmissionMessage): Promise
     await emitValidationProgress(vId, pId, 'UPDATE_RESULT', 'RUNNING', 'LLM', 80, `Status: ${analysis.isValid ? 'VALIDATED' : 'REJECTED'}`);
     await emitValidationLog(vId, pId, 'INFO', `[INFO] Status: ${analysis.isValid ? 'VALIDATED' : 'REJECTED'}`);
 
-    await emitValidationProgress(vId, pId, 'RECORD_ONCHAIN', 'RUNNING', 'LLM', 80, 'On-chain recording skipped for LLM validation');
-    await emitValidationLog(vId, pId, 'INFO', '[INFO] On-chain recording skipped for LLM validation');
+    // =================
+    // STEP 7: Ensure agents registered on-chain (AgentIdentityRegistry + ReputationRegistry)
+    // =================
+    let researcherWallet = '';
+    let validatorWallet = '';
+
+    try {
+      // Resolve researcher wallet
+      const scan = await prisma.scan.findUnique({
+        where: { id: proof.scanId },
+        include: { agent: true },
+      });
+      if (scan?.agent) {
+        const researcherIdentity = await prisma.agentIdentity.findFirst({
+          where: { agentType: 'RESEARCHER', isActive: true },
+          orderBy: { registeredAt: 'asc' },
+        });
+        if (researcherIdentity) {
+          researcherWallet = researcherIdentity.walletAddress;
+        }
+      }
+      if (!researcherWallet) {
+        researcherWallet = process.env.RESEARCHER_WALLET_ADDRESS || '';
+      }
+
+      // Resolve validator wallet
+      const validatorIdentity = await prisma.agentIdentity.findFirst({
+        where: { agentType: 'VALIDATOR', isActive: true },
+        orderBy: { registeredAt: 'asc' },
+      });
+      if (validatorIdentity) {
+        validatorWallet = validatorIdentity.walletAddress;
+      }
+      if (!validatorWallet) {
+        validatorWallet = process.env.VALIDATOR_WALLET_ADDRESS || process.env.PLATFORM_WALLET_ADDRESS || '';
+      }
+
+      if (researcherWallet) {
+        await emitValidationLog(vId, pId, 'DEFAULT', '> Ensuring researcher agent registered on-chain...');
+        const researcherNftId = await agentIdentityService.ensureAgentRegisteredOnChain(
+          researcherWallet,
+          'RESEARCHER' as AgentIdentityType
+        );
+        await reputationService.initializeReputationOnChainIfNeeded(researcherNftId, researcherWallet);
+        await emitValidationLog(vId, pId, 'INFO', `[INFO] Researcher agent on-chain: agentNftId=${researcherNftId}`);
+      }
+
+      if (validatorWallet) {
+        await emitValidationLog(vId, pId, 'DEFAULT', '> Ensuring validator agent registered on-chain...');
+        const validatorNftId = await agentIdentityService.ensureAgentRegisteredOnChain(
+          validatorWallet,
+          'VALIDATOR' as AgentIdentityType
+        );
+        await reputationService.initializeReputationOnChainIfNeeded(validatorNftId, validatorWallet);
+        await emitValidationLog(vId, pId, 'INFO', `[INFO] Validator agent on-chain: agentNftId=${validatorNftId}`);
+      }
+    } catch (agentRegError) {
+      const errMsg = agentRegError instanceof Error ? agentRegError.message : String(agentRegError);
+      console.warn('[Validator LLM] Agent on-chain registration failed (non-fatal):', errMsg);
+      console.error('[Validator LLM] Full agent registration error:', agentRegError);
+      await emitValidationLog(vId, pId, 'WARN', `[WARN] Agent on-chain registration failed: ${errMsg.slice(0, 200)}`);
+    }
+
+    // =================
+    // STEP 8: Record validation on-chain (Base Sepolia)
+    // =================
+    await emitValidationProgress(vId, pId, 'RECORD_ONCHAIN', 'RUNNING', 'LLM', 80, 'Recording validation on-chain...');
+    await emitValidationLog(vId, pId, 'DEFAULT', '> Recording validation on Base Sepolia...');
+
+    let validationIdForReputation: string | null = null;
+
+    try {
+      if (!protocol.onChainProtocolId) {
+        console.warn('[Validator LLM] Protocol not registered on-chain, skipping on-chain validation');
+        await emitValidationLog(vId, pId, 'WARN', '[WARN] Protocol not registered on-chain, skipping');
+      } else {
+        const severityMap: Record<string, OnChainSeverity> = {
+          'CRITICAL': OnChainSeverity.CRITICAL,
+          'HIGH': OnChainSeverity.HIGH,
+          'MEDIUM': OnChainSeverity.MEDIUM,
+          'LOW': OnChainSeverity.LOW,
+          'INFO': OnChainSeverity.INFORMATIONAL,
+        };
+
+        const onChainSeverity = severityMap[finding.severity] ?? OnChainSeverity.INFORMATIONAL;
+        const outcome = analysis.isValid ? ValidationOutcome.CONFIRMED : ValidationOutcome.REJECTED;
+
+        const proofHash = ethers.keccak256(
+          ethers.toUtf8Bytes(
+            JSON.stringify({
+              findingId: finding.id,
+              vulnerabilityType: finding.vulnerabilityType,
+              severity: finding.severity,
+              validated: analysis.isValid,
+            })
+          )
+        );
+
+        const executionLogStr = `LLM validation: ${analysis.reasoning}`.slice(0, 500);
+
+        console.log('[Validator LLM] Recording validation on-chain...');
+        console.log(`  Protocol ID: ${protocol.onChainProtocolId}`);
+        console.log(`  Finding ID: ${finding.id}`);
+        console.log(`  Severity: ${OnChainSeverity[onChainSeverity]}`);
+        console.log(`  Outcome: ${ValidationOutcome[outcome]}`);
+
+        const validationClient = new ValidationRegistryClient();
+
+        const onChainResult = await validationClient.recordValidation(
+          protocol.onChainProtocolId,
+          ethers.id(finding.id),
+          finding.vulnerabilityType,
+          onChainSeverity,
+          outcome,
+          executionLogStr,
+          proofHash
+        );
+
+        console.log('[Validator LLM] On-chain validation recorded successfully!');
+        console.log(`  Validation ID: ${onChainResult.validationId}`);
+        console.log(`  TX Hash: ${onChainResult.txHash}`);
+
+        validationIdForReputation = onChainResult.validationId;
+
+        await prisma.proof.update({
+          where: { id: submission.proofId },
+          data: {
+            onChainValidationId: onChainResult.validationId,
+            onChainTxHash: onChainResult.txHash,
+          },
+        });
+
+        await emitValidationLog(vId, pId, 'INFO', `[INFO] On-chain TX: ${onChainResult.txHash}`);
+        await emitValidationProgress(vId, pId, 'RECORD_ONCHAIN', 'RUNNING', 'LLM', 90, 'On-chain recording complete');
+      }
+    } catch (onChainError) {
+      const errMsg = onChainError instanceof Error ? onChainError.message : String(onChainError);
+      console.error('[Validator LLM] Failed to record validation on-chain:', errMsg);
+      console.error('[Validator LLM] Full on-chain error:', onChainError);
+      await emitValidationLog(vId, pId, 'WARN', `[WARN] On-chain recording failed: ${errMsg.slice(0, 200)}`);
+    }
+
+    // =================
+    // STEP 9: Record reputation feedback on-chain
+    // =================
+    try {
+      const severityToFeedback: Record<string, FeedbackType> = {
+        'CRITICAL': 'CONFIRMED_CRITICAL',
+        'HIGH': 'CONFIRMED_HIGH',
+        'MEDIUM': 'CONFIRMED_MEDIUM',
+        'LOW': 'CONFIRMED_LOW',
+        'INFO': 'CONFIRMED_INFORMATIONAL',
+      };
+
+      const feedbackType: FeedbackType = analysis.isValid
+        ? (severityToFeedback[finding.severity] || 'CONFIRMED_INFORMATIONAL')
+        : 'REJECTED';
+
+      const repValidationId = validationIdForReputation || ethers.id(submission.proofId);
+
+      if (researcherWallet && validatorWallet) {
+        console.log('[Validator LLM] Recording reputation feedback on-chain...');
+        console.log(`  Researcher: ${researcherWallet}`);
+        console.log(`  Validator: ${validatorWallet}`);
+        console.log(`  Feedback Type: ${feedbackType}`);
+
+        await reputationService.recordFeedbackOnChain(
+          researcherWallet,
+          validatorWallet,
+          repValidationId,
+          finding.id,
+          feedbackType
+        );
+
+        console.log('[Validator LLM] Reputation feedback recorded on-chain successfully');
+        await emitValidationLog(vId, pId, 'INFO', '[INFO] Reputation feedback recorded on-chain successfully');
+      } else {
+        console.log('[Validator LLM] Skipping reputation feedback - agent wallets not found');
+      }
+    } catch (reputationError) {
+      const errMsg = reputationError instanceof Error ? reputationError.message : String(reputationError);
+      console.error('[Validator LLM] Failed to record reputation feedback:', errMsg);
+      console.error('[Validator LLM] Full reputation error:', reputationError);
+      await emitValidationLog(vId, pId, 'WARN', `[WARN] Reputation recording failed: ${errMsg.slice(0, 200)}`);
+    }
 
     await emitValidationProgress(vId, pId, 'COMPLETE', 'COMPLETED', 'LLM', 100, `Validation complete: ${analysis.isValid ? 'VALIDATED' : 'REJECTED'} (${analysis.confidence}% confidence)`);
     await emitValidationLog(vId, pId, 'INFO', `[INFO] Validation complete: ${analysis.isValid ? 'VALIDATED' : 'REJECTED'} (${analysis.confidence}% confidence)`);
