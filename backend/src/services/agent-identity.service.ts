@@ -69,6 +69,106 @@ export class AgentIdentityService {
     return { agentIdentity, txHash: result.txHash, agentNftId: BigInt(result.tokenId) };
   }
 
+  /**
+   * Idempotent: ensure an agent is registered on-chain and has an agentNftId in the DB.
+   * Fast path: returns immediately if agentNftId already exists in DB.
+   */
+  async ensureAgentRegisteredOnChain(
+    walletAddress: string,
+    agentType: AgentIdentityType
+  ): Promise<bigint> {
+    const wallet = walletAddress.toLowerCase();
+
+    // Fast path — already in DB
+    let agent = await prisma.agentIdentity.findUnique({ where: { walletAddress: wallet } });
+    if (agent?.agentNftId) {
+      console.log(`[AgentIdentity] Agent ${wallet} already has agentNftId=${agent.agentNftId}`);
+      return agent.agentNftId;
+    }
+
+    const client = getRegistryClient();
+
+    // Check on-chain — maybe registered outside this process
+    const alreadyOnChain = await client.isRegistered(walletAddress);
+    if (alreadyOnChain) {
+      const tokenId = await client.getAgentIdByWallet(walletAddress);
+      console.log(`[AgentIdentity] Agent ${wallet} found on-chain with tokenId=${tokenId}, syncing to DB`);
+      if (!agent) {
+        agent = await this.createFullAgentRecord(wallet, agentType);
+      }
+      await prisma.agentIdentity.update({
+        where: { walletAddress: wallet },
+        data: { agentNftId: BigInt(tokenId) },
+      });
+      return BigInt(tokenId);
+    }
+
+    // Not on-chain — register now
+    console.log(`[AgentIdentity] Registering ${wallet} (${agentType}) on-chain...`);
+    try {
+      if (!agent) {
+        agent = await this.createFullAgentRecord(wallet, agentType);
+      }
+      const result = await client.registerAgent(
+        walletAddress,
+        agentType === 'RESEARCHER' ? AgentType.RESEARCHER : AgentType.VALIDATOR
+      );
+      const nftId = BigInt(result.tokenId);
+      await prisma.agentIdentity.update({
+        where: { walletAddress: wallet },
+        data: { agentNftId: nftId, onChainTxHash: result.txHash },
+      });
+      console.log(`[AgentIdentity] Registered on-chain: agentNftId=${nftId}, tx=${result.txHash}`);
+      return nftId;
+    } catch (regError) {
+      // Race condition: another process may have registered concurrently
+      console.warn(`[AgentIdentity] Registration tx failed, retrying on-chain check...`, regError);
+      const retryOnChain = await client.isRegistered(walletAddress);
+      if (retryOnChain) {
+        const tokenId = await client.getAgentIdByWallet(walletAddress);
+        await prisma.agentIdentity.update({
+          where: { walletAddress: wallet },
+          data: { agentNftId: BigInt(tokenId) },
+        });
+        console.log(`[AgentIdentity] Race resolved: agentNftId=${tokenId}`);
+        return BigInt(tokenId);
+      }
+      throw regError;
+    }
+  }
+
+  /**
+   * Create a full DB record set (AgentIdentity + AgentReputation + AgentEscrow)
+   * for an agent that doesn't exist in the database yet.
+   */
+  private async createFullAgentRecord(walletAddress: string, agentType: AgentIdentityType) {
+    const agentIdentity = await prisma.agentIdentity.create({
+      data: {
+        walletAddress,
+        agentType,
+        isActive: true,
+      },
+    });
+    await prisma.agentReputation.create({
+      data: {
+        agentIdentityId: agentIdentity.id,
+        confirmedCount: 0,
+        rejectedCount: 0,
+        totalSubmissions: 0,
+        reputationScore: 0,
+      },
+    });
+    await prisma.agentEscrow.create({
+      data: {
+        agentIdentityId: agentIdentity.id,
+        balance: BigInt(0),
+        totalDeposited: BigInt(0),
+        totalDeducted: BigInt(0),
+      },
+    });
+    return agentIdentity;
+  }
+
   async getAgentByWallet(walletAddress: string) {
     return prisma.agentIdentity.findUnique({
       where: { walletAddress: walletAddress.toLowerCase() },

@@ -11,7 +11,8 @@ import type { ChildProcess } from 'child_process';
 import { ValidationRegistryClient, ValidationOutcome, Severity as OnChainSeverity } from '../../blockchain/index.js';
 import { ethers } from 'ethers';
 import { reputationService } from '../../services/reputation.service.js';
-import type { FeedbackType } from '@prisma/client';
+import { agentIdentityService } from '../../services/agent-identity.service.js';
+import type { FeedbackType, AgentIdentityType } from '@prisma/client';
 import type { ProofSubmissionMessage } from '../../messages/schemas.js';
 import { validateMessage, ProofSubmissionSchema } from '../../messages/schemas.js';
 
@@ -276,6 +277,69 @@ async function processValidation(submission: ProofSubmissionMessage): Promise<vo
     await emitValidationLog(vId, pId, 'INFO', `[INFO] Status: ${validationStatus}`);
 
     // =================
+    // STEP 8.5: Ensure agents registered on-chain (AgentIdentityRegistry + ReputationRegistry)
+    // =================
+    let researcherWallet = '';
+    let validatorWallet = '';
+
+    try {
+      // Resolve researcher wallet
+      const scan = await prisma.scan.findUnique({
+        where: { id: proof.scanId },
+        include: { agent: true },
+      });
+      if (scan?.agent) {
+        const researcherIdentity = await prisma.agentIdentity.findFirst({
+          where: { agentType: 'RESEARCHER', isActive: true },
+          orderBy: { registeredAt: 'asc' },
+        });
+        if (researcherIdentity) {
+          researcherWallet = researcherIdentity.walletAddress;
+        }
+      }
+      if (!researcherWallet) {
+        researcherWallet = process.env.RESEARCHER_WALLET_ADDRESS || '';
+      }
+
+      // Resolve validator wallet
+      const validatorIdentity = await prisma.agentIdentity.findFirst({
+        where: { agentType: 'VALIDATOR', isActive: true },
+        orderBy: { registeredAt: 'asc' },
+      });
+      if (validatorIdentity) {
+        validatorWallet = validatorIdentity.walletAddress;
+      }
+      if (!validatorWallet) {
+        validatorWallet = process.env.VALIDATOR_WALLET_ADDRESS || process.env.PLATFORM_WALLET_ADDRESS || '';
+      }
+
+      if (researcherWallet) {
+        await emitValidationLog(vId, pId, 'DEFAULT', '> Ensuring researcher agent registered on-chain...');
+        const researcherNftId = await agentIdentityService.ensureAgentRegisteredOnChain(
+          researcherWallet,
+          'RESEARCHER' as AgentIdentityType
+        );
+        await reputationService.initializeReputationOnChainIfNeeded(researcherNftId, researcherWallet);
+        await emitValidationLog(vId, pId, 'INFO', `[INFO] Researcher agent on-chain: agentNftId=${researcherNftId}`);
+      }
+
+      if (validatorWallet) {
+        await emitValidationLog(vId, pId, 'DEFAULT', '> Ensuring validator agent registered on-chain...');
+        const validatorNftId = await agentIdentityService.ensureAgentRegisteredOnChain(
+          validatorWallet,
+          'VALIDATOR' as AgentIdentityType
+        );
+        await reputationService.initializeReputationOnChainIfNeeded(validatorNftId, validatorWallet);
+        await emitValidationLog(vId, pId, 'INFO', `[INFO] Validator agent on-chain: agentNftId=${validatorNftId}`);
+      }
+    } catch (agentRegError) {
+      const errMsg = agentRegError instanceof Error ? agentRegError.message : String(agentRegError);
+      console.warn('[Validator] Agent on-chain registration failed (non-fatal):', errMsg);
+      console.error('[Validator] Full agent registration error:', agentRegError);
+      await emitValidationLog(vId, pId, 'WARN', `[WARN] Agent on-chain registration failed: ${errMsg.slice(0, 200)}`);
+    }
+
+    // =================
     // STEP 9: Record validation on-chain (Base Sepolia)
     // =================
     await emitValidationProgress(vId, pId, 'RECORD_ONCHAIN', 'RUNNING', 'EXECUTION', 85, 'Recording validation on-chain...');
@@ -373,15 +437,16 @@ async function processValidation(submission: ProofSubmissionMessage): Promise<vo
         }
       }
     } catch (onChainError) {
-      // Log error but don't fail the validation - off-chain validation is still valid
-      console.error('[Validator] Failed to record validation on-chain:', onChainError);
-      console.error('  Continuing with off-chain validation only');
-      await emitValidationLog(vId, pId, 'WARN', '[WARN] On-chain recording failed, continuing with off-chain validation');
+      const errMsg = onChainError instanceof Error ? onChainError.message : String(onChainError);
+      console.error('[Validator] Failed to record validation on-chain:', errMsg);
+      console.error('[Validator] Full on-chain error:', onChainError);
+      await emitValidationLog(vId, pId, 'WARN', `[WARN] On-chain recording failed: ${errMsg.slice(0, 200)}`);
     }
 
     // =================
     // STEP 10: Record reputation feedback on-chain (ERC-8004)
     // Runs independently of on-chain validation success
+    // Uses researcherWallet/validatorWallet resolved in STEP 8.5
     // =================
     try {
       const finding = await prisma.finding.findUnique({
@@ -391,12 +456,6 @@ async function processValidation(submission: ProofSubmissionMessage): Promise<vo
       if (!finding) {
         console.warn('[Validator] Finding not found, skipping reputation feedback');
       } else {
-        // Get researcher wallet from scan context
-        const scan = await prisma.scan.findUnique({
-          where: { id: proof.scanId },
-          include: { agent: true },
-        });
-
         // Map severity + outcome to FeedbackType
         const severityToFeedback: Record<string, FeedbackType> = {
           'CRITICAL': 'CONFIRMED_CRITICAL',
@@ -413,34 +472,6 @@ async function processValidation(submission: ProofSubmissionMessage): Promise<vo
         // Use on-chain validationId if available, otherwise derive fallback from proof ID
         const repValidationId = validationIdForReputation || ethers.id(proof.proofId);
 
-        // Resolve researcher identity from AgentIdentity table
-        let researcherWallet = '';
-        if (scan?.agent) {
-          const researcherIdentity = await prisma.agentIdentity.findFirst({
-            where: { agentType: 'RESEARCHER', isActive: true },
-            orderBy: { registeredAt: 'asc' },
-          });
-          if (researcherIdentity) {
-            researcherWallet = researcherIdentity.walletAddress;
-          }
-        }
-        if (!researcherWallet) {
-          researcherWallet = process.env.RESEARCHER_WALLET_ADDRESS || '';
-        }
-
-        // Resolve validator identity dynamically
-        let validatorWallet = '';
-        const validatorIdentity = await prisma.agentIdentity.findFirst({
-          where: { agentType: 'VALIDATOR', isActive: true },
-          orderBy: { registeredAt: 'asc' },
-        });
-        if (validatorIdentity) {
-          validatorWallet = validatorIdentity.walletAddress;
-        }
-        if (!validatorWallet) {
-          validatorWallet = process.env.VALIDATOR_WALLET_ADDRESS || process.env.PLATFORM_WALLET_ADDRESS || '';
-        }
-
         if (researcherWallet && validatorWallet) {
           console.log('[Validator] Recording reputation feedback on-chain...');
           console.log(`  Researcher: ${researcherWallet}`);
@@ -456,6 +487,7 @@ async function processValidation(submission: ProofSubmissionMessage): Promise<vo
           );
 
           console.log('[Validator] Reputation feedback recorded on-chain successfully');
+          await emitValidationLog(vId, pId, 'INFO', '[INFO] Reputation feedback recorded on-chain successfully');
         } else {
           console.log('[Validator] Skipping reputation feedback - agent wallets not found');
           console.log(`  Researcher: ${researcherWallet || '(not found)'}`);
@@ -463,8 +495,10 @@ async function processValidation(submission: ProofSubmissionMessage): Promise<vo
         }
       }
     } catch (reputationError) {
-      // Don't fail validation if reputation recording fails
-      console.error('[Validator] Failed to record reputation feedback:', reputationError);
+      const errMsg = reputationError instanceof Error ? reputationError.message : String(reputationError);
+      console.error('[Validator] Failed to record reputation feedback:', errMsg);
+      console.error('[Validator] Full reputation error:', reputationError);
+      await emitValidationLog(vId, pId, 'WARN', `[WARN] Reputation recording failed: ${errMsg.slice(0, 200)}`);
     }
 
     await emitValidationProgress(vId, pId, 'COMPLETE', 'COMPLETED', 'EXECUTION', 100, `Validation complete: ${validationStatus}`);

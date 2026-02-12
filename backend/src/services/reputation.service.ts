@@ -87,6 +87,38 @@ export class ReputationService {
     return await client.initializeReputation(agentNftId, walletAddress);
   }
 
+  /**
+   * Idempotent: initialize on-chain reputation if not already done.
+   * Checks via getScore first to avoid unnecessary transactions.
+   */
+  async initializeReputationOnChainIfNeeded(agentNftId: bigint, walletAddress: string): Promise<void> {
+    const client = getReputationClient();
+    const idStr = agentNftId.toString();
+
+    try {
+      // If getScore succeeds, reputation is already initialized
+      await client.getScore(idStr);
+      console.log(`[Reputation] Agent ${idStr} already has on-chain reputation`);
+      return;
+    } catch {
+      // Not initialized yet — proceed to initialize
+    }
+
+    try {
+      console.log(`[Reputation] Initializing reputation on-chain for agent ${idStr}...`);
+      await client.initializeReputation(idStr, walletAddress);
+      console.log(`[Reputation] Initialized reputation on-chain for agent ${idStr}`);
+    } catch (initError) {
+      // Handle race condition: "already initialized" revert
+      const msg = initError instanceof Error ? initError.message : String(initError);
+      if (msg.toLowerCase().includes('already initialized') || msg.toLowerCase().includes('already exists')) {
+        console.log(`[Reputation] Agent ${idStr} reputation was initialized concurrently, OK`);
+        return;
+      }
+      throw initError;
+    }
+  }
+
   async recordFeedbackOnChain(
     researcherWallet: string,
     validatorWallet: string,
