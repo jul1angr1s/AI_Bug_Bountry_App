@@ -18,7 +18,7 @@ import { LiveTerminalOutput, LogMessage } from '../components/scans/modern/LiveT
 import { MaterialIcon } from '../components/shared/MaterialIcon';
 import { mapScanProgressToLogs } from '../lib/scanProgressMapper';
 
-type TabType = 'overview' | 'scans' | 'findings' | 'payments';
+type TabType = 'overview' | 'scans' | 'findings';
 
 export default function ProtocolDetail() {
   const { id } = useParams<{ id: string }>();
@@ -206,7 +206,6 @@ export default function ProtocolDetail() {
     { id: 'overview' as TabType, label: 'Overview', count: null },
     { id: 'scans' as TabType, label: 'Scans', count: protocol.scansCount },
     { id: 'findings' as TabType, label: 'Findings', count: protocol.vulnerabilitiesCount },
-    { id: 'payments' as TabType, label: 'Payments', count: null },
   ];
 
   return (
@@ -607,11 +606,7 @@ export default function ProtocolDetail() {
               </div>
             )}
 
-            {activeTab === 'payments' && (
-              <div className="text-center py-12">
-                <p className="text-gray-400">Payment history will be displayed here</p>
-              </div>
-            )}
+
           </div>
         </div>
       </div>
