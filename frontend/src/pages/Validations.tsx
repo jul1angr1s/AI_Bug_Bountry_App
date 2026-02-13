@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Filter } from 'lucide-react';
 import { useValidations } from '../hooks/useValidations';
 import { useValidationActivity } from '../hooks/useValidationActivity';
 import ValidationCard from '../components/validations/ValidationCard';
@@ -105,17 +106,23 @@ export default function Validations() {
 
         {/* Filters */}
         <div className="mb-6 flex gap-4">
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-          >
-            <option value="">All Status</option>
-            <option value="PENDING">Pending</option>
-            <option value="VALIDATING">Validating</option>
-            <option value="VALIDATED">Validated</option>
-            <option value="REJECTED">Rejected</option>
-          </select>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 text-gray-500">
+              <Filter className="w-4 h-4" />
+              <span className="text-sm">Filter:</span>
+            </div>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+            >
+              <option value="">All Status</option>
+              <option value="PENDING">Pending</option>
+              <option value="VALIDATING">Validating</option>
+              <option value="VALIDATED">Validated</option>
+              <option value="REJECTED">Rejected</option>
+            </select>
+          </div>
         </div>
 
         {/* Validations List */}
