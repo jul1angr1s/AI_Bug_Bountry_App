@@ -1,6 +1,7 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { fetchProtocols } from '../../lib/api';
+import { fetchProtocols, fetchAgentIdentities } from '../../lib/api';
+import type { AgentIdentity } from '../../types/dashboard';
 
 export interface PaymentProposal {
   protocolId: string;
@@ -41,6 +42,16 @@ export function ProposePaymentModal({ isOpen, onClose, onSubmit }: ProposePaymen
   // Extract protocols array from response (API returns { protocols: [...], pagination: {...} })
   const protocols = protocolsResponse?.protocols || [];
 
+  // Fetch registered agents for recipient dropdown
+  const { data: agents, isLoading: agentsLoading } = useQuery({
+    queryKey: ['agents-for-payment'],
+    queryFn: fetchAgentIdentities,
+    enabled: isOpen,
+  });
+  const activeAgents = (agents || []).filter((a: AgentIdentity) => a.isActive);
+
+  const truncateAddress = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+
   // Close on ESC key
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
@@ -74,8 +85,6 @@ export function ProposePaymentModal({ isOpen, onClose, onSubmit }: ProposePaymen
 
     if (!formData.recipientAddress.trim()) {
       newErrors.recipientAddress = 'Recipient address is required';
-    } else if (!/^0x[a-fA-F0-9]{40}$/.test(formData.recipientAddress)) {
-      newErrors.recipientAddress = 'Invalid Ethereum address format';
     }
 
     if (!formData.justification.trim()) {
@@ -203,18 +212,31 @@ export function ProposePaymentModal({ isOpen, onClose, onSubmit }: ProposePaymen
                 Recipient Address
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 z-10">
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                   </svg>
                 </span>
-                <input
-                  type="text"
+                <select
                   value={formData.recipientAddress}
                   onChange={(e) => setFormData({ ...formData, recipientAddress: e.target.value })}
-                  className="w-full bg-background-dark border border-slate-700 rounded-lg pl-10 pr-4 py-3 text-white focus:border-accent-gold focus:ring-1 focus:ring-accent-gold outline-none transition-all placeholder:text-slate-600 font-mono text-sm"
-                  placeholder="0x..."
-                />
+                  disabled={agentsLoading}
+                  className="w-full bg-background-dark border border-slate-700 rounded-lg pl-10 pr-10 py-3 text-white focus:border-accent-gold focus:ring-1 focus:ring-accent-gold outline-none transition-all appearance-none cursor-pointer text-sm disabled:opacity-50"
+                >
+                  <option value="">
+                    {agentsLoading ? 'Loading agents...' : activeAgents.length === 0 ? 'No active agents found' : 'Select an agent'}
+                  </option>
+                  {activeAgents.map((agent: AgentIdentity) => (
+                    <option key={agent.id} value={agent.walletAddress}>
+                      {truncateAddress(agent.walletAddress)} ({agent.agentType === 'RESEARCHER' ? 'Researcher' : 'Validator'})
+                    </option>
+                  ))}
+                </select>
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </span>
               </div>
               {errors.recipientAddress && (
                 <p className="text-red-400 text-xs">{errors.recipientAddress}</p>
