@@ -1,0 +1,414 @@
+import { ethers, Contract, ContractTransactionResponse, type Log, type EventLog } from 'ethers';
+import { getSigner, contractAddresses, usdcConfig } from '../config.js';
+import BountyPoolABI from '../abis/BountyPool.json' with { type: 'json' };
+import type { RawBounty } from '../types/contracts.js';
+import { createLogger } from '../../lib/logger.js';
+
+const log = createLogger('BountyPool');
+
+export interface BountyReleaseResult {
+  bountyId: string;
+  txHash: string;
+  blockNumber: number;
+  amount: bigint;
+  timestamp: number;
+}
+
+export interface OnChainBounty {
+  bountyId: string;
+  protocolId: string;
+  validationId: string;
+  researcher: string;
+  severity: number;
+  amount: bigint;
+  timestamp: bigint;
+  paid: boolean;
+}
+
+export enum BountySeverity {
+  CRITICAL = 0,
+  HIGH = 1,
+  MEDIUM = 2,
+  LOW = 3,
+  INFORMATIONAL = 4,
+}
+
+/**
+ * Client for interacting with the BountyPool smart contract
+ */
+export class BountyPoolClient {
+  private contract: Contract;
+  private signer: ethers.Wallet;
+
+  constructor() {
+    if (!contractAddresses.bountyPool) {
+      throw new Error('BOUNTY_POOL_ADDRESS not set in environment');
+    }
+
+    this.signer = getSigner();
+    this.contract = new Contract(
+      contractAddresses.bountyPool,
+      BountyPoolABI.abi,
+      this.signer
+    );
+  }
+
+  /**
+   * Deposit USDC to protocol bounty pool
+   * Note: Requires USDC approval first
+   */
+  async depositBounty(
+    protocolId: string,
+    amountUsdc: number
+  ): Promise<string> {
+    try {
+      // Convert USDC amount to wei (6 decimals)
+      const amount = BigInt(Math.floor(amountUsdc * 10 ** usdcConfig.decimals));
+
+      log.info({ protocolId, amountUsdc }, 'Depositing bounty');
+      log.debug({ protocolId, amount: `${amountUsdc} USDC` }, 'Deposit details');
+
+      const tx: ContractTransactionResponse = await this.contract.depositBounty(
+        protocolId,
+        amount
+      );
+
+      log.debug({ txHash: tx.hash }, 'Deposit transaction sent');
+
+      const receipt = await tx.wait();
+      if (!receipt) {
+        throw new Error('Transaction receipt is null');
+      }
+
+      log.debug({ blockNumber: receipt.blockNumber }, 'Deposit confirmed');
+
+      return receipt.hash;
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      log.error({ err: msg }, 'Deposit failed');
+      throw new Error(`Failed to deposit bounty: ${msg}`);
+    }
+  }
+
+  /**
+   * Release bounty payment to researcher (PAYOUT_ROLE required)
+   */
+  async releaseBounty(
+    protocolId: string,
+    validationId: string,
+    researcherAddress: string,
+    severity: BountySeverity
+  ): Promise<BountyReleaseResult> {
+    try {
+      log.info({ protocolId, validationId, severity: BountySeverity[severity] }, 'Releasing bounty');
+      log.debug({ protocolId, validationId, researcherAddress, severity: BountySeverity[severity] }, 'Release details');
+
+      // Call the contract
+      const tx: ContractTransactionResponse = await this.contract.releaseBounty(
+        protocolId,
+        validationId,
+        researcherAddress,
+        severity
+      );
+
+      log.debug({ txHash: tx.hash }, 'Release transaction sent, waiting for confirmation');
+
+      // Wait for transaction to be mined
+      const receipt = await tx.wait();
+
+      if (!receipt) {
+        throw new Error('Transaction receipt is null');
+      }
+
+      log.debug({ blockNumber: receipt.blockNumber }, 'Release transaction confirmed');
+
+      // Parse the BountyReleased event
+      const event = receipt.logs.find((log: Log | EventLog) => {
+        try {
+          if (!('topics' in log)) return false;
+          const parsed = this.contract.interface.parseLog({ topics: log.topics as string[], data: log.data });
+          return parsed?.name === 'BountyReleased';
+        } catch {
+          return false;
+        }
+      });
+
+      if (!event) {
+        throw new Error('BountyReleased event not found in transaction receipt');
+      }
+
+      const parsedEvent = this.contract.interface.parseLog({ topics: (event as EventLog).topics as string[], data: (event as EventLog).data });
+      if (!parsedEvent) {
+        throw new Error('Failed to parse BountyReleased event');
+      }
+
+      const bountyId = parsedEvent.args.bountyId;
+      const amount = parsedEvent.args.amount;
+
+      log.info({ bountyId, amountUsdc: ethers.formatUnits(amount, usdcConfig.decimals) }, 'Bounty released successfully');
+      log.debug({ bountyId, amount: `${ethers.formatUnits(amount, usdcConfig.decimals)} USDC`, txHash: receipt.hash }, 'Release transaction details');
+
+      // Get block timestamp
+      const block = await this.signer.provider!.getBlock(receipt.blockNumber);
+      const timestamp = block?.timestamp || Math.floor(Date.now() / 1000);
+
+      return {
+        bountyId,
+        txHash: receipt.hash,
+        blockNumber: receipt.blockNumber,
+        amount,
+        timestamp,
+      };
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      log.error({ err: msg }, 'Bounty release failed');
+
+      // Parse revert reason if available
+      if (error && typeof error === 'object' && 'data' in error) {
+        try {
+          const decodedError = this.contract.interface.parseError((error as { data: string }).data);
+          log.error({ revertReason: decodedError?.name }, 'Contract revert reason');
+        } catch {
+          // Ignore parsing errors
+        }
+      }
+
+      throw new Error(`Failed to release bounty: ${msg}`);
+    }
+  }
+
+  /**
+   * Calculate bounty amount based on severity
+   */
+  async calculateBountyAmount(severity: BountySeverity): Promise<number> {
+    try {
+      const amount = await this.contract.calculateBountyAmount(severity);
+      return Number(ethers.formatUnits(amount, usdcConfig.decimals));
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to calculate bounty amount: ${msg}`);
+    }
+  }
+
+  /**
+   * Get protocol bounty balance
+   */
+  async getProtocolBalance(protocolId: string): Promise<number> {
+    try {
+      const balance = await this.contract.getProtocolBalance(protocolId);
+      return Number(ethers.formatUnits(balance, usdcConfig.decimals));
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to get protocol balance: ${msg}`);
+    }
+  }
+
+  /**
+   * Get bounty details
+   */
+  async getBounty(bountyId: string): Promise<OnChainBounty> {
+    try {
+      const bounty = await this.contract.getBounty(bountyId);
+
+      return {
+        bountyId: bounty.bountyId,
+        protocolId: bounty.protocolId,
+        validationId: bounty.validationId,
+        researcher: bounty.researcher,
+        severity: Number(bounty.severity),
+        amount: bounty.amount,
+        timestamp: bounty.timestamp,
+        paid: bounty.paid,
+      };
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to get bounty: ${msg}`);
+    }
+  }
+
+  /**
+   * Get all bounties for a protocol
+   */
+  async getProtocolBounties(protocolId: string): Promise<OnChainBounty[]> {
+    try {
+      const bounties = await this.contract.getProtocolBounties(protocolId);
+
+      return bounties.map((b: RawBounty) => ({
+        bountyId: b.bountyId,
+        protocolId: b.protocolId,
+        validationId: b.validationId,
+        researcher: b.researcher,
+        severity: Number(b.severity),
+        amount: b.amount,
+        timestamp: b.timestamp,
+        paid: b.paid,
+      }));
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to get protocol bounties: ${msg}`);
+    }
+  }
+
+  /**
+   * Get all bounties for a researcher
+   */
+  async getResearcherBounties(researcherAddress: string): Promise<OnChainBounty[]> {
+    try {
+      const bounties = await this.contract.getResearcherBounties(researcherAddress);
+
+      return bounties.map((b: RawBounty) => ({
+        bountyId: b.bountyId,
+        protocolId: b.protocolId,
+        validationId: b.validationId,
+        researcher: b.researcher,
+        severity: Number(b.severity),
+        amount: b.amount,
+        timestamp: b.timestamp,
+        paid: b.paid,
+      }));
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to get researcher bounties: ${msg}`);
+    }
+  }
+
+  /**
+   * Get total bounties paid for a protocol
+   */
+  async getTotalBountiesPaid(protocolId: string): Promise<number> {
+    try {
+      const total = await this.contract.getTotalBountiesPaid(protocolId);
+      return Number(ethers.formatUnits(total, usdcConfig.decimals));
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to get total bounties paid: ${msg}`);
+    }
+  }
+
+  /**
+   * Get total earnings for a researcher
+   */
+  async getResearcherEarnings(researcherAddress: string): Promise<number> {
+    try {
+      const total = await this.contract.getResearcherEarnings(researcherAddress);
+      return Number(ethers.formatUnits(total, usdcConfig.decimals));
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to get researcher earnings: ${msg}`);
+    }
+  }
+
+  /**
+   * Get base bounty amount (formatted)
+   */
+  async getBaseBountyAmount(): Promise<number> {
+    try {
+      const amount = await this.contract.baseBountyAmount();
+      return Number(ethers.formatUnits(amount, usdcConfig.decimals));
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to get base bounty amount: ${msg}`);
+    }
+  }
+
+  /**
+   * Get base bounty amount as raw bigint (for tests)
+   */
+  async getBaseBountyAmountRaw(): Promise<bigint> {
+    try {
+      return await this.contract.baseBountyAmount();
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to get base bounty amount: ${msg}`);
+    }
+  }
+
+  /**
+   * Calculate bounty amount as raw bigint (for tests)
+   */
+  async calculateBountyAmountRaw(severity: BountySeverity): Promise<bigint> {
+    try {
+      return await this.contract.calculateBountyAmount(severity);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to calculate bounty amount: ${msg}`);
+    }
+  }
+
+  /**
+   * Update base bounty amount (admin only)
+   * @param amountUsdc New base amount in USDC (e.g., 1 for 1 USDC)
+   */
+  async updateBaseBountyAmount(amountUsdc: number): Promise<ContractTransactionResponse> {
+    try {
+      const amount = BigInt(Math.floor(amountUsdc * 10 ** usdcConfig.decimals));
+      
+      log.info({ amountUsdc }, 'Updating base bounty amount');
+      log.debug({ amountUsdc, amountWei: amount.toString() }, 'Base bounty amount update details');
+
+      const tx: ContractTransactionResponse = await this.contract.updateBaseBountyAmount(amount);
+      log.debug({ txHash: tx.hash }, 'Base bounty amount update transaction sent');
+
+      return tx;
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      log.error({ err: msg }, 'Update base amount failed');
+      throw new Error(`Failed to update base bounty amount: ${msg}`);
+    }
+  }
+
+  /**
+   * Update severity multiplier (admin only)
+   * @param severity Severity level (0=CRITICAL, 1=HIGH, 2=MEDIUM, 3=LOW, 4=INFO)
+   * @param multiplier Multiplier in basis points (e.g., 50000 = 5x)
+   */
+  async updateSeverityMultiplier(
+    severity: BountySeverity,
+    multiplier: number
+  ): Promise<ContractTransactionResponse> {
+    try {
+      log.info({ severity: BountySeverity[severity], multiplier }, 'Updating severity multiplier');
+      log.debug({ severity: BountySeverity[severity], severityIndex: severity, multiplierBps: multiplier, multiplierX: multiplier / 10000 }, 'Severity multiplier update details');
+
+      const tx: ContractTransactionResponse = await this.contract.updateSeverityMultiplier(
+        severity,
+        multiplier
+      );
+      log.debug({ txHash: tx.hash }, 'Severity multiplier update transaction sent');
+
+      return tx;
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      log.error({ err: msg }, 'Update multiplier failed');
+      throw new Error(`Failed to update severity multiplier: ${msg}`);
+    }
+  }
+
+  /**
+   * Check if an address has payout role
+   */
+  async isPayer(address: string): Promise<boolean> {
+    try {
+      return await this.contract.isPayer(address);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to check payout role: ${msg}`);
+    }
+  }
+
+  /**
+   * Get the contract instance (for advanced usage)
+   */
+  getContract(): Contract {
+    return this.contract;
+  }
+
+  /**
+   * Get the contract address
+   */
+  getAddress(): string {
+    return contractAddresses.bountyPool;
+  }
+}
+
+export default BountyPoolClient;

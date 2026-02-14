@@ -1,0 +1,6 @@
+schema: spec-driven
+created: 2026-02-06
+title: Backend Architecture Hardening
+status: implemented
+pr: "#97"
+description: Implement tsyringe DI, decompose payment.service.ts god service into 4 focused services, replace 144 any types, add Pino structured logging

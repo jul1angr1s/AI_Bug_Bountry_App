@@ -1,0 +1,23 @@
+.claude/
+.codex/
+.cursor/
+.factory/
+.gemini/
+.DS_Store
+node_modules/
+.env
+.agent/
+.opencode/
+CLAUDE.md
+**/CLAUDE.md
+settings.json
+.npm-cache/
+**/.npm-cache/
+test-results/
+playwright-report/
+**/test-results/
+
+# Foundry build artifacts (contain deployer addresses and tx data)
+backend/contracts/broadcast/
+backend/contracts/cache/
+backend/contracts/out/

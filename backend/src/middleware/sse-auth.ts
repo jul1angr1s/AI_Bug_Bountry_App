@@ -1,0 +1,64 @@
+import type { NextFunction, Request, Response } from 'express';
+import { supabaseAdmin } from '../lib/supabase.js';
+import { createLogger } from '../lib/logger.js';
+
+const log = createLogger('sse-auth');
+
+/**
+ * SSE-specific authentication middleware
+ *
+ * Supports multiple authentication methods for SSE connections:
+ * 1. Cookie-based authentication (production, preferred)
+ * 2. Query parameter authentication (development only)
+ *
+ * The EventSource API cannot send custom headers (like Authorization),
+ * so we use cookies which are automatically sent with requests.
+ */
+export async function sseAuthenticate(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    // Method 1: Cookie-based authentication (production)
+    const cookieToken = req.cookies?.auth_token;
+
+    // Method 2: Query parameter authentication (development only)
+    const queryToken = process.env.NODE_ENV === 'development'
+      ? (req.query.token as string | undefined)
+      : undefined;
+
+    // Get token from cookie or query param
+    const token = cookieToken || queryToken;
+
+    if (!token) {
+      log.warn('No authentication token found');
+      res.status(401).json({
+        error: 'Unauthorized',
+        message: 'Authentication required for SSE connection'
+      });
+      return;
+    }
+
+    log.debug({ source: cookieToken ? 'cookie' : 'query' }, 'Authenticating SSE connection');
+
+    // Validate token with Supabase
+    const { data, error } = await supabaseAdmin.auth.getUser(token);
+
+    if (error || !data.user) {
+      log.warn({ error: error?.message }, 'Token validation failed');
+      res.status(401).json({
+        error: 'Unauthorized',
+        message: 'Invalid or expired authentication token'
+      });
+      return;
+    }
+
+    log.debug({ userId: data.user.id }, 'User authenticated');
+    req.user = data.user;
+    return next();
+
+  } catch (err) {
+    log.error({ err }, 'Authentication error');
+    res.status(500).json({
+      error: 'Internal Server Error',
+      message: 'Authentication processing failed'
+    });
+  }
+}

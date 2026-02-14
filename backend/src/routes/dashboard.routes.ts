@@ -1,0 +1,202 @@
+import { Router } from 'express';
+import { requireAuth } from '../middleware/auth.js';
+import { validateRequest } from '../middleware/validation.js';
+import { dashboardRateLimits } from '../middleware/rate-limit.js';
+import {
+  getDashboardStats,
+  getAgentStatus,
+  getProtocolVulnerabilities,
+} from '../services/dashboard.service.js';
+import { getProtocolById } from '../services/protocol.service.js';
+import {
+  statsQuerySchema,
+  agentQuerySchema,
+  protocolIdSchema,
+  paginationSchema,
+  sortSchema,
+  vulnerabilityFilterSchema,
+} from '../schemas/dashboard.schema.js';
+import { getCache, setCache, CACHE_KEYS, CACHE_TTL } from '../lib/cache.js';
+import type { Request, Response } from 'express';
+import { createLogger } from '../lib/logger.js';
+
+const log = createLogger('DashboardRoutes');
+const router = Router();
+
+// GET /api/v1/stats - Dashboard statistics
+router.get('/stats', requireAuth, dashboardRateLimits.stats, validateRequest({ query: statsQuerySchema }), async (req: Request, res: Response) => {
+  try {
+    const { protocolId } = req.query as { protocolId?: string };
+    const userId = req.user?.id;
+    const cacheKey = CACHE_KEYS.DASHBOARD_STATS(protocolId, userId);
+    const cached = await getCache(cacheKey);
+
+    if (cached) {
+      res.setHeader('Cache-Control', 'private, max-age=30');
+      res.setHeader('X-Cache', 'HIT');
+      return res.json({ data: cached });
+    }
+
+    const stats = await getDashboardStats(protocolId, userId);
+
+    if (!stats) {
+      return res.status(404).json({
+        error: {
+          code: 'STATS_UNAVAILABLE',
+          message: 'Statistics not available',
+          requestId: req.id,
+        },
+      });
+    }
+
+    res.setHeader('Cache-Control', 'private, max-age=30');
+    res.setHeader('X-Cache', 'MISS');
+    
+    res.json({ data: stats });
+  } catch (error) {
+    log.error('Error in stats endpoint:', error);
+    res.status(503).json({
+      error: {
+        code: 'STATS_UNAVAILABLE',
+        message: 'Unable to retrieve statistics',
+        requestId: req.id,
+      },
+    });
+  }
+});
+
+// GET /api/v1/agents - Agent status
+router.get('/agents', requireAuth, dashboardRateLimits.agents, validateRequest({ query: agentQuerySchema }), async (req: Request, res: Response) => {
+  try {
+    const { type } = req.query as { type?: 'PROTOCOL' | 'RESEARCHER' | 'VALIDATOR' };
+    const cacheKey = CACHE_KEYS.AGENT_STATUS(type);
+    const cached = await getCache(cacheKey);
+
+    if (cached) {
+      res.setHeader('Cache-Control', 'private, max-age=10');
+      res.setHeader('X-Cache', 'HIT');
+      return res.json({ data: cached });
+    }
+
+    const agents = await getAgentStatus(type);
+
+    res.setHeader('Cache-Control', 'private, max-age=10');
+    res.setHeader('X-Cache', 'MISS');
+    
+    res.json({ data: agents });
+  } catch (error) {
+    log.error('Error in agents endpoint:', error);
+    res.status(503).json({
+      error: {
+        code: 'AGENT_UNREACHABLE',
+        message: 'Unable to retrieve agent status',
+        requestId: req.id,
+      },
+    });
+  }
+});
+
+// GET /api/v1/protocols/:id - Protocol overview with dashboard fields
+router.get('/protocols/:id', requireAuth, dashboardRateLimits.protocols, validateRequest({ params: protocolIdSchema }), async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.id;
+
+    const protocol = await getProtocolById(id, userId);
+
+    if (!protocol) {
+      return res.status(404).json({
+        error: {
+          code: 'PROTOCOL_NOT_FOUND',
+          message: 'Protocol not found or access denied',
+          requestId: req.id,
+        },
+      });
+    }
+
+    res.setHeader('Cache-Control', 'private, max-age=60');
+    res.json({ data: protocol });
+  } catch (error) {
+    log.error('Error in protocol endpoint:', error);
+    res.status(503).json({
+      error: {
+        code: 'STATS_UNAVAILABLE',
+        message: 'Unable to retrieve protocol data',
+        requestId: req.id,
+      },
+    });
+  }
+});
+
+// GET /api/v1/protocols/:id/vulnerabilities - Vulnerability list with pagination
+router.get(
+  '/protocols/:id/vulnerabilities',
+  requireAuth,
+  dashboardRateLimits.vulnerabilities,
+  validateRequest({
+    params: protocolIdSchema,
+    query: paginationSchema.merge(sortSchema).merge(vulnerabilityFilterSchema),
+  }),
+  async (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { page, limit, sort, severity, status } = req.query as {
+        page: string;
+        limit: string;
+        sort: string;
+        severity?: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'INFO';
+        status?: 'OPEN' | 'ACKNOWLEDGED' | 'RESOLVED' | 'DISMISSED';
+      };
+
+      const cacheKey = CACHE_KEYS.PROTOCOL_VULNERABILITIES(
+        id,
+        parseInt(page, 10),
+        parseInt(limit, 10),
+        sort,
+        severity,
+        status
+      );
+      const cached = await getCache(cacheKey);
+      if (cached) {
+        res.setHeader('Cache-Control', 'private, max-age=60');
+        res.setHeader('X-Cache', 'HIT');
+        return res.json({ data: cached });
+      }
+
+      const vulnerabilities = await getProtocolVulnerabilities(
+        id,
+        parseInt(page, 10),
+        parseInt(limit, 10),
+        sort,
+        severity,
+        status
+      );
+
+      if (!vulnerabilities) {
+        return res.status(404).json({
+          error: {
+            code: 'PROTOCOL_NOT_FOUND',
+            message: 'Protocol not found',
+            requestId: req.id,
+          },
+        });
+      }
+
+      res.setHeader('Cache-Control', 'private, max-age=60');
+      res.setHeader('X-Cache', 'MISS');
+      
+      res.json({ data: vulnerabilities });
+    } catch (error) {
+      log.error('Error in vulnerabilities endpoint:', error);
+      res.status(503).json({
+        error: {
+          code: 'STATS_UNAVAILABLE',
+          message: 'Unable to retrieve vulnerabilities',
+          requestId: req.id,
+        },
+      });
+    }
+  }
+);
+
+export default router;

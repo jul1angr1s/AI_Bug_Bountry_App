@@ -1,0 +1,16 @@
+node_modules
+dist
+.npm-cache
+.env
+.env.local
+.env.test
+.env.*.local
+*.log
+backend/contracts/lib/
+
+# Debug and test scripts
+check-*.ts
+fix-*.ts
+delete-*.ts
+cleanup-*.ts
+clean-*.ts

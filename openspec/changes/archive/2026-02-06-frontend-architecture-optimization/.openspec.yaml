@@ -1,0 +1,6 @@
+schema: spec-driven
+created: 2026-02-06
+title: Frontend Architecture Optimization
+status: implemented
+pr: "#98"
+description: Add React.lazy code splitting, decompose 5 large components, add Zod API validation, fix Web3 chainId mismatch, optimize state management and memoization

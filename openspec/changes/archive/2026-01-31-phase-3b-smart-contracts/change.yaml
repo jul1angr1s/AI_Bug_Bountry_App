@@ -1,0 +1,115 @@
+id: phase-3b-smart-contracts
+title: "Phase 3B: Smart Contract Deployment to Base Sepolia"
+status: completed
+created: 2026-01-31
+completed: 2026-01-31
+
+description: |
+  Implementation and deployment of production smart contracts to Base Sepolia testnet
+  with full integration into Protocol and Validator agents.
+
+components:
+  - Contracts
+  - Backend
+  - Infrastructure
+
+chains:
+  - Base Sepolia (84532)
+
+deployments:
+  base_sepolia:
+    protocol_registry: "0xc7DF730cf661a306a9aEC93D7180da6f6Da23235"
+    validation_registry: "0x8fBE5E9B0C17Cb606091e5050529CE99baB7744d"
+    bounty_pool: "0x6D0bA6dA342c4ce75281Ea90c71017BC94A397b0"
+    verified: true
+    basescan_urls:
+      protocol_registry: "https://sepolia.basescan.org/address/0xc7DF730cf661a306a9aEC93D7180da6f6Da23235"
+      validation_registry: "https://sepolia.basescan.org/address/0x8fBE5E9B0C17Cb606091e5050529CE99baB7744d"
+      bounty_pool: "https://sepolia.basescan.org/address/0x6D0bA6dA342c4ce75281Ea90c71017BC94A397b0"
+
+dependencies:
+  - protocol-agent
+  - add-researcher-agent
+
+pull_requests:
+  - number: 23
+    url: "https://github.com/jul1angr1s/AI_Bug_Bountry_App/pull/23"
+    branch: "feature/phase-3b-smart-contract-deployment"
+    status: merged
+    commits: 5
+    description: "Smart contract deployment and blockchain integration"
+  - number: 24
+    url: "https://github.com/jul1angr1s/AI_Bug_Bountry_App/pull/24"
+    branch: "feature/phase-3b-comprehensive-tests"
+    status: open
+    commits: 1
+    description: "Comprehensive test suite and Base Sepolia E2E verification"
+
+deliverables:
+  contracts:
+    - backend/contracts/src/ProtocolRegistry.sol (267 lines)
+    - backend/contracts/src/ValidationRegistry.sol (335 lines)
+    - backend/contracts/src/BountyPool.sol (427 lines)
+
+  deployment:
+    - backend/contracts/script/DeployBaseSepolia.s.sol (150 lines)
+    - backend/contracts/foundry.toml (updated with remappings)
+    - backend/contracts/.gitmodules (OpenZeppelin + forge-std)
+
+  integration:
+    - backend/src/blockchain/config.ts (70 lines)
+    - backend/src/blockchain/contracts/ProtocolRegistryClient.ts (220 lines)
+    - backend/src/blockchain/contracts/ValidationRegistryClient.ts (240 lines)
+    - backend/src/blockchain/contracts/BountyPoolClient.ts (260 lines)
+    - backend/src/blockchain/index.ts (50 lines)
+    - backend/src/blockchain/abis/ (3 JSON files)
+
+  agent_updates:
+    - backend/src/queues/protocol.queue.ts (on-chain registration)
+    - backend/src/agents/validator/worker.ts (on-chain validation)
+
+  database:
+    - backend/prisma/schema.prisma (3 new fields)
+    - backend/prisma/migrations/20260131195154_add_onchain_fields/
+
+  testing:
+    - backend/test-blockchain-integration.mjs (integration test)
+    - backend/contracts/test/ProtocolRegistry.t.sol (314 lines)
+    - backend/contracts/test/ValidationRegistry.t.sol (385 lines)
+    - backend/contracts/test/BountyPool.t.sol (513 lines)
+    - backend/contracts/test/Integration.t.sol (469 lines)
+    - backend/contracts/script/TestIntegration.s.sol (Base Sepolia E2E test)
+
+  documentation:
+    - PHASE_3B_COMPLETION_SUMMARY.md
+    - PHASE_3B_IMPLEMENTATION_SUMMARY.md
+    - backend/contracts/DEPLOYMENT_GUIDE.md
+    - backend/contracts/INTEGRATION_TEST_GUIDE.md
+    - SECURITY_AND_OPENSPEC_VERIFICATION.md
+
+metrics:
+  lines_of_code: 3800+
+  files_changed: 33
+  gas_cost: 0.014 ETH
+  deployment_time: ~5 minutes
+  test_coverage: |
+    - Unit tests: 1,681 lines (87 test functions)
+    - Integration tests: Passing (local + Base Sepolia)
+    - Function coverage: 100%
+    - E2E test: Successful on Base Sepolia
+  test_results:
+    protocol_registered: "0x842099f45159f489d7e36b6f4085d9908f36ce2b7a610f604228ea7dac71ead6"
+    validation_recorded: "0x4815f5b8cdbd24e291ca35b9511ae9c694d3531a9ae24cfaf8294b81f565bcb3"
+    bounty_released: "0x6dada5c52d531e255309f05f8ae3086fa588e7591c86b2d33028b741ac3abb78"
+    usdc_deposited: "50 USDC"
+    usdc_paid: "25 USDC"
+
+security:
+  - OpenZeppelin v5.0.0 (latest audited)
+  - ReentrancyGuard on payment functions
+  - SafeERC20 for token transfers
+  - AccessControl for role-based permissions
+  - No private keys in repository
+  - All sensitive data sanitized from docs
+
+next_phase: phase-4a-payment-automation

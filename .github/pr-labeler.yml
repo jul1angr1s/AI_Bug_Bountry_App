@@ -1,0 +1,23 @@
+backend:
+  - backend/**/*
+
+frontend:
+  - frontend/**/*
+
+database:
+  - backend/prisma/**/*
+
+api:
+  - backend/src/routes/**/*
+
+websocket:
+  - backend/src/websocket/**/*
+
+components:
+  - frontend/src/components/**/*
+
+hooks:
+  - frontend/src/hooks/**/*
+
+ci-cd:
+  - .github/**/*

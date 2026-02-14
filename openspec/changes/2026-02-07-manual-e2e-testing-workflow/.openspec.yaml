@@ -1,0 +1,29 @@
+schema: change
+version: 1.0
+status: in-progress
+created: 2026-02-07
+component:
+  - Testing
+  - Documentation
+  - Quality Assurance
+layer:
+  - Testing Infrastructure
+  - Developer Documentation
+purpose: |
+  Create a formal OpenSpec specification for the Manual End-to-End Testing Workflow
+  to consolidate Phase 4 testing procedures from validation reports into a living,
+  discoverable, reusable testing specification.
+artifacts:
+  - name: proposal
+    completed: false
+  - name: design
+    completed: false
+  - name: tasks
+    completed: false
+  - name: spec
+    completed: false
+notes: |
+  This change creates a new base specification (openspec/specs/manual-e2e-testing.md)
+  that formalizes the Phase 4 manual end-to-end testing workflow documented in
+  VALIDATION_REPORT.md and Improvement_plan.md. The workflow is critical for
+  validating system readiness before demonstrations and production deployment.

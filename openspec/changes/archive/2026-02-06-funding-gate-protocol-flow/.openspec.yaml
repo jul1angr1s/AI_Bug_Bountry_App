@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-02-05
+title: Funding Gate Protocol Flow
+description: Add funding gate between protocol registration and scanning to prevent payment failures

@@ -1,0 +1,625 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ProtocolStatus {
+  PENDING
+  ACTIVE
+  PAUSED
+  DEPRECATED
+}
+
+enum Severity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+  INFO
+}
+
+enum VulnerabilityStatus {
+  OPEN
+  ACKNOWLEDGED
+  RESOLVED
+  DISMISSED
+}
+
+enum AgentType {
+  PROTOCOL
+  RESEARCHER
+  VALIDATOR
+}
+
+enum AgentStatus {
+  ONLINE
+  OFFLINE
+  SCANNING
+  ERROR
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+// Researcher Agent - Scan Lifecycle Enums
+enum ScanState {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELED
+}
+
+enum ScanStep {
+  CLONE
+  COMPILE
+  DEPLOY
+  ANALYZE
+  AI_DEEP_ANALYSIS
+  PROOF_GENERATION
+  SUBMIT
+}
+
+enum FindingStatus {
+  PENDING
+  VALIDATED
+  REJECTED
+  DUPLICATE
+}
+
+enum ProofStatus {
+  ENCRYPTED
+  SUBMITTED
+  VALIDATING
+  VALIDATED
+  REJECTED
+}
+
+enum AnalysisMethod {
+  STATIC
+  AI
+  HYBRID
+}
+
+enum RegistrationType {
+  INITIAL
+  DELTA
+}
+
+model Protocol {
+  id           String         @id @default(uuid())
+  authUserId   String
+  ownerAddress String
+  githubUrl        String
+  branch           String
+  contractPath     String
+  contractName     String
+  bountyTerms      String
+  version          Int              @default(1)
+  registrationType RegistrationType @default(INITIAL)
+  parentProtocolId String?
+  status       ProtocolStatus @default(PENDING)
+  riskScore    Int?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  // Protocol Agent fields
+  registrationState  String? // PENDING, ACTIVE, FAILED
+  registrationTxHash String?
+  failureReason      String?
+  fundedAt           DateTime?
+  totalBountyPool    Float     @default(0)
+  availableBounty    Float     @default(0)
+  paidBounty         Float     @default(0)
+
+  // On-chain fields (Phase 3B)
+  onChainProtocolId String? // bytes32 from ProtocolRegistry contract
+
+  // Funding Gate fields (Protocol → Funding → Scanning flow)
+  bountyPoolAmount      Float?    // Requested bounty pool amount in USDC
+  fundingState          String?   // AWAITING_FUNDING | FUNDED | UNDERFUNDED
+  fundingTxHash         String?   // Deposit transaction hash
+  fundingVerifiedAt     DateTime? // On-chain verification timestamp
+  minimumBountyRequired Float     @default(25) // Minimum USDC for prototype
+
+  parentProtocol   Protocol?  @relation("ProtocolVersions", fields: [parentProtocolId], references: [id], onDelete: SetNull)
+  childVersions    Protocol[] @relation("ProtocolVersions")
+
+  vulnerabilities        Vulnerability[]
+  scans                  Scan[]
+  auditLogs              AuditLog[]
+  fundingEvents          FundingEvent[]
+  agentAssociations      ProtocolAgentAssociation[]
+
+  @@unique([githubUrl, version])
+  @@index([ownerAddress])
+  @@index([registrationState])
+  @@index([githubUrl])
+}
+
+model ProtocolAgentAssociation {
+  id              String            @id @default(uuid())
+  protocolId      String
+  agentIdentityId String
+  role            AgentIdentityType // RESEARCHER or VALIDATOR
+  associatedAt    DateTime          @default(now())
+
+  protocol        Protocol          @relation(fields: [protocolId], references: [id], onDelete: Cascade)
+  agentIdentity   AgentIdentity     @relation(fields: [agentIdentityId], references: [id], onDelete: Cascade)
+
+  @@unique([protocolId, role])
+  @@index([protocolId])
+  @@index([agentIdentityId])
+}
+
+model Vulnerability {
+  id                String              @id @default(uuid())
+  protocolId        String
+  vulnerabilityHash String
+  severity          Severity
+  status            VulnerabilityStatus
+  discoveredAt      DateTime            @default(now())
+  bounty            Float?
+  proof             String?
+
+  protocol Protocol  @relation(fields: [protocolId], references: [id], onDelete: Cascade)
+  payments Payment[]
+
+  @@index([protocolId, discoveredAt])
+}
+
+model Agent {
+  id             String      @id @default(uuid())
+  type           AgentType
+  status         AgentStatus
+  currentTask    String?
+  taskProgress   Float?
+  lastHeartbeat  DateTime?
+  uptime         Int?
+  scansCompleted Int         @default(0)
+
+  scans     Scan[]
+  agentRuns AgentRun[]
+
+  @@index([lastHeartbeat])
+}
+
+model Scan {
+  id          String    @id @default(uuid())
+  protocolId  String
+  agentId     String?
+  state       ScanState @default(QUEUED)
+  currentStep ScanStep?
+
+  // Target specification
+  targetBranch     String?
+  targetCommitHash String?
+
+  // Timing
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  // Progress & Results
+  vulnerabilitiesFound Int @default(0)
+  findingsCount        Int @default(0)
+
+  // Error handling
+  errorCode    String?
+  errorMessage String?
+  retryCount   Int     @default(0)
+
+  // Relations
+  protocol Protocol         @relation(fields: [protocolId], references: [id], onDelete: Cascade)
+  agent    Agent?           @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  findings Finding[]
+  proofs   Proof[]
+  steps    ScanStepRecord[]
+
+  @@index([protocolId, state])
+  @@index([state, startedAt])
+  @@index([agentId])
+}
+
+model Finding {
+  id     String @id @default(uuid())
+  scanId String
+
+  // Vulnerability details
+  vulnerabilityType String
+  severity          Severity
+  status            FindingStatus @default(PENDING)
+
+  // Location
+  filePath         String
+  lineNumber       Int?
+  functionSelector String?
+
+  // Analysis
+  description     String
+  confidenceScore Float  @default(0)
+
+  // AI Analysis fields (Phase 4)
+  aiConfidenceScore     Float?
+  remediationSuggestion String?         @db.Text
+  codeSnippet           String?         @db.Text
+  analysisMethod        AnalysisMethod?
+
+  // Metadata
+  createdAt   DateTime  @default(now())
+  validatedAt DateTime?
+
+  // Relations
+  scan   Scan    @relation(fields: [scanId], references: [id], onDelete: Cascade)
+  proofs Proof[]
+
+  @@index([scanId])
+  @@index([status])
+  @@index([severity])
+}
+
+model Proof {
+  id        String  @id @default(uuid())
+  scanId    String
+  findingId String?
+
+  // Proof content
+  status           ProofStatus @default(ENCRYPTED)
+  encryptedPayload String
+
+  // Storage
+  ipfsCid    String?
+  storageUrl String?
+
+  // Cryptography
+  researcherSignature String
+  validatorPublicKey  String?
+  encryptionKeyId     String
+
+  // Submission
+  submittedAt DateTime  @default(now())
+  validatedAt DateTime?
+
+  // On-chain fields (Phase 3B)
+  onChainValidationId String? // bytes32 from ValidationRegistry contract
+  onChainTxHash       String? // Transaction hash for on-chain validation
+
+  // Relations
+  scan    Scan     @relation(fields: [scanId], references: [id], onDelete: Cascade)
+  finding Finding? @relation(fields: [findingId], references: [id], onDelete: SetNull)
+
+  @@index([scanId, status])
+  @@index([findingId])
+}
+
+model ScanStepRecord {
+  id     String @id @default(uuid())
+  scanId String
+
+  step   ScanStep
+  status String // PENDING, RUNNING, COMPLETED, FAILED
+
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  // Error details
+  errorCode    String?
+  errorMessage String?
+
+  // Metadata
+  metadata Json?
+
+  // Relations
+  scan Scan @relation(fields: [scanId], references: [id], onDelete: Cascade)
+
+  @@index([scanId, step])
+  @@index([status])
+}
+
+model AgentRun {
+  id      String @id @default(uuid())
+  agentId String
+
+  // Execution context
+  scanId         String?
+  runtimeVersion String
+  workerId       String
+
+  // Execution metrics
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  duration    Int? // milliseconds
+
+  // Error tracking
+  errorCode    String?
+  errorMessage String?
+  stackTrace   String?
+
+  // Resources
+  memoryUsage Int? // MB
+  cpuUsage    Float? // percentage
+
+  // Relations
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@index([agentId, startedAt])
+  @@index([scanId])
+  @@index([errorCode])
+}
+
+model Payment {
+  id              String        @id @default(uuid())
+  vulnerabilityId String
+  amount          Float
+  currency        String
+  txHash          String?
+  status          PaymentStatus @default(PENDING)
+  paidAt          DateTime?
+
+  // On-chain fields (Phase 3B)
+  onChainBountyId String? // bytes32 from BountyPool contract
+
+  // Phase 4 payment automation fields
+  researcherAddress String
+  reconciled        Boolean   @default(false)
+  reconciledAt      DateTime?
+  failureReason     String?
+  retryCount        Int       @default(0)
+  queuedAt          DateTime?
+
+  // Security: idempotency and race condition prevention
+  idempotencyKey String?   @unique
+  processedAt    DateTime?
+
+  vulnerability   Vulnerability           @relation(fields: [vulnerabilityId], references: [id], onDelete: Cascade)
+  reconciliations PaymentReconciliation[]
+
+  @@index([researcherAddress])
+  @@index([reconciled])
+  @@index([status, processedAt])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  protocolId String
+  action     String // REGISTRATION_ATTEMPT, FUNDING_SUBMISSION, etc.
+  txHash     String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  protocol Protocol @relation(fields: [protocolId], references: [id], onDelete: Cascade)
+
+  @@index([protocolId])
+  @@index([createdAt])
+  @@index([action])
+}
+
+model FundingEvent {
+  id          String    @id @default(uuid())
+  protocolId  String
+  amount      Float
+  txHash      String
+  status      String // PENDING, CONFIRMED, FAILED
+  changeType  String // DEPOSIT, PAYMENT_RELEASED, RESERVATION
+  createdAt   DateTime  @default(now())
+  confirmedAt DateTime?
+
+  protocol Protocol @relation(fields: [protocolId], references: [id], onDelete: Cascade)
+
+  @@index([protocolId])
+  @@index([createdAt])
+  @@index([status])
+}
+
+model PaymentReconciliation {
+  id              String    @id @default(cuid())
+  paymentId       String? // Nullable for orphaned payments
+  onChainBountyId String // validationId from event
+  txHash          String
+  amount          Float
+  status          String // ORPHANED, MISSING_PAYMENT, UNCONFIRMED_PAYMENT, AMOUNT_MISMATCH, DISCREPANCY, RESOLVED
+  discoveredAt    DateTime  @default(now())
+  resolvedAt      DateTime?
+  notes           String?
+
+  payment Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([onChainBountyId])
+}
+
+model EventListenerState {
+  id                 String   @id @default(cuid())
+  contractAddress    String
+  eventName          String
+  lastProcessedBlock Int
+  updatedAt          DateTime @default(now()) @updatedAt
+
+  @@unique([contractAddress, eventName])
+}
+
+model KnowledgeDocument {
+  id        String    @id @default(uuid())
+  source    String
+  title     String
+  content   String    @db.Text
+  embedding Json
+  severity  Severity?
+  tags      String[]
+  version   Int
+  createdAt DateTime  @default(now())
+
+  @@index([source, version])
+  @@index([tags])
+}
+
+// ERC-8004 Agent Identity & Reputation Models
+
+enum AgentIdentityType {
+  RESEARCHER
+  VALIDATOR
+}
+
+model AgentIdentity {
+  id            String            @id @default(uuid())
+  walletAddress String            @unique
+  agentNftId    BigInt?           // On-chain NFT ID from AgentIdentityRegistry
+  agentType     AgentIdentityType
+  isActive      Boolean           @default(true)
+  registeredAt  DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  // On-chain fields
+  onChainTxHash String? // Registration transaction hash
+
+  // Relations
+  reputation             AgentReputation?
+  escrowBalance          AgentEscrow?
+  feedbacksGiven         AgentFeedback[]              @relation("ValidatorFeedbacks")
+  feedbacksReceived      AgentFeedback[]              @relation("ResearcherFeedbacks")
+  protocolAssociations   ProtocolAgentAssociation[]
+
+  @@index([walletAddress])
+  @@index([agentType])
+  @@index([agentNftId])
+}
+
+model AgentReputation {
+  id               String   @id @default(uuid())
+  agentIdentityId  String   @unique
+  confirmedCount   Int      @default(0)
+  rejectedCount    Int      @default(0)
+  inconclusiveCount Int     @default(0)
+  totalSubmissions Int      @default(0)
+  reputationScore  Int      @default(0) // 0-100 scale
+  lastUpdated      DateTime @default(now())
+
+  // Validator reputation fields (bidirectional scoring)
+  validatorConfirmedCount   Int       @default(0)
+  validatorRejectedCount    Int       @default(0)
+  validatorTotalSubmissions Int       @default(0)
+  validatorReputationScore  Int       @default(0)
+  validatorLastUpdated      DateTime?
+
+  agentIdentity AgentIdentity @relation(fields: [agentIdentityId], references: [id], onDelete: Cascade)
+
+  @@index([reputationScore])
+  @@index([totalSubmissions])
+}
+
+model AgentFeedback {
+  id                  String              @id @default(uuid())
+  researcherAgentId   String
+  validatorAgentId    String
+  validationId        String?             // Reference to on-chain validation
+  findingId           String?             // Reference to Finding
+  feedbackType        FeedbackType
+  feedbackDirection   FeedbackDirection   @default(VALIDATOR_RATES_RESEARCHER)
+  onChainFeedbackId   String?             // bytes32 from AgentReputationRegistry
+  txHash              String?             // Transaction hash for on-chain feedback
+  createdAt           DateTime            @default(now())
+
+  researcherAgent AgentIdentity @relation("ResearcherFeedbacks", fields: [researcherAgentId], references: [id], onDelete: Cascade)
+  validatorAgent  AgentIdentity @relation("ValidatorFeedbacks", fields: [validatorAgentId], references: [id], onDelete: Cascade)
+
+  @@index([researcherAgentId])
+  @@index([validatorAgentId])
+  @@index([feedbackType])
+  @@index([feedbackDirection])
+}
+
+enum FeedbackDirection {
+  VALIDATOR_RATES_RESEARCHER
+  RESEARCHER_RATES_VALIDATOR
+}
+
+enum FeedbackType {
+  CONFIRMED_CRITICAL
+  CONFIRMED_HIGH
+  CONFIRMED_MEDIUM
+  CONFIRMED_LOW
+  CONFIRMED_INFORMATIONAL
+  REJECTED
+}
+
+// x.402 Payment Escrow Model
+
+model AgentEscrow {
+  id              String   @id @default(uuid())
+  agentIdentityId String   @unique
+  balance         BigInt   @default(0) // USDC balance in 6 decimals
+  totalDeposited  BigInt   @default(0)
+  totalDeducted   BigInt   @default(0)
+  updatedAt       DateTime @updatedAt
+
+  agentIdentity AgentIdentity       @relation(fields: [agentIdentityId], references: [id], onDelete: Cascade)
+  transactions  EscrowTransaction[]
+
+  @@index([balance])
+}
+
+model EscrowTransaction {
+  id              String              @id @default(uuid())
+  agentEscrowId   String
+  transactionType EscrowTransactionType
+  amount          BigInt
+  txHash          String?
+  findingId       String?             // For SUBMISSION_FEE deductions
+  protocolId      String?             // For PROTOCOL_FEE payments
+  createdAt       DateTime            @default(now())
+
+  agentEscrow AgentEscrow @relation(fields: [agentEscrowId], references: [id], onDelete: Cascade)
+
+  @@index([agentEscrowId])
+  @@index([transactionType])
+  @@index([createdAt])
+}
+
+enum EscrowTransactionType {
+  DEPOSIT
+  WITHDRAWAL
+  SUBMISSION_FEE
+  PROTOCOL_FEE
+}
+
+// x.402 Payment Request Tracking
+
+model X402PaymentRequest {
+  id            String              @id @default(uuid())
+  requestType   X402RequestType
+  requesterAddress String
+  amount        BigInt              // USDC amount in 6 decimals
+  status        X402PaymentStatus   @default(PENDING)
+  protocolId    String?             // For protocol registration
+  paymentReceipt String?            // x.402 receipt data
+  txHash        String?
+  recipientAddress String?           // Tracks different recipients per stream
+  expiresAt     DateTime
+  createdAt     DateTime            @default(now())
+  completedAt   DateTime?
+
+  @@index([requesterAddress])
+  @@index([status])
+  @@index([protocolId])
+  @@index([requestType])
+}
+
+enum X402RequestType {
+  PROTOCOL_REGISTRATION
+  FINDING_SUBMISSION
+  SCAN_REQUEST_FEE
+  EXPLOIT_SUBMISSION_FEE
+}
+
+enum X402PaymentStatus {
+  PENDING
+  COMPLETED
+  EXPIRED
+  FAILED
+}

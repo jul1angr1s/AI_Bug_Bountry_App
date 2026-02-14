@@ -1,0 +1,10 @@
+schema: spec-driven
+created: 2026-02-06
+title: Code Quality Improvement
+status: implemented
+pr: "#99, #101"
+description: Eliminate 152 any types across 37 files, centralize error hierarchy, migrate 15 TODOs to GitHub Issues, enforce via ESLint
+notes: |
+  All 6 phases complete. 131 any types eliminated, error hierarchy centralized,
+  15 TODOs migrated to GitHub Issues (#101-#111), ESLint configured with
+  no-explicit-any warning rule, utilities created for error handling and query building.

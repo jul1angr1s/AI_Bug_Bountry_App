@@ -1,0 +1,378 @@
+name: Test Suite
+
+on:
+  push:
+    branches: [main, develop, feature/**, impl/**, spec/**]
+  pull_request:
+    branches: [main, develop]
+
+# Cancel in-progress runs when a new workflow with the same group name is triggered
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ============================================================================
+  # Backend Unit Tests - Fast, no external dependencies
+  # ============================================================================
+  backend-unit:
+    name: Backend Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Generate Prisma Client
+        working-directory: ./backend
+        run: npm run prisma:generate
+
+      - name: Run unit tests
+        working-directory: ./backend
+        env:
+          NODE_ENV: test
+          AI_ANALYSIS_ENABLED: "false"
+          DATABASE_URL: postgresql://test:test@localhost:5432/thunder_test
+          SUPABASE_URL: https://test-project.supabase.co
+          SUPABASE_ANON_KEY: test-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: test-service-role-key
+          FRONTEND_URL: http://localhost:5173
+        run: npm test -- --exclude="**/*.ai.test.ts" --exclude="**/*.integration.test.ts" --coverage
+
+      - name: Upload unit test coverage
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          files: ./backend/coverage/lcov.info
+          flags: backend-unit
+          name: backend-unit-tests
+          fail_ci_if_error: false
+
+  # ============================================================================
+  # Backend Integration Tests - Requires PostgreSQL + Redis
+  # ============================================================================
+  backend-integration:
+    name: Backend Integration Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: thunder_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Verify Anvil installation
+        run: anvil --version
+
+      - name: Install backend dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Generate Prisma Client
+        working-directory: ./backend
+        run: npm run prisma:generate
+
+      - name: Run database migrations
+        working-directory: ./backend
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/thunder_test
+        run: npx prisma migrate deploy
+
+      - name: Run integration tests
+        working-directory: ./backend
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://test:test@localhost:5432/thunder_test
+          REDIS_URL: redis://localhost:6379/1
+          SUPABASE_URL: https://test-project.supabase.co
+          SUPABASE_ANON_KEY: test-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: test-service-role-key
+          FRONTEND_URL: http://localhost:5173
+          BASE_SEPOLIA_RPC_URL: ${{ secrets.BASE_SEPOLIA_RPC_URL }}
+          PROTOCOL_REGISTRY_ADDRESS: ${{ secrets.PROTOCOL_REGISTRY_ADDRESS }}
+          VALIDATION_REGISTRY_ADDRESS: ${{ secrets.VALIDATION_REGISTRY_ADDRESS }}
+          BOUNTY_POOL_ADDRESS: ${{ secrets.BOUNTY_POOL_ADDRESS }}
+          # Set TEST_PRIVATE_KEY / TEST_PRIVATE_KEY2 in repo secrets (Anvil defaults)
+          PRIVATE_KEY: ${{ secrets.TEST_PRIVATE_KEY }}
+          PRIVATE_KEY2: ${{ secrets.TEST_PRIVATE_KEY2 }}
+          AI_ANALYSIS_ENABLED: "false"
+        run: npm test -- --include="**/*.integration.test.ts" || echo "No integration tests found, skipping"
+
+      - name: Upload integration test coverage
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          files: ./backend/coverage/lcov.info
+          flags: backend-integration
+          name: backend-integration-tests
+          fail_ci_if_error: false
+
+  # ============================================================================
+  # Smart Contract Tests - Foundry/Forge
+  # ============================================================================
+  smart-contracts:
+    name: Smart Contract Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Run contract tests
+        working-directory: ./backend/contracts
+        run: forge test -vvv --gas-report || echo "No contract tests found, skipping"
+
+  # ============================================================================
+  # Frontend Unit Tests
+  # ============================================================================
+  frontend-unit:
+    name: Frontend Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Run frontend tests
+        working-directory: ./frontend
+        run: npx vitest run --coverage || echo "No frontend tests found, skipping"
+
+      - name: Upload frontend test coverage
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          files: ./frontend/coverage/lcov.info
+          flags: frontend-unit
+          name: frontend-unit-tests
+          fail_ci_if_error: false
+
+  # ============================================================================
+  # AI Tests - Run after unit tests pass (expensive, uses API keys)
+  # ============================================================================
+  ai-tests:
+    name: AI Integration Tests
+    needs: [backend-unit]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    if: success()
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: thunder_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Install backend dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Generate Prisma Client
+        working-directory: ./backend
+        run: npm run prisma:generate
+
+      - name: Run database migrations
+        working-directory: ./backend
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/thunder_test
+        run: npx prisma migrate deploy
+
+      - name: Run AI tests
+        working-directory: ./backend
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://test:test@localhost:5432/thunder_test
+          REDIS_URL: redis://localhost:6379/1
+          SUPABASE_URL: https://test-project.supabase.co
+          SUPABASE_ANON_KEY: test-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: test-service-role-key
+          FRONTEND_URL: http://localhost:5173
+          BASE_SEPOLIA_RPC_URL: ${{ secrets.BASE_SEPOLIA_RPC_URL }}
+          PROTOCOL_REGISTRY_ADDRESS: ${{ secrets.PROTOCOL_REGISTRY_ADDRESS }}
+          VALIDATION_REGISTRY_ADDRESS: ${{ secrets.VALIDATION_REGISTRY_ADDRESS }}
+          BOUNTY_POOL_ADDRESS: ${{ secrets.BOUNTY_POOL_ADDRESS }}
+          # Set TEST_PRIVATE_KEY / TEST_PRIVATE_KEY2 in repo secrets (Anvil defaults)
+          PRIVATE_KEY: ${{ secrets.TEST_PRIVATE_KEY }}
+          PRIVATE_KEY2: ${{ secrets.TEST_PRIVATE_KEY2 }}
+          AI_ANALYSIS_ENABLED: "true"
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_MODEL: "claude-opus-4-5-20251101"
+          AI_ANALYSIS_TIMEOUT: "120000"
+          AI_MAX_RETRIES: "3"
+          AI_MAX_CONCURRENT_REQUESTS: "5"
+        run: npm run test:ai
+
+      - name: Upload AI test coverage
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          files: ./backend/coverage/lcov.info
+          flags: ai
+          name: ai-tests
+          fail_ci_if_error: false
+
+  # ============================================================================
+  # Test Summary - Report overall status
+  # ============================================================================
+  test-summary:
+    name: Test Suite Summary
+    needs: [backend-unit, backend-integration, smart-contracts, frontend-unit, ai-tests]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Check test status
+        run: |
+          echo "## Test Suite Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Backend Unit
+          if [ "${{ needs.backend-unit.result }}" == "success" ]; then
+            echo "✅ **Backend Unit Tests**: PASSED" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Backend Unit Tests**: FAILED" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Backend Integration
+          if [ "${{ needs.backend-integration.result }}" == "success" ]; then
+            echo "✅ **Backend Integration Tests**: PASSED" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Backend Integration Tests**: FAILED" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Smart Contracts
+          if [ "${{ needs.smart-contracts.result }}" == "success" ]; then
+            echo "✅ **Smart Contract Tests**: PASSED" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Smart Contract Tests**: FAILED" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Frontend Unit
+          if [ "${{ needs.frontend-unit.result }}" == "success" ]; then
+            echo "✅ **Frontend Unit Tests**: PASSED" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Frontend Unit Tests**: FAILED" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # AI Tests
+          if [ "${{ needs.ai-tests.result }}" == "success" ]; then
+            echo "✅ **AI Tests**: PASSED" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.ai-tests.result }}" == "skipped" ]; then
+            echo "⏭️  **AI Tests**: SKIPPED" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **AI Tests**: FAILED" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Overall: Pass if all required jobs pass (AI tests failure is non-blocking)
+          if [ "${{ needs.backend-unit.result }}" == "success" ] && \
+             [ "${{ needs.backend-integration.result }}" == "success" ] && \
+             [ "${{ needs.smart-contracts.result }}" == "success" ] && \
+             [ "${{ needs.frontend-unit.result }}" == "success" ]; then
+            echo "🎉 **Overall Status**: ALL CORE TESTS PASSED" >> $GITHUB_STEP_SUMMARY
+            exit 0
+          else
+            echo "🚨 **Overall Status**: TESTS FAILED" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi

@@ -1,0 +1,10 @@
+schema: spec-driven
+created: 2026-02-06
+title: Testing and QA Expansion
+status: implemented
+pr: "#100, #101"
+description: Expand test coverage from <30% to 70%+ backend, 70%+ frontend, 90%+ contracts with TDD methodology, mock infrastructure, and CI enforcement
+notes: |
+  302 tests across 8 test files. All service layer and blockchain client tests done.
+  Remaining for follow-up: integration tests, frontend tests (MSW/Playwright),
+  smart contract fuzz tests, E2E tests.

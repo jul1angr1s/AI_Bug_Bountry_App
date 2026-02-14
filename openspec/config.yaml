@@ -1,0 +1,116 @@
+schema: spec-driven
+
+context: |
+  # Autonomous Bug Bounty Orchestrator (Openspect)
+
+  A continuous security auditing platform where autonomous AI agents (powered by MCP)
+  scan smart contracts for vulnerabilities, validate exploits in isolated sandboxes,
+  and receive instant USDC bounty payments.
+
+  ## Architecture Overview
+  - **Hybrid Deployment Model**:
+    - Local Anvil (31337): Target contracts for scanning + sandbox for exploit validation
+    - Base Sepolia (84532): x402 payment infrastructure (ERC-8004, BountyPool, USDC)
+  - **Key Design**: Protocols register GitHub repo URLs (not deployed addresses).
+    Each scan deploys a fresh contract instance from source code for state isolation.
+
+  ## Tech Stack
+
+  ### Frontend
+  - React 18 with TypeScript 5.x
+  - Vite 5.x (build tool)
+  - TailwindCSS + Shadcn UI
+  - TanStack Query (server state)
+  - Zustand (client state)
+  - Supabase Client (Auth, Realtime, DB)
+  - Web3: Viem 2.x, Wagmi 2.x, ConnectKit
+
+  ### Backend
+  - Node.js 20.x LTS
+  - Express 4.x
+  - TypeScript 5.x
+  - Prisma 5.x ORM (connected to Supabase PostgreSQL)
+  - Redis 7.x + BullMQ (job queues)
+  - Socket.io (WebSocket server)
+
+  ### AI/Agents
+  - Provider: Kimi AI (Moonshot)
+  - Model: Kimi k.25
+  - MCP SDK (@modelcontextprotocol/sdk)
+  - Dev Tools: Chrome DevTools MCP
+  - Agent Types: Protocol Agent, Researcher Agent, Validator Agent, Frontend QA Agent
+
+  ### Blockchain
+  - Solidity 0.8.24
+  - Foundry (forge, anvil, cast)
+  - OpenZeppelin Contracts
+  - Viem for TypeScript blockchain interactions
+  - Chains: Local Anvil (31337), Base Sepolia (84532), Base Mainnet (8453)
+
+  ### Infrastructure
+  - Supabase (Auth, PostgreSQL, Realtime)
+  - Railway (API deployment)
+  - Pinata/IPFS (encrypted proof storage)
+  - USDC for payments
+
+  ## Core Contracts (Base Sepolia)
+  - ProtocolRegistry: Register GitHub repos + bounty terms
+  - ValidationRegistry: ERC-8004 validation states
+  - BountyPool: USDC escrow & x402 payments
+  - OpsTreasury: Gas management for validator agents
+
+  ## Agent Architecture (MCP-Powered)
+  - **Protocol Agent**: Registers protocols, sets bounty terms, funds pools
+  - **Researcher Agent**: Clones repos, compiles, deploys fresh instances, scans for vulns
+  - **Validator Agent**: Spawns sandboxes, executes exploits, updates registry
+  - **Swarm Orchestrator**: Task delegation, consensus synthesis, self-healing
+
+  ## Key Workflows
+  1. Protocol Registration (GitHub URL + bounty terms on Base Sepolia)
+  2. Vulnerability Scanning (fresh deploy to local Anvil, AI analysis)
+  3. Proof Generation (encrypted, stored on IPFS)
+  4. Exploit Validation (isolated sandbox execution)
+  5. Payment Release (automatic USDC transfer on validation success)
+
+  ## Security Considerations
+  - Sandbox isolation (network-restricted containers)
+  - Proof encryption (end-to-end between agents)
+  - Anti-MEV front-running protection (cryptographic identity binding)
+  - Rate limiting at API and agent task levels
+  - ReentrancyGuard + AccessControl on all contracts
+
+  ## Documentation References
+  - See project/Architecture.md for system diagrams
+  - See project/DatabaseSchema.md for Prisma schema
+  - See project/SmartContracts.md for Solidity interfaces
+  - See project/APIRoutes.md for REST/WebSocket endpoints
+  - See project/Workflows.md for detailed flow diagrams
+  - See project/Security.md for hardening strategies
+
+rules:
+  proposal:
+    - Reference relevant project/*.md documentation files
+    - Include affected components (Frontend/Backend/Contracts/Agents)
+    - Specify which chain(s) the change affects (Anvil/Sepolia/Both)
+    - Include a "Security Considerations" section for any contract or payment changes
+    - List dependencies on other proposals or existing features
+
+  tasks:
+    - Tasks should be atomic and completable in a single session
+    - Each task must specify the target layer (Frontend/Backend/Contracts/Agents)
+    - Include file paths for files to be created or modified
+    - Reference the specific project/*.md doc that defines requirements
+    - For contract tasks, specify if tests (*.t.sol) are required
+    - For API tasks, include expected request/response schemas
+
+  delta-spec:
+    - Must clearly state what changes from the main spec
+    - Include before/after comparison for modified interfaces
+    - Reference the original spec file being extended
+
+  implementation:
+    - Follow existing code patterns in the codebase
+    - Use TypeScript strict mode for all TS files
+    - Use Foundry's forge-std for contract testing
+    - Apply Checks-Effects-Interactions pattern for contract state changes
+    - Include Zod schemas for API input validation
