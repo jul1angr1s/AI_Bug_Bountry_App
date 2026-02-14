@@ -112,7 +112,7 @@ describe('useProtocolRegistrationProgress', () => {
     // Mock import.meta.env
     import.meta.env = {
       ...originalImportMeta,
-      VITE_API_BASE_URL: 'http://localhost:3000/api/v1',
+      VITE_API_BASE_URL: 'http://localhost:3000',
       MODE: 'production',
     };
   });
@@ -124,9 +124,9 @@ describe('useProtocolRegistrationProgress', () => {
   });
 
   describe('Environment Variable Usage', () => {
-    it('should use VITE_API_BASE_URL and strip /api/v1 suffix', () => {
+    it('should use VITE_API_BASE_URL and append /api/v1 path', () => {
       const protocolId = 'protocol-123';
-      import.meta.env.VITE_API_BASE_URL = 'http://localhost:3000/api/v1';
+      import.meta.env.VITE_API_BASE_URL = 'http://localhost:3000';
 
       renderHook(() => useProtocolRegistrationProgress(protocolId));
 

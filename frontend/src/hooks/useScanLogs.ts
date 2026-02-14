@@ -28,7 +28,7 @@ export function useScanLogs(scanId: string | null, scanState?: string) {
       return;
     }
 
-    const apiUrl = import.meta.env.VITE_API_BASE_URL?.replace('/api/v1', '') || 'http://localhost:3000';
+    const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
     const url = `${apiUrl}/api/v1/scans/${scanId}/logs`;
     const eventSource = new EventSource(url, {
       withCredentials: true,

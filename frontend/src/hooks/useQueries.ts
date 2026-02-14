@@ -7,13 +7,13 @@ import type {
 } from '../types/dashboard';
 
 // API base URL from environment
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 
 /**
  * Fetch protocol by ID
  */
 async function fetchProtocol(protocolId: string): Promise<Protocol> {
-  const response = await fetch(`${API_BASE_URL}/protocols/${protocolId}`);
+  const response = await fetch(`${API_BASE_URL}/api/v1/protocols/${protocolId}`);
   if (!response.ok) {
     throw new Error('Failed to fetch protocol');
   }
@@ -36,7 +36,7 @@ export function useProtocol(protocolId: string | null) {
  */
 async function fetchVulnerabilities(protocolId: string): Promise<Vulnerability[]> {
   const response = await fetch(
-    `${API_BASE_URL}/protocols/${protocolId}/vulnerabilities`
+    `${API_BASE_URL}/api/v1/protocols/${protocolId}/vulnerabilities`
   );
   if (!response.ok) {
     throw new Error('Failed to fetch vulnerabilities');
@@ -59,7 +59,7 @@ export function useVulnerabilities(protocolId: string | null) {
  * Fetch all agents
  */
 async function fetchAgents(): Promise<Agent[]> {
-  const response = await fetch(`${API_BASE_URL}/agents`);
+  const response = await fetch(`${API_BASE_URL}/api/v1/agents`);
   if (!response.ok) {
     throw new Error('Failed to fetch agents');
   }
@@ -82,8 +82,8 @@ export function useAgents() {
  */
 async function fetchDashboardStats(protocolId?: string): Promise<DashboardStats> {
   const url = protocolId
-    ? `${API_BASE_URL}/stats?protocolId=${protocolId}`
-    : `${API_BASE_URL}/stats`;
+    ? `${API_BASE_URL}/api/v1/stats?protocolId=${protocolId}`
+    : `${API_BASE_URL}/api/v1/stats`;
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error('Failed to fetch dashboard stats');
@@ -106,7 +106,7 @@ export function useDashboardStats(protocolId?: string) {
  * Fetch all protocols
  */
 async function fetchProtocols(): Promise<Protocol[]> {
-  const response = await fetch(`${API_BASE_URL}/protocols`);
+  const response = await fetch(`${API_BASE_URL}/api/v1/protocols`);
   if (!response.ok) {
     throw new Error('Failed to fetch protocols');
   }
@@ -131,7 +131,7 @@ export function useDismissAlert() {
 
   return useMutation({
     mutationFn: async (alertId: string) => {
-      const response = await fetch(`${API_BASE_URL}/alerts/${alertId}/dismiss`, {
+      const response = await fetch(`${API_BASE_URL}/api/v1/alerts/${alertId}/dismiss`, {
         method: 'POST',
       });
       if (!response.ok) {
@@ -160,7 +160,7 @@ export function useUpdateVulnerability() {
       vulnId: string;
       status: string;
     }) => {
-      const response = await fetch(`${API_BASE_URL}/vulnerabilities/${vulnId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/v1/vulnerabilities/${vulnId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
