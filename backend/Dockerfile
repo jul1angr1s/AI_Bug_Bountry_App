@@ -92,9 +92,10 @@ RUN npm ci --omit=dev && \
     find /app/node_modules -type d -name "tests" -exec rm -rf {} + 2>/dev/null || true
 
 # Generate Prisma Client for production
+# Keep linux-musl engine (needed for Alpine), remove others
 RUN npx prisma generate && \
-    # Remove Prisma unnecessary binaries for other platforms
-    rm -rf /app/node_modules/.prisma/client/libquery_engine-*linux-musl*.so.node 2>/dev/null || true
+    find /app/node_modules/.prisma/client -name "libquery_engine-*" \
+      ! -name "*linux-musl*" -delete 2>/dev/null || true
 
 # ---------------------------------------------
 # Production Stage: Minimal production image
@@ -126,4 +127,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3000/api/v1/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1); })"
 
 # Start production server
-CMD ["node", "dist/server.js"]
+CMD ["sh", "-c", "echo 'Starting node dist/server.js...' && node dist/server.js"]
