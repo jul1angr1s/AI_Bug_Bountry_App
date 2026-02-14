@@ -5,7 +5,7 @@
     "buildCommand": "npx prisma generate && npm run build"
   },
   "deploy": {
-    "startCommand": "npx prisma migrate deploy && node dist/server.js",
+    "startCommand": "npx prisma migrate deploy && echo 'PRISMA_DONE' && ls dist/server.js && echo 'NODE_VERSION:' && node --version && echo 'STARTING_NODE' && node dist/server.js",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 3
   },
