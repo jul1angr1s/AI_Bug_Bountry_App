@@ -22,7 +22,7 @@ const envSchema = z.object({
 const parsed = envSchema.safeParse(process.env);
 
 if (!parsed.success) {
-  log.error('Invalid environment configuration', parsed.error.flatten());
+  log.error({ validationErrors: parsed.error.flatten() }, 'Invalid environment configuration');
   process.exit(1);
 }
 

@@ -44,8 +44,30 @@ const logger = pino({
 export default logger;
 
 /**
+ * Extended logger interface that permits the common `log.error("msg:", value)`
+ * calling pattern alongside Pino's strict `log.error(obj, msg)` signatures.
+ *
+ * This avoids TypeScript build errors across ~30+ call-sites that pass
+ * extra arguments (e.g. caught errors) as trailing positional parameters.
+ */
+export interface AppLogger extends pino.Logger {
+  fatal(msg: string, ...args: any[]): void;
+  fatal(obj: object, msg?: string, ...args: any[]): void;
+  error(msg: string, ...args: any[]): void;
+  error(obj: object, msg?: string, ...args: any[]): void;
+  warn(msg: string, ...args: any[]): void;
+  warn(obj: object, msg?: string, ...args: any[]): void;
+  info(msg: string, ...args: any[]): void;
+  info(obj: object, msg?: string, ...args: any[]): void;
+  debug(msg: string, ...args: any[]): void;
+  debug(obj: object, msg?: string, ...args: any[]): void;
+  trace(msg: string, ...args: any[]): void;
+  trace(obj: object, msg?: string, ...args: any[]): void;
+}
+
+/**
  * Create a child logger with a specific module context.
  */
-export function createLogger(module: string): pino.Logger {
-  return logger.child({ module });
+export function createLogger(module: string): AppLogger {
+  return logger.child({ module }) as AppLogger;
 }

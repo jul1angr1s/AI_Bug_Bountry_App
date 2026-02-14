@@ -139,13 +139,13 @@ async function runSlither(clonedPath: string, contractPath: string): Promise<Vul
 /**
  * Parse Slither detector output into our finding format
  */
-function parseSlitherDetector(detector: { impact?: string; check?: string; description?: string; elements?: Array<{ source_mapping?: { filename_relative?: string; lines?: number[] }; name?: string }> }, contractPath: string): VulnerabilityFinding | null {
+function parseSlitherDetector(detector: { impact?: string; check?: string; description?: string; confidence?: string; elements?: Array<{ type?: string; source_mapping?: { filename_relative?: string; lines?: number[] }; name?: string }> }, contractPath: string): VulnerabilityFinding | null {
   try {
     // Map Slither impact to our Severity
-    const severity = mapSlitherImpactToSeverity(detector.impact);
+    const severity = mapSlitherImpactToSeverity(detector.impact ?? '');
 
     // Map Slither check to vulnerability type
-    const vulnerabilityType = mapSlitherCheckToType(detector.check);
+    const vulnerabilityType = mapSlitherCheckToType(detector.check ?? '');
 
     // Extract location information
     let filePath = contractPath;
@@ -170,7 +170,7 @@ function parseSlitherDetector(detector: { impact?: string; check?: string; descr
     }
 
     // Calculate confidence score based on Slither's confidence rating
-    const confidenceScore = mapSlitherConfidenceToScore(detector.confidence);
+    const confidenceScore = mapSlitherConfidenceToScore(detector.confidence ?? '');
 
     return {
       vulnerabilityType,

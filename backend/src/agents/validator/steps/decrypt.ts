@@ -1,5 +1,6 @@
 import { proofRepository, findingRepository } from '../../../db/repositories.js';
 import type { ProofSubmissionMessage } from '../../../messages/schemas.js';
+export type { ProofSubmissionMessage };
 import { createLogger } from '../../../lib/logger.js';
 
 const log = createLogger('ValidatorDecrypt');
@@ -96,8 +97,14 @@ export async function decryptProof(
       }
 
       // Generate vulnerability-specific exploit details
-      const reproductionSteps = generateReproductionSteps(finding.vulnerabilityType, finding);
-      const expectedOutcome = generateExpectedOutcome(finding.vulnerabilityType, finding);
+      const findingInfo = {
+        filePath: finding.filePath ?? undefined,
+        lineNumber: finding.lineNumber ?? undefined,
+        functionSelector: finding.functionSelector ?? undefined,
+        description: finding.description ?? undefined,
+      };
+      const reproductionSteps = generateReproductionSteps(finding.vulnerabilityType, findingInfo);
+      const expectedOutcome = generateExpectedOutcome(finding.vulnerabilityType, findingInfo);
 
       // Extract proof data from finding fields with vulnerability-specific details
       proofData = {
@@ -106,8 +113,8 @@ export async function decryptProof(
         description: finding.description,
         location: {
           filePath: finding.filePath || 'unknown',
-          lineNumber: finding.lineNumber,
-          functionSelector: finding.functionSelector,
+          lineNumber: finding.lineNumber ?? undefined,
+          functionSelector: finding.functionSelector ?? undefined,
         },
         exploitDetails: {
           reproductionSteps,

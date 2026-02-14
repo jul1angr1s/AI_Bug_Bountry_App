@@ -1,4 +1,4 @@
-import simpleGit, { SimpleGit, GitError } from 'simple-git';
+import { simpleGit, SimpleGit, GitError } from 'simple-git';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { createLogger } from '../../../lib/logger.js';
@@ -65,11 +65,14 @@ export async function executeCloneStep(params: CloneStepParams): Promise<CloneSt
     log.info(`Cloning ${repoUrl} to ${clonePath}...`);
 
     // Clone the repository
-    await git.clone(repoUrl, clonePath, {
-      '--depth': 1, // Shallow clone for faster performance
-      '--single-branch': targetBranch ? null : true, // Only clone target branch if specified
-      '--branch': targetBranch || undefined,
-    });
+    const cloneArgs: string[] = ['--depth', '1'];
+    if (!targetBranch) {
+      cloneArgs.push('--single-branch');
+    }
+    if (targetBranch) {
+      cloneArgs.push('--branch', targetBranch);
+    }
+    await git.clone(repoUrl, clonePath, cloneArgs);
 
     // Initialize git client in cloned directory
     const repoGit: SimpleGit = simpleGit(clonePath);

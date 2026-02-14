@@ -459,7 +459,7 @@ Respond with ONLY the JSON array.`;
 /**
  * Map severity string to Prisma Severity enum
  */
-function mapSeverity(severityStr: string): Severity {
+function mapSeverity(severityStr: string | undefined): Severity {
   const normalized = severityStr?.toUpperCase();
   switch (normalized) {
     case 'CRITICAL':

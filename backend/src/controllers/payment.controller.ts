@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { Prisma } from '@prisma/client';
+import { Prisma, type PaymentStatus } from '@prisma/client';
 import { getPrismaClient } from '../lib/prisma.js';
 import { addPaymentJob } from '../queues/payment.queue.js';
 import { createLogger } from '../lib/logger.js';
@@ -36,7 +36,7 @@ export async function listPayments(req: Request, res: Response): Promise<void> {
       where.researcherAddress = researcherAddress as string;
     }
     if (status) {
-      where.status = status as string;
+      where.status = status as PaymentStatus;
     }
 
     // Query payments
