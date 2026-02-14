@@ -1,3 +1,4 @@
+console.log('[BOOT] server.ts module loading started');
 import 'reflect-metadata';
 import express from 'express';
 import cors from 'cors';
@@ -28,13 +29,16 @@ import { startResearcherAgent, stopResearcherAgent } from './agents/researcher/i
 import { setupProcessErrorHandlers } from './lib/process-error-handler.js';
 import type { Worker } from 'bullmq';
 
+console.log('[BOOT] All imports resolved successfully');
 const log = createLogger('Server');
 
 // Setup process-level error handlers
 setupProcessErrorHandlers();
+console.log('[BOOT] Process error handlers configured');
 
 // Initialize dependency injection container
 initializeContainer();
+console.log('[BOOT] DI container initialized');
 
 const app = express();
 
