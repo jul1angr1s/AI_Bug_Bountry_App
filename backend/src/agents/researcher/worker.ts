@@ -443,7 +443,12 @@ async function executeScanPipeline(
       findingsCount: analysisResult.findings.length,
       analysisTools: analysisResult.toolsUsed,
       slitherStatus: analysisResult.slitherStatus,
+      slitherError: analysisResult.slitherError,
     });
+
+    if (analysisResult.slitherStatus !== 'OK' && analysisResult.slitherError) {
+      await emitScanLog(scanId, protocolId, 'WARN', `[WARN] Slither details: ${analysisResult.slitherError.slice(0, 400)}`);
+    }
 
     await emitScanLog(scanId, protocolId, 'INFO', `[INFO] Found ${slitherFindings.length} potential vectors`);
     const highCritical = slitherFindings.filter(f => f.severity === 'HIGH' || f.severity === 'CRITICAL').length;

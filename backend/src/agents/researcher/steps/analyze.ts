@@ -32,6 +32,7 @@ export interface AnalyzeStepResult {
   rawOutput?: unknown;
   toolsUsed: string[];
   slitherStatus: 'OK' | 'TOOL_UNAVAILABLE' | 'ERROR';
+  slitherError?: string;
 }
 
 /**
@@ -52,12 +53,14 @@ export async function executeAnalyzeStep(params: AnalyzeStepParams): Promise<Ana
   const findings: VulnerabilityFinding[] = [];
   const toolsUsed: string[] = [];
   let slitherStatus: AnalyzeStepResult['slitherStatus'] = 'ERROR';
+  let slitherError: string | undefined;
 
   // Run Slither
   try {
     const slitherResult = await runSlither(clonedPath, contractPath);
     const slitherFindings = slitherResult.findings;
     slitherStatus = slitherResult.status;
+    slitherError = slitherResult.error;
     findings.push(...slitherFindings);
     toolsUsed.push('slither');
 
@@ -76,6 +79,7 @@ export async function executeAnalyzeStep(params: AnalyzeStepParams): Promise<Ana
     findings: filteredFindings,
     toolsUsed,
     slitherStatus,
+    slitherError,
   };
 }
 
@@ -85,66 +89,111 @@ export async function executeAnalyzeStep(params: AnalyzeStepParams): Promise<Ana
 async function runSlither(
   clonedPath: string,
   contractPath: string
-): Promise<{ findings: VulnerabilityFinding[]; status: AnalyzeStepResult['slitherStatus'] }> {
+): Promise<{ findings: VulnerabilityFinding[]; status: AnalyzeStepResult['slitherStatus']; error?: string }> {
+  const commands = [
+    `slither ${JSON.stringify(contractPath)} --json - --exclude-dependencies`,
+    'slither . --json - --exclude-dependencies',
+    `slither ${JSON.stringify(contractPath)} --json - --exclude-dependencies --ignore-compile`,
+    'slither . --json - --exclude-dependencies --ignore-compile',
+  ];
+
+  let lastError = 'Unknown Slither error';
+
   try {
-    log.info('Running Slither...');
+    log.info({ contractPath }, 'Running Slither...');
 
-    // Run slither with JSON output
-    const { stdout, stderr } = await execAsync(
-      'slither . --json - --exclude-dependencies',
-      {
-        cwd: clonedPath,
-        timeout: 300000, // 5 minute timeout
-        maxBuffer: 50 * 1024 * 1024, // 50MB buffer for large outputs
-      }
-    );
+    for (const command of commands) {
+      try {
+        const { stdout } = await execAsync(command, {
+          cwd: clonedPath,
+          timeout: 300000, // 5 minute timeout
+          maxBuffer: 50 * 1024 * 1024, // 50MB buffer for large outputs
+        });
 
-    // Slither outputs JSON to stdout
-    let jsonOutput;
-
-    try {
-      // Try to parse JSON from stdout
-      jsonOutput = JSON.parse(stdout);
-    } catch (parseError) {
-      // If JSON parsing fails, try to extract JSON from mixed output
-      const jsonMatch = stdout.match(/\{[\s\S]*"success"[\s\S]*\}/);
-      if (jsonMatch) {
-        jsonOutput = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error('Failed to parse Slither JSON output');
-      }
-    }
-
-    if (!jsonOutput.success) {
-      log.error({ slitherError: jsonOutput.error }, 'Slither reported errors');
-      return { findings: [], status: 'ERROR' };
-    }
-
-    // Parse results
-    const findings: VulnerabilityFinding[] = [];
-
-    if (jsonOutput.results && jsonOutput.results.detectors) {
-      for (const detector of jsonOutput.results.detectors) {
-        const finding = parseSlitherDetector(detector, contractPath);
-        if (finding) {
-          findings.push(finding);
+        const parsed = parseSlitherJson(stdout);
+        if (!parsed.success) {
+          lastError = parsed.error || 'Slither reported unsuccessful execution';
+          log.warn({ command, error: lastError }, 'Slither run returned unsuccessful JSON payload');
+          continue;
         }
+
+        return {
+          findings: parseSlitherFindings(parsed.output, contractPath),
+          status: 'OK',
+        };
+      } catch (error) {
+        const commandError = extractExecErrorDetails(error);
+        lastError = commandError;
+
+        if (commandError.includes('slither: command not found') || commandError.includes('slither: not found')) {
+          log.error('Slither is not installed or not in PATH');
+          return { findings: [], status: 'TOOL_UNAVAILABLE', error: commandError };
+        }
+
+        log.warn({ command, error: commandError }, 'Slither command attempt failed');
       }
     }
 
-    return { findings, status: 'OK' };
-
+    log.error({ error: lastError }, 'Slither execution failed after all attempts');
+    return { findings: [], status: 'ERROR', error: lastError };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-
-    if (errorMessage.includes('slither: command not found') || errorMessage.includes('slither: not found')) {
-      log.error('Slither is not installed or not in PATH');
-      return { findings: [], status: 'TOOL_UNAVAILABLE' };
-    }
-
-    log.error({ error: errorMessage }, 'Slither execution failed');
-    return { findings: [], status: 'ERROR' };
+    log.error({ error: errorMessage }, 'Unexpected Slither runner failure');
+    return { findings: [], status: 'ERROR', error: errorMessage };
   }
+}
+
+function parseSlitherJson(stdout: string): { success: boolean; output?: unknown; error?: string } {
+  let jsonOutput;
+
+  try {
+    jsonOutput = JSON.parse(stdout);
+  } catch {
+    const jsonMatch = stdout.match(/\{[\s\S]*"success"[\s\S]*\}/);
+    if (jsonMatch) {
+      jsonOutput = JSON.parse(jsonMatch[0]);
+    } else {
+      return { success: false, error: 'Failed to parse Slither JSON output' };
+    }
+  }
+
+  const output = jsonOutput as { success?: boolean; error?: string };
+  if (!output.success) {
+    return { success: false, error: output.error || 'Slither returned success=false' };
+  }
+
+  return { success: true, output: jsonOutput };
+}
+
+function parseSlitherFindings(jsonOutput: unknown, contractPath: string): VulnerabilityFinding[] {
+  const findings: VulnerabilityFinding[] = [];
+  const typed = jsonOutput as { results?: { detectors?: Array<Record<string, unknown>> } };
+
+  if (typed.results && typed.results.detectors) {
+    for (const detector of typed.results.detectors) {
+      const finding = parseSlitherDetector(detector as {
+        impact?: string;
+        check?: string;
+        description?: string;
+        confidence?: string;
+        elements?: Array<{ type?: string; source_mapping?: { filename_relative?: string; lines?: number[] }; name?: string }>;
+      }, contractPath);
+      if (finding) {
+        findings.push(finding);
+      }
+    }
+  }
+
+  return findings;
+}
+
+function extractExecErrorDetails(error: unknown): string {
+  const err = error as { message?: string; stdout?: string; stderr?: string };
+  const message = (err.message || '').trim();
+  const stderr = (err.stderr || '').trim();
+  const stdout = (err.stdout || '').trim();
+  const detail = [message, stderr, stdout].filter(Boolean).join(' | ');
+  return detail || 'Unknown Slither execution error';
 }
 
 /**
