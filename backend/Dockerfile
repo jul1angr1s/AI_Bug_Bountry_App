@@ -6,7 +6,7 @@ WORKDIR /app
 RUN apt-get update \
   && apt-get install -y --no-install-recommends openssl git curl bash ca-certificates tar xz-utils python3 python3-pip \
   && rm -rf /var/lib/apt/lists/* \
-  && pip3 install --no-cache-dir slither-analyzer \
+  && pip3 install --no-cache-dir --break-system-packages slither-analyzer \
   && export SHELL=/bin/bash \
   && curl -L https://foundry.paradigm.xyz | bash \
   && /root/.foundry/bin/foundryup \
