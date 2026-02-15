@@ -5,7 +5,7 @@
     "buildCommand": "npx prisma generate && npm run build"
   },
   "deploy": {
-    "startCommand": "npx prisma migrate deploy && node --max-old-space-size=512 dist/start.js",
+    "startCommand": "npx prisma migrate deploy; echo PRISMA_EXIT=$?; echo PWD=$(pwd); ls -la dist/start.js dist/server.js 2>&1; echo FILES_LISTED; node --version; node --max-old-space-size=512 dist/start.js; echo NODE_EXIT=$?",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 3
   },
