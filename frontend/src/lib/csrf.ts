@@ -1,6 +1,5 @@
 const CSRF_COOKIE_NAME = 'X-CSRF-Token';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
-let cachedCsrfToken: string | null = null;
 
 /**
  * Read CSRF token from cookie
@@ -8,7 +7,7 @@ let cachedCsrfToken: string | null = null;
  */
 function getCsrfTokenFromCookie(): string | null {
   const match = document.cookie.match(new RegExp(`${CSRF_COOKIE_NAME}=([^;]+)`));
-  return match ? match[1] : null;
+  return match ? decodeURIComponent(match[1]) : null;
 }
 
 /**
@@ -20,12 +19,14 @@ function getCsrfTokenFromCookie(): string | null {
  * 3. Backend validates cookie === header
  */
 export async function getCsrfToken(): Promise<string> {
-  if (cachedCsrfToken) {
-    return cachedCsrfToken;
+  const cookieToken = getCsrfTokenFromCookie();
+  if (cookieToken) {
+    return cookieToken;
   }
 
   const res = await fetch(`${API_BASE_URL}/api/v1/csrf-token`, {
     credentials: 'include',
+    cache: 'no-store',
   });
 
   if (!res.ok) {
@@ -34,14 +35,13 @@ export async function getCsrfToken(): Promise<string> {
 
   const data = await res.json().catch(() => ({}));
   const responseToken = data?.csrfToken;
-  const cookieToken = getCsrfTokenFromCookie();
-  const token = responseToken || cookieToken;
+  const refreshedCookieToken = getCsrfTokenFromCookie();
+  const token = refreshedCookieToken || responseToken;
 
   if (!token) {
     throw new Error('Failed to obtain CSRF token from response');
   }
 
-  cachedCsrfToken = token;
   return token;
 }
 
@@ -50,5 +50,5 @@ export async function getCsrfToken(): Promise<string> {
  * Kept for API compatibility
  */
 export function clearCsrfToken(): void {
-  cachedCsrfToken = null;
+  // no-op: token is sourced from cookie on each call
 }
