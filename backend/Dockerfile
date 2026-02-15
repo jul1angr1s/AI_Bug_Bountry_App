@@ -1,9 +1,11 @@
 # ============================================
 # Simplified Dockerfile for Thunder Security Backend
 # ============================================
-FROM node:20-alpine AS base
+FROM node:20-bookworm-slim AS base
 WORKDIR /app
-RUN apk add --no-cache openssl git curl bash ca-certificates tar \
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends openssl git curl bash ca-certificates tar xz-utils \
+  && rm -rf /var/lib/apt/lists/* \
   && export SHELL=/bin/bash \
   && curl -L https://foundry.paradigm.xyz | bash \
   && /root/.foundry/bin/foundryup \
