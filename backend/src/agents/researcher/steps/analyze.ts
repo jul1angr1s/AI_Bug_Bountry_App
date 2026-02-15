@@ -125,6 +125,22 @@ async function runSlither(
         const commandError = extractExecErrorDetails(error);
         lastError = commandError;
 
+        // Slither sometimes exits non-zero even though it prints a valid JSON payload to stdout.
+        // In that case, prefer the JSON payload (it is what we use for detectors) and keep
+        // the exit error only as additional context.
+        const maybeStdout = getExecStdout(error);
+        if (maybeStdout) {
+          const parsed = parseSlitherJson(maybeStdout);
+          if (parsed.success) {
+            log.warn({ command, error: commandError }, 'Slither exited non-zero but produced success JSON; accepting output');
+            return {
+              findings: parseSlitherFindings(parsed.output, contractPath),
+              status: 'OK',
+              error: commandError,
+            };
+          }
+        }
+
         if (commandError.includes('slither: command not found') || commandError.includes('slither: not found')) {
           log.error('Slither is not installed or not in PATH');
           return { findings: [], status: 'TOOL_UNAVAILABLE', error: commandError };
@@ -194,6 +210,11 @@ function extractExecErrorDetails(error: unknown): string {
   const stdout = (err.stdout || '').trim();
   const detail = [message, stderr, stdout].filter(Boolean).join(' | ');
   return detail || 'Unknown Slither execution error';
+}
+
+function getExecStdout(error: unknown): string {
+  const err = error as { stdout?: string };
+  return typeof err?.stdout === 'string' ? err.stdout : '';
 }
 
 /**
