@@ -1195,6 +1195,22 @@ export async function fetchAgentX402Payments(agentId: string): Promise<X402Payme
   return result.data || [];
 }
 
+export async function fetchX402PaymentsIncludingInternal(): Promise<X402PaymentEvent[]> {
+  const headers = await getAuthHeaders();
+  const response = await fetch(`${API_BASE_URL}/api/v1/agent-identities/x402-payments?includeInternal=true`, { headers, credentials: 'include' });
+  if (!response.ok) throw new Error(`Failed to fetch x402 payments: ${response.statusText}`);
+  const result = await response.json();
+  return result.data || [];
+}
+
+export async function fetchAgentX402PaymentsIncludingInternal(agentId: string): Promise<X402PaymentEvent[]> {
+  const headers = await getAuthHeaders();
+  const response = await fetch(`${API_BASE_URL}/api/v1/agent-identities/${agentId}/x402-payments?includeInternal=true`, { headers, credentials: 'include' });
+  if (!response.ok) throw new Error(`Failed to fetch agent x402 payments: ${response.statusText}`);
+  const result = await response.json();
+  return result.data || [];
+}
+
 // ========== Mutual Qualification API Functions ==========
 
 export async function fetchValidatorReputation(agentId: string): Promise<{

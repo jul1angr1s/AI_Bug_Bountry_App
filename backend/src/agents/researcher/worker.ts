@@ -710,29 +710,6 @@ async function executeScanPipeline(
       }
     }
 
-    // Stream B: Record finding submissions as x402 payment events for dashboard
-    if (submitResult.proofsSubmitted > 0) {
-      try {
-        const proofs = await proofRepository.getProofsByScan(scanId);
-        for (const proof of proofs) {
-          await prismaClient.x402PaymentRequest.create({
-            data: {
-              requestType: 'FINDING_SUBMISSION',
-              requesterAddress: researcherAssoc?.agentIdentity?.walletAddress?.toLowerCase() || 'unknown',
-              amount: BigInt(500000), // $0.50 USDC
-              status: 'COMPLETED',
-              txHash: null, // Escrow-deducted, not a separate on-chain tx
-              protocolId,
-              expiresAt: new Date(Date.now() + 30 * 60 * 1000),
-              completedAt: new Date(),
-            },
-          }).catch(err => log.error({ err }, 'Failed to record finding submission'));
-        }
-      } catch (err) {
-        log.error({ err }, 'Finding submission record error (non-fatal)');
-      }
-    }
-
     await emitScanProgress(scanId, protocolId, 'SUBMIT', ScanState.RUNNING, 100, 'Submission complete');
   } catch (error) {
     await cleanupResources(anvilProcess);

@@ -249,20 +249,6 @@ export async function requestScan(
 
     log.info({ scanId: scan.id }, 'Enqueued scan for processing');
 
-    // Record scan request as x402 payment event for dashboard visibility
-    await prisma.x402PaymentRequest.create({
-      data: {
-        requestType: 'SCAN_REQUEST_FEE',
-        requesterAddress: protocol.ownerAddress.toLowerCase(),
-        amount: BigInt(10000000), // $10 USDC equivalent
-        status: 'COMPLETED',
-        protocolId,
-        recipientAddress: null,
-        expiresAt: new Date(Date.now() + 30 * 60 * 1000),
-        completedAt: new Date(),
-      },
-    }).catch(err => log.error({ err }, 'Failed to record scan fee'));
-
     // Create audit log
     await prisma.auditLog.create({
       data: {

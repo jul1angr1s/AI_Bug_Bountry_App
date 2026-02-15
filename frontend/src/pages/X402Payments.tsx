@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { CreditCard, DollarSign, CheckCircle, Clock } from 'lucide-react';
 import { useX402Payments } from '../hooks/useX402Payments';
 import X402PaymentTimeline from '../components/agents/X402PaymentTimeline';
-import { formatUSDC } from '../lib/utils';
+import { formatUSDC, isValidTxHash } from '../lib/utils';
 import type { X402RequestType } from '../types/dashboard';
 
 type FilterTab = 'ALL' | X402RequestType;
@@ -18,17 +18,20 @@ const FILTER_TABS: { key: FilterTab; label: string }[] = [
 export default function X402Payments() {
   const { data: payments, isLoading } = useX402Payments();
   const [activeFilter, setActiveFilter] = useState<FilterTab>('ALL');
+  const onChainPayments = useMemo(
+    () => (payments || []).filter((p) => p.txHash && isValidTxHash(p.txHash)),
+    [payments]
+  );
 
   const filteredPayments = useMemo(() => {
-    if (!payments) return [];
-    if (activeFilter === 'ALL') return payments;
-    return payments.filter((p) => p.requestType === activeFilter);
-  }, [payments, activeFilter]);
+    if (activeFilter === 'ALL') return onChainPayments;
+    return onChainPayments.filter((p) => p.requestType === activeFilter);
+  }, [onChainPayments, activeFilter]);
 
-  const totalPayments = payments?.length || 0;
-  const completedPayments = payments?.filter((p) => p.status === 'COMPLETED').length || 0;
-  const pendingPayments = payments?.filter((p) => p.status === 'PENDING').length || 0;
-  const totalVolume = payments
+  const totalPayments = onChainPayments.length;
+  const completedPayments = onChainPayments.filter((p) => p.status === 'COMPLETED').length;
+  const pendingPayments = onChainPayments.filter((p) => p.status === 'PENDING').length;
+  const totalVolume = onChainPayments
     ?.filter((p) => p.status === 'COMPLETED')
     .reduce((sum, p) => sum + Number(p.amount), 0) || 0;
 
@@ -71,8 +74,7 @@ export default function X402Payments() {
       </div>
 
       <p className="text-sm text-gray-400">
-        All on-chain payments processed through the x.402 payment protocol.
-        Each transaction is verifiable on the Base Sepolia blockchain.
+        On-chain x.402 payments only. Every row includes a verifiable Base Sepolia transaction.
       </p>
 
       {/* Summary Stat Cards */}

@@ -91,7 +91,7 @@ export default function X402PaymentCard({ payment }: X402PaymentCardProps) {
               <ExternalLink className="h-3 w-3" />
             </a>
           ) : (
-            <span className="text-gray-500">Pending</span>
+            <span className="text-gray-500">Unavailable</span>
           )}
         </div>
       </div>

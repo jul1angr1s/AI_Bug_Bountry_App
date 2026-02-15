@@ -335,7 +335,13 @@ router.post('/register', async (req: Request, res: Response) => {
 // GET /api/v1/agent-identities/x402-payments - List all x.402 payment requests
 router.get('/x402-payments', async (req: Request, res: Response) => {
   try {
+    const includeInternal = req.query.includeInternal === 'true';
     const payments = await prisma.x402PaymentRequest.findMany({
+      where: includeInternal
+        ? undefined
+        : {
+            txHash: { not: null },
+          },
       orderBy: { createdAt: 'desc' },
     });
 
@@ -621,6 +627,7 @@ router.get('/:id/escrow/transactions', async (req: Request, res: Response) => {
 router.get('/:id/x402-payments', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const includeInternal = req.query.includeInternal === 'true';
 
     const agent = await agentIdentityService.getAgentById(id);
     if (!agent) {
@@ -631,7 +638,10 @@ router.get('/:id/x402-payments', async (req: Request, res: Response) => {
     }
 
     const payments = await prisma.x402PaymentRequest.findMany({
-      where: { requesterAddress: agent.walletAddress.toLowerCase() },
+      where: {
+        requesterAddress: agent.walletAddress.toLowerCase(),
+        ...(includeInternal ? {} : { txHash: { not: null } }),
+      },
       orderBy: { createdAt: 'desc' },
     });
 

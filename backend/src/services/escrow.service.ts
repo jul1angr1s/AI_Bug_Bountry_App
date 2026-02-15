@@ -101,7 +101,7 @@ export class EscrowService {
    * Deduct submission fee — atomically checks balance and deducts.
    * Returns the updated balance.
    */
-  async deductSubmissionFee(walletAddress: string, findingId: string, skipPaymentRecord = false) {
+  async deductSubmissionFee(walletAddress: string, findingId: string) {
     const agent = await prisma.agentIdentity.findUnique({
       where: { walletAddress: walletAddress.toLowerCase() },
       include: { escrowBalance: true },
@@ -138,20 +138,6 @@ export class EscrowService {
       }),
     ]);
 
-    // Record as x402 payment for dashboard visibility
-    if (!skipPaymentRecord) {
-      await prisma.x402PaymentRequest.create({
-        data: {
-          requestType: 'FINDING_SUBMISSION',
-          requesterAddress: walletAddress.toLowerCase(),
-          amount: submissionFee,
-          status: 'COMPLETED',
-          expiresAt: new Date(Date.now() + 30 * 60 * 1000),
-          completedAt: new Date(),
-        },
-      }).catch(err => log.error('Failed to record x402 payment:', err));
-    }
-
     return this.getEscrowBalance(walletAddress);
   }
 
@@ -162,8 +148,8 @@ export class EscrowService {
     const client = getEscrowClient();
     const result = await client.deductSubmissionFee(walletAddress, findingId);
 
-    // Also update local database (skip x402 record — we create one with txHash below)
-    await this.deductSubmissionFee(walletAddress, findingId, true);
+    // Also update local database balance and ledger
+    await this.deductSubmissionFee(walletAddress, findingId);
 
     // Record as x402 payment with real on-chain txHash
     await prisma.x402PaymentRequest.create({

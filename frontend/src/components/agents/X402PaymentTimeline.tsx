@@ -127,7 +127,7 @@ export default function X402PaymentTimeline({ payments, isLoading }: X402Payment
                         <ExternalLink className="h-3 w-3" />
                       </a>
                     ) : (
-                      <span className="text-gray-500">Pending</span>
+                      <span className="text-gray-500">Unavailable</span>
                     )}
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-400">
