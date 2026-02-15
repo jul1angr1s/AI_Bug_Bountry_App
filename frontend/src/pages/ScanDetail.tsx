@@ -200,13 +200,31 @@ export default function ScanDetail() {
           </div>
 
           {/* Error Message */}
+          {scan.analysisSummary?.degraded && scan.analysisSummary.warnings?.length > 0 && (
+            <div className="mt-4 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-yellow-400 mt-0.5" />
+                <div>
+                  <h3 className="text-sm font-medium text-yellow-400 mb-1">Analysis Warning</h3>
+                  {scan.analysisSummary.warnings.map((warning) => (
+                    <p key={warning} className="text-sm text-gray-300">{warning}</p>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
           {scan.state === 'FAILED' && scan.errorMessage && (
             <div className="mt-4 p-4 bg-red-500/10 border border-red-500/30 rounded-lg">
               <div className="flex items-start gap-3">
                 <XCircle className="w-5 h-5 text-red-400 mt-0.5" />
                 <div>
                   <h3 className="text-sm font-medium text-red-400 mb-1">Error Details</h3>
-                  <p className="text-sm text-gray-300">{scan.errorMessage}</p>
+                  <p className="text-sm text-gray-300">
+                    {scan.errorCode === 'SCAN_INCONCLUSIVE_AI_ZERO_FINDINGS'
+                      ? 'AI scan was inconclusive (no actionable findings). This is not a clean security result.'
+                      : scan.errorMessage}
+                  </p>
                   {scan.errorCode && (
                     <p className="text-xs text-gray-500 mt-1">Error Code: {scan.errorCode}</p>
                   )}

@@ -95,6 +95,24 @@ router.get('/:id', requireAuth, async (req, res, next) => {
       }, {}),
     };
 
+    const analyzeStep = scan.steps.find((step) => step.step === 'ANALYZE');
+    const aiStep = scan.steps.find((step) => step.step === 'AI_DEEP_ANALYSIS');
+    const analysisSummary = {
+      slither: (analyzeStep?.metadata as any)?.slitherStatus || 'UNKNOWN',
+      ai: aiStep?.status || 'UNKNOWN',
+      degraded:
+        ((analyzeStep?.metadata as any)?.slitherStatus === 'TOOL_UNAVAILABLE' ||
+          scan.errorCode === 'SCAN_INCONCLUSIVE_AI_ZERO_FINDINGS'),
+      warnings: [
+        ((analyzeStep?.metadata as any)?.slitherStatus === 'TOOL_UNAVAILABLE'
+          ? 'Slither static analyzer unavailable during scan runtime.'
+          : null),
+        (scan.errorCode === 'SCAN_INCONCLUSIVE_AI_ZERO_FINDINGS'
+          ? 'AI scan returned no actionable findings. Result marked inconclusive.'
+          : null),
+      ].filter(Boolean),
+    };
+
     res.json({
       id: scan.id,
       protocolId: scan.protocolId,
@@ -111,6 +129,8 @@ router.get('/:id', requireAuth, async (req, res, next) => {
       errorCode: scan.errorCode,
       errorMessage: scan.errorMessage,
       retryCount: scan.retryCount,
+      terminalReason: scan.errorCode,
+      analysisSummary,
     });
   } catch (error) {
     next(error);

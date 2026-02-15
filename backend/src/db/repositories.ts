@@ -252,6 +252,10 @@ export class FindingRepository {
     functionSelector?: string;
     description: string;
     confidenceScore?: number;
+    aiConfidenceScore?: number;
+    remediationSuggestion?: string;
+    codeSnippet?: string;
+    analysisMethod?: 'AI' | 'STATIC' | 'HYBRID';
   }): Promise<Finding> {
     return this.prisma.finding.create({
       data: {
@@ -263,6 +267,10 @@ export class FindingRepository {
         functionSelector: params.functionSelector,
         description: params.description,
         confidenceScore: params.confidenceScore ?? 0,
+        aiConfidenceScore: params.aiConfidenceScore,
+        remediationSuggestion: params.remediationSuggestion,
+        codeSnippet: params.codeSnippet,
+        analysisMethod: params.analysisMethod as any,
       },
     });
   }

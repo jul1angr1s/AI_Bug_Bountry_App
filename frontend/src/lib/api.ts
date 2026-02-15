@@ -210,6 +210,17 @@ export interface Scan {
   errorCode?: string;
   errorMessage?: string;
   retryCount: number;
+  terminalReason?: string;
+  findingsSummary?: {
+    total: number;
+    bySeverity: Record<string, number>;
+  };
+  analysisSummary?: {
+    slither: 'OK' | 'TOOL_UNAVAILABLE' | 'ERROR' | 'UNKNOWN';
+    ai: 'COMPLETED' | 'FAILED' | 'RUNNING' | 'UNKNOWN';
+    degraded: boolean;
+    warnings: string[];
+  };
   protocol?: {
     id: string;
     githubUrl: string;

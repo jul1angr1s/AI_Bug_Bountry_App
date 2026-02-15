@@ -244,17 +244,16 @@ async function processValidationLLM(submission: ProofSubmissionMessage): Promise
     });
 
     // =================
-    // STEP 6: Update proof status
+    // STEP 6: Keep proof in validating state until on-chain write succeeds
     // =================
     await prisma.proof.update({
       where: { id: submission.proofId },
       data: {
-        status: analysis.isValid ? 'VALIDATED' : 'REJECTED',
-        validatedAt: new Date(),
+        status: 'VALIDATING',
       },
     });
 
-    log.info({ result: analysis.isValid ? 'VALIDATED' : 'REJECTED' }, 'Validation complete');
+    log.info({ result: analysis.isValid ? 'VALIDATED' : 'REJECTED' }, 'Off-chain validation completed');
 
     await emitValidationProgress(vId, pId, 'UPDATE_RESULT', 'RUNNING', 'LLM', 80, `Status: ${analysis.isValid ? 'VALIDATED' : 'REJECTED'}`);
     await emitValidationLog(vId, pId, 'INFO', `[INFO] Status: ${analysis.isValid ? 'VALIDATED' : 'REJECTED'}`);
@@ -331,8 +330,7 @@ async function processValidationLLM(submission: ProofSubmissionMessage): Promise
 
     try {
       if (!protocol.onChainProtocolId) {
-        log.warn('Protocol not registered on-chain, skipping on-chain validation');
-        await emitValidationLog(vId, pId, 'WARN', '[WARN] Protocol not registered on-chain, skipping');
+        throw new Error('VALIDATION_ONCHAIN_REQUIRED: Protocol is not registered on-chain');
       } else {
         const severityMap: Record<string, OnChainSeverity> = {
           'CRITICAL': OnChainSeverity.CRITICAL,
@@ -391,6 +389,7 @@ async function processValidationLLM(submission: ProofSubmissionMessage): Promise
       const errMsg = onChainError instanceof Error ? onChainError.message : String(onChainError);
       log.error({ err: onChainError, errMsg }, 'Failed to record validation on-chain');
       await emitValidationLog(vId, pId, 'WARN', `[WARN] On-chain recording failed: ${errMsg.slice(0, 200)}`);
+      throw new Error(`VALIDATION_ONCHAIN_REQUIRED: ${errMsg}`);
     }
 
     // =================
@@ -433,32 +432,45 @@ async function processValidationLLM(submission: ProofSubmissionMessage): Promise
       await emitValidationLog(vId, pId, 'WARN', `[WARN] Reputation recording failed: ${errMsg.slice(0, 200)}`);
     }
 
+    // Finalize proof status only after both off-chain and on-chain records are done.
+    await prisma.proof.update({
+      where: { id: submission.proofId },
+      data: {
+        status: analysis.isValid ? 'VALIDATED' : 'REJECTED',
+        validatedAt: new Date(),
+      },
+    });
+
     await emitValidationProgress(vId, pId, 'COMPLETE', 'COMPLETED', 'LLM', 100, `Validation complete: ${analysis.isValid ? 'VALIDATED' : 'REJECTED'} (${analysis.confidence}% confidence)`);
     await emitValidationLog(vId, pId, 'INFO', `[INFO] Validation complete: ${analysis.isValid ? 'VALIDATED' : 'REJECTED'} (${analysis.confidence}% confidence)`);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     log.error({ err: error, errorMessage }, 'Validation failed');
 
-    // Update proof status to FAILED
+    const isOnChainRequiredError = errorMessage.includes('VALIDATION_ONCHAIN_REQUIRED');
+
+    // Update proof/finding status
     try {
       await prisma.proof.update({
         where: { id: submission.proofId },
         data: {
-          status: 'REJECTED',
+          status: isOnChainRequiredError ? 'VALIDATING' : 'REJECTED',
         },
       });
 
-      // Update finding to REJECTED
-      const decryptResult = await decryptProof(submission);
-      if (decryptResult.success && decryptResult.proof) {
-        await prisma.finding.update({
-          where: { id: decryptResult.proof.findingId },
-          data: {
-            status: 'REJECTED',
-            validatedAt: new Date(),
-            description: `Validation failed: ${errorMessage}`,
-          },
-        });
+      // Update finding to REJECTED only for non-registry failures
+      if (!isOnChainRequiredError) {
+        const decryptResult = await decryptProof(submission);
+        if (decryptResult.success && decryptResult.proof) {
+          await prisma.finding.update({
+            where: { id: decryptResult.proof.findingId },
+            data: {
+              status: 'REJECTED',
+              validatedAt: new Date(),
+              description: `Validation failed: ${errorMessage}`,
+            },
+          });
+        }
       }
     } catch (dbError) {
       log.error({ err: dbError }, 'Failed to update database');

@@ -21,12 +21,17 @@ export interface VulnerabilityFinding {
   functionSelector?: string;
   description: string;
   confidenceScore: number;
+  analysisMethod?: 'AI' | 'STATIC' | 'HYBRID';
+  aiConfidenceScore?: number;
+  remediationSuggestion?: string;
+  codeSnippet?: string;
 }
 
 export interface AnalyzeStepResult {
   findings: VulnerabilityFinding[];
   rawOutput?: unknown;
   toolsUsed: string[];
+  slitherStatus: 'OK' | 'TOOL_UNAVAILABLE' | 'ERROR';
 }
 
 /**
@@ -46,10 +51,13 @@ export async function executeAnalyzeStep(params: AnalyzeStepParams): Promise<Ana
 
   const findings: VulnerabilityFinding[] = [];
   const toolsUsed: string[] = [];
+  let slitherStatus: AnalyzeStepResult['slitherStatus'] = 'ERROR';
 
   // Run Slither
   try {
-    const slitherFindings = await runSlither(clonedPath, contractPath);
+    const slitherResult = await runSlither(clonedPath, contractPath);
+    const slitherFindings = slitherResult.findings;
+    slitherStatus = slitherResult.status;
     findings.push(...slitherFindings);
     toolsUsed.push('slither');
 
@@ -67,13 +75,17 @@ export async function executeAnalyzeStep(params: AnalyzeStepParams): Promise<Ana
   return {
     findings: filteredFindings,
     toolsUsed,
+    slitherStatus,
   };
 }
 
 /**
  * Run Slither static analyzer
  */
-async function runSlither(clonedPath: string, contractPath: string): Promise<VulnerabilityFinding[]> {
+async function runSlither(
+  clonedPath: string,
+  contractPath: string
+): Promise<{ findings: VulnerabilityFinding[]; status: AnalyzeStepResult['slitherStatus'] }> {
   try {
     log.info('Running Slither...');
 
@@ -105,7 +117,7 @@ async function runSlither(clonedPath: string, contractPath: string): Promise<Vul
 
     if (!jsonOutput.success) {
       log.error({ slitherError: jsonOutput.error }, 'Slither reported errors');
-      return [];
+      return { findings: [], status: 'ERROR' };
     }
 
     // Parse results
@@ -120,19 +132,18 @@ async function runSlither(clonedPath: string, contractPath: string): Promise<Vul
       }
     }
 
-    return findings;
+    return { findings, status: 'OK' };
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
 
     if (errorMessage.includes('slither: command not found') || errorMessage.includes('slither: not found')) {
       log.error('Slither is not installed or not in PATH');
-      // Return empty array instead of throwing - analysis is optional for MVP
-      return [];
+      return { findings: [], status: 'TOOL_UNAVAILABLE' };
     }
 
     log.error({ error: errorMessage }, 'Slither execution failed');
-    return [];
+    return { findings: [], status: 'ERROR' };
   }
 }
 
@@ -180,6 +191,7 @@ function parseSlitherDetector(detector: { impact?: string; check?: string; descr
       functionSelector,
       description: detector.description || detector.check || 'Unknown vulnerability',
       confidenceScore,
+      analysisMethod: 'STATIC',
     };
 
   } catch (error) {

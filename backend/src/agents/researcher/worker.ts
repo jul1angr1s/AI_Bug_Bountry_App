@@ -1,4 +1,4 @@
-import { Worker, Job } from 'bullmq';
+import { Worker, Job, UnrecoverableError } from 'bullmq';
 import { ScanState, ScanStep, AgentStatus } from '@prisma/client';
 import { scanRepository, scanStepRepository, findingRepository, proofRepository, agentRunRepository } from '../../db/repositories.js';
 import { getPrismaClient } from '../../lib/prisma.js';
@@ -33,6 +33,8 @@ export const ScanErrorCodes = {
   ANVIL_ERROR: 'ANVIL_ERROR',
   ANALYSIS_FAILED: 'ANALYSIS_FAILED',
   AI_ANALYSIS_FAILED: 'AI_ANALYSIS_FAILED',
+  AI_ANALYSIS_REQUIRED_DISABLED: 'AI_ANALYSIS_REQUIRED_DISABLED',
+  SCAN_INCONCLUSIVE_AI_ZERO_FINDINGS: 'SCAN_INCONCLUSIVE_AI_ZERO_FINDINGS',
   PROOF_GENERATION_FAILED: 'PROOF_GENERATION_FAILED',
   SUBMISSION_FAILED: 'SUBMISSION_FAILED',
   TIMEOUT: 'TIMEOUT',
@@ -165,7 +167,12 @@ export function createResearcherWorker(): Worker<ScanJobData> {
       const totalAttempts = job.opts.attempts ?? 1;
       const exhaustedRetries = job.attemptsMade >= totalAttempts;
 
-      if (!exhaustedRetries && error.name !== 'NO_RESEARCHER_CAPACITY_TIMEOUT') {
+      const nonRetryableErrorNames = new Set([
+        'NO_RESEARCHER_CAPACITY_TIMEOUT',
+        'UnrecoverableError',
+      ]);
+
+      if (!exhaustedRetries && !nonRetryableErrorNames.has(error.name)) {
         log.warn(
           {
             scanId: job.data.scanId,
@@ -413,6 +420,7 @@ async function executeScanPipeline(
   // Step 4: Static Analysis (45-60%)
   const analyzeStep = await scanStepRepository.startStep(scanId, ScanStep.ANALYZE);
   let slitherFindings: VulnerabilityFinding[] = [];
+  let slitherStatus: 'OK' | 'TOOL_UNAVAILABLE' | 'ERROR' = 'ERROR';
   try {
     await emitScanProgress(scanId, protocolId, 'ANALYZE', ScanState.RUNNING, 50, 'Running static analysis...');
     await emitScanLog(scanId, protocolId, 'ANALYSIS', `[ANALYSIS] Running Slither detector suite...`);
@@ -429,10 +437,12 @@ async function executeScanPipeline(
 
     // Store Slither findings for AI analysis step
     slitherFindings = analysisResult.findings;
+    slitherStatus = analysisResult.slitherStatus;
 
     await scanStepRepository.completeStep(analyzeStep.id, {
       findingsCount: analysisResult.findings.length,
       analysisTools: analysisResult.toolsUsed,
+      slitherStatus: analysisResult.slitherStatus,
     });
 
     await emitScanLog(scanId, protocolId, 'INFO', `[INFO] Found ${slitherFindings.length} potential vectors`);
@@ -454,8 +464,8 @@ async function executeScanPipeline(
   let aiAnalysisFailed = false;
 
   try {
-    // Check if AI analysis is enabled via feature flag
-    const aiEnabled = process.env.AI_ANALYSIS_ENABLED === 'true';
+    // AI is primary analysis engine for researcher scans (enabled by default)
+    const aiEnabled = process.env.AI_ANALYSIS_ENABLED !== 'false';
 
     if (aiEnabled) {
       await emitScanProgress(scanId, protocolId, 'AI_DEEP_ANALYSIS', ScanState.RUNNING, 65, 'Running AI deep analysis...');
@@ -512,17 +522,7 @@ async function executeScanPipeline(
         await emitScanProgress(scanId, protocolId, 'AI_DEEP_ANALYSIS', ScanState.RUNNING, 75, 'Using Slither findings only');
       }
     } else {
-      // AI analysis is disabled - skip step
-      finalFindings = slitherFindings;
-
-      await scanStepRepository.completeStep(aiAnalysisStep.id, {
-        aiEnhanced: false,
-        findingsCount: slitherFindings.length,
-        message: 'AI analysis disabled via feature flag',
-      });
-
-      await emitScanLog(scanId, protocolId, 'INFO', `[INFO] AI analysis disabled - using Slither findings only`);
-      await emitScanProgress(scanId, protocolId, 'AI_DEEP_ANALYSIS', ScanState.RUNNING, 75, 'AI analysis disabled - using Slither findings only');
+      throw new UnrecoverableError('AI analysis is required but AI_ANALYSIS_ENABLED=false');
     }
   } catch (error) {
     // AI step failed - mark with AI_ANALYSIS_FAILED but continue with Slither findings
@@ -532,7 +532,12 @@ async function executeScanPipeline(
     finalFindings = slitherFindings;
 
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    await scanStepRepository.failStep(aiAnalysisStep.id, ScanErrorCodes.AI_ANALYSIS_FAILED, errorMessage);
+    const aiErrorCode =
+      errorMessage.includes('AI_ANALYSIS_ENABLED=false')
+        ? ScanErrorCodes.AI_ANALYSIS_REQUIRED_DISABLED
+        : ScanErrorCodes.AI_ANALYSIS_FAILED;
+
+    await scanStepRepository.failStep(aiAnalysisStep.id, aiErrorCode, errorMessage);
 
     await emitScanLog(scanId, protocolId, 'WARN', `[WARN] AI analysis failed - continuing with Slither findings`);
     await emitScanProgress(
@@ -544,14 +549,52 @@ async function executeScanPipeline(
       `AI analysis failed - continuing with ${slitherFindings.length} Slither findings`
     );
 
+    if (aiErrorCode === ScanErrorCodes.AI_ANALYSIS_REQUIRED_DISABLED) {
+      await scanRepository.markScanFailed(scanId, aiErrorCode, errorMessage);
+      throw new UnrecoverableError(errorMessage);
+    }
+
     // DO NOT throw error - continue pipeline with Slither findings
+  }
+
+  // AI-first policy: zero findings means inconclusive scan, not clean success.
+  if (finalFindings.length === 0) {
+    const message = `AI analysis returned no actionable findings (slitherStatus=${slitherStatus}). Marking scan as inconclusive.`;
+
+    await emitScanLog(scanId, protocolId, 'WARN', `[WARN] ${message}`);
+    await emitScanProgress(
+      scanId,
+      protocolId,
+      'AI_DEEP_ANALYSIS',
+      ScanState.FAILED,
+      75,
+      message
+    );
+
+    await scanRepository.markScanFailed(
+      scanId,
+      ScanErrorCodes.SCAN_INCONCLUSIVE_AI_ZERO_FINDINGS,
+      message
+    );
+
+    throw new UnrecoverableError(message);
   }
 
   // Store final findings in database
   for (const finding of finalFindings) {
     await findingRepository.createFinding({
       scanId,
-      ...finding,
+      vulnerabilityType: finding.vulnerabilityType,
+      severity: finding.severity,
+      filePath: finding.filePath,
+      lineNumber: finding.lineNumber,
+      functionSelector: finding.functionSelector,
+      description: finding.description,
+      confidenceScore: finding.confidenceScore,
+      aiConfidenceScore: finding.aiConfidenceScore,
+      remediationSuggestion: finding.remediationSuggestion,
+      codeSnippet: finding.codeSnippet,
+      analysisMethod: finding.analysisMethod,
     });
     findingsCount++;
   }

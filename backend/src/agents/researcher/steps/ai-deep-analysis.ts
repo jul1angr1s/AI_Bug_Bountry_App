@@ -143,7 +143,7 @@ export async function executeAIDeepAnalysisStep(
   const startTime = Date.now();
 
   // Check if AI analysis is enabled via feature flag
-  const aiEnabled = process.env.AI_ANALYSIS_ENABLED === 'true';
+  const aiEnabled = process.env.AI_ANALYSIS_ENABLED !== 'false';
 
   if (!aiEnabled) {
     log.info('AI analysis is disabled via feature flag');
@@ -334,7 +334,10 @@ Respond with ONLY the JSON object.`;
       ...finding,
       description: enhancement.description || finding.description,
       severity: mapSeverity(enhancement.severity) || finding.severity,
-      confidenceScore: enhancement.confidence || finding.confidenceScore,
+      confidenceScore: normalizeConfidenceScore(enhancement.confidence ?? finding.confidenceScore),
+      aiConfidenceScore: normalizeConfidenceScore(enhancement.confidence ?? finding.confidenceScore),
+      remediationSuggestion: enhancement.remediation,
+      analysisMethod: 'HYBRID',
     };
   } catch (error) {
     log.warn('Enhancement failed, using original finding');
@@ -442,10 +445,11 @@ Respond with ONLY the JSON array.`;
         filePath: contractPath,
         lineNumber: v.lineNumber,
         functionSelector: undefined,
-        description: `[AI-Discovered] ${v.description || 'No description'}${
-          v.remediation ? `\n\nRemediation: ${v.remediation}` : ''
-        }`,
-        confidenceScore: v.confidence || 70,
+        description: `[AI-Discovered] ${v.description || 'No description'}`,
+        confidenceScore: normalizeConfidenceScore(v.confidence || 70),
+        aiConfidenceScore: normalizeConfidenceScore(v.confidence || 70),
+        remediationSuggestion: v.remediation,
+        analysisMethod: 'AI',
       }));
 
     log.info({ count: newFindings.length }, 'AI discovered new vulnerabilities');
@@ -473,4 +477,14 @@ function mapSeverity(severityStr: string | undefined): Severity {
     default:
       return Severity.MEDIUM;
   }
+}
+
+function normalizeConfidenceScore(value: number | undefined): number {
+  if (typeof value !== 'number' || Number.isNaN(value)) {
+    return 0.7;
+  }
+  if (value > 1) {
+    return Math.max(0, Math.min(1, value / 100));
+  }
+  return Math.max(0, Math.min(1, value));
 }
