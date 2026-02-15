@@ -263,64 +263,15 @@ router.post('/register', async (req: Request, res: Response) => {
       where: { walletAddress: normalizedWallet },
     });
 
-    // Existing wallet flow
-    if (existing) {
-      if (!registerOnChain) {
+    if (!registerOnChain) {
+      if (existing) {
         return res.status(409).json({
           success: false,
           error: `Agent already registered with wallet ${walletAddress}`,
         });
       }
 
-      // Idempotent success if already registered on-chain
-      if (existing.agentNftId && existing.onChainTxHash) {
-        return res.status(200).json({
-          success: true,
-          data: serializeBigInts({
-            agentIdentity: existing,
-            onChain: {
-              agentNftId: existing.agentNftId,
-              txHash: existing.onChainTxHash,
-            },
-          }),
-        });
-      }
-
-      // Upgrade existing DB-only agent to on-chain
-      try {
-        await agentIdentityService.ensureAgentRegisteredOnChain(walletAddress, agentType);
-        const upgraded = await prisma.agentIdentity.findUnique({
-          where: { walletAddress: normalizedWallet },
-        });
-
-        if (!upgraded?.agentNftId || !upgraded.onChainTxHash) {
-          throw new Error('On-chain registration completed but agent NFT/tx was not persisted');
-        }
-
-        return res.status(200).json({
-          success: true,
-          data: serializeBigInts({
-            agentIdentity: upgraded,
-            onChain: {
-              agentNftId: upgraded.agentNftId,
-              txHash: upgraded.onChainTxHash,
-            },
-          }),
-        });
-      } catch (error) {
-        log.error({ walletAddress, agentType, err: error }, 'On-chain upgrade for existing agent failed');
-        return res.status(502).json({
-          success: false,
-          error: 'On-chain registration failed',
-          code: 'ONCHAIN_REGISTRATION_FAILED',
-        });
-      }
-    }
-
-    // New wallet flow
-    const agentIdentity = await agentIdentityService.registerAgent(walletAddress, agentType);
-
-    if (!registerOnChain) {
+      const agentIdentity = await agentIdentityService.registerAgent(walletAddress, agentType);
       return res.status(201).json({
         success: true,
         data: serializeBigInts({
@@ -330,25 +281,38 @@ router.post('/register', async (req: Request, res: Response) => {
       });
     }
 
+    // Strict on-chain flow (works for new wallet, existing DB-only, and already-on-chain wallets)
     try {
-      const onChainResult = await agentIdentityService.registerAgentOnChain(walletAddress, agentType);
-      if (!onChainResult.agentNftId || !onChainResult.txHash) {
-        throw new Error('On-chain registration returned incomplete result');
+      await agentIdentityService.ensureAgentRegisteredOnChain(walletAddress, agentType);
+
+      const synced = await prisma.agentIdentity.findUnique({
+        where: { walletAddress: normalizedWallet },
+      });
+
+      if (!synced?.agentNftId) {
+        throw new Error('On-chain registration completed but agent NFT was not persisted');
       }
 
-      return res.status(201).json({
+      // txHash may be missing if agent was already minted previously; still treat as successful sync.
+      const statusCode = existing ? 200 : 201;
+      return res.status(statusCode).json({
         success: true,
         data: serializeBigInts({
-          agentIdentity: onChainResult.agentIdentity,
-          onChain: onChainResult,
+          agentIdentity: synced,
+          onChain: {
+            agentNftId: synced.agentNftId,
+            txHash: synced.onChainTxHash || null,
+          },
         }),
       });
     } catch (error) {
-      log.error({ walletAddress, agentType, err: error }, 'On-chain registration failed for new agent');
+      log.error({ walletAddress, agentType, err: error }, 'On-chain registration failed');
 
       // Compensating action: remove DB-only agent created for strict on-chain flow.
       try {
-        await prisma.agentIdentity.delete({ where: { walletAddress: normalizedWallet } });
+        if (!existing) {
+          await prisma.agentIdentity.delete({ where: { walletAddress: normalizedWallet } });
+        }
       } catch (cleanupError) {
         log.error({ walletAddress, err: cleanupError }, 'Failed to cleanup DB-only agent after on-chain failure');
       }
