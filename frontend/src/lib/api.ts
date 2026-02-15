@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { getCsrfToken } from './csrf';
+import { loadBackendAuthSession } from './backend-auth';
 import type {
   Agent,
   Vulnerability,
@@ -81,6 +82,14 @@ async function getAuthHeaders(): Promise<HeadersInit> {
     }
 
     if (!session?.access_token) {
+      const backendSession = loadBackendAuthSession();
+      if (backendSession?.access_token) {
+        return {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${backendSession.access_token}`,
+        };
+      }
+
       console.error('[API] No active session found');
       throw new Error('No active session. Please log in to continue.');
     }

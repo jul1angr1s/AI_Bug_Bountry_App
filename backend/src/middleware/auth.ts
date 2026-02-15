@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
-import { supabaseAdmin } from '../lib/supabase.js';
+import { resolveUserFromToken } from '../lib/auth-token.js';
 import { UnauthorizedError } from '../errors/CustomError.js';
 
 export async function authenticate(req: Request, _res: Response, next: NextFunction): Promise<void> {
@@ -10,13 +10,12 @@ export async function authenticate(req: Request, _res: Response, next: NextFunct
     return next();
   }
 
-  const { data, error } = await supabaseAdmin.auth.getUser(token);
-
-  if (error || !data.user) {
+  const user = await resolveUserFromToken(token);
+  if (!user) {
     return next(new UnauthorizedError('Invalid or expired token'));
   }
 
-  req.user = data.user;
+  req.user = user;
   return next();
 }
 

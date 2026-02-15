@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
-import { supabaseAdmin } from '../lib/supabase.js';
+import { resolveUserFromToken } from '../lib/auth-token.js';
 import { createLogger } from '../lib/logger.js';
 
 const log = createLogger('sse-auth');
@@ -38,11 +38,9 @@ export async function sseAuthenticate(req: Request, res: Response, next: NextFun
 
     log.debug({ source: cookieToken ? 'cookie' : 'query' }, 'Authenticating SSE connection');
 
-    // Validate token with Supabase
-    const { data, error } = await supabaseAdmin.auth.getUser(token);
-
-    if (error || !data.user) {
-      log.warn({ error: error?.message }, 'Token validation failed');
+    const user = await resolveUserFromToken(token);
+    if (!user) {
+      log.warn('Token validation failed');
       res.status(401).json({
         error: 'Unauthorized',
         message: 'Invalid or expired authentication token'
@@ -50,8 +48,8 @@ export async function sseAuthenticate(req: Request, res: Response, next: NextFun
       return;
     }
 
-    log.debug({ userId: data.user.id }, 'User authenticated');
-    req.user = data.user;
+    log.debug({ userId: user.id }, 'User authenticated');
+    req.user = user;
     return next();
 
   } catch (err) {

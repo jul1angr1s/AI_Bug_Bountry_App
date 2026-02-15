@@ -2,6 +2,11 @@ import React, { createContext, useContext, useState, useEffect, useRef } from 'r
 import { supabase } from './supabase';
 import { syncAuthCookie, clearAuthCookie } from './auth-cookies';
 import {
+  saveBackendAuthSession,
+  loadBackendAuthSession,
+  clearBackendAuthSession,
+} from './backend-auth';
+import {
   connectWallet,
   createSiweMessage,
   signSiweMessage,
@@ -47,11 +52,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           data: { session: currentSession },
         } = await supabase.auth.getSession();
 
-        if (isMounted && currentSession) {
+        if (!isMounted) return;
+
+        if (currentSession) {
+          clearBackendAuthSession();
           setSession(currentSession);
           setUser(mapSupabaseUserToUser(currentSession.user));
-          // Sync auth cookie for SSE authentication
           await syncAuthCookie();
+        } else {
+          const backendSession = loadBackendAuthSession();
+          if (backendSession) {
+            const mappedUser = mapBackendUserToUser(backendSession.user);
+            setSession({
+              access_token: backendSession.access_token,
+              refresh_token: backendSession.refresh_token || '',
+              user: {
+                id: backendSession.user.id,
+                email: `${backendSession.user.wallet_address}@wallet.local`,
+                user_metadata: {
+                  wallet_address: backendSession.user.wallet_address,
+                },
+              } as any,
+              expires_at: Math.floor(Date.now() / 1000) + 3600,
+            } as any);
+            setUser(mappedUser);
+            await syncAuthCookie();
+          }
         }
       } catch (error) {
         // Ignore AbortError from React Strict Mode double-rendering
@@ -76,15 +102,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('Auth state changed:', event);
 
       if (newSession) {
+        clearBackendAuthSession();
         setSession(newSession);
         setUser(mapSupabaseUserToUser(newSession.user));
         // Sync auth cookie for SSE authentication (fire-and-forget)
         syncAuthCookie();
       } else {
-        setSession(null);
-        setUser(null);
-        // Clear auth cookie on sign out
-        clearAuthCookie();
+        const backendSession = loadBackendAuthSession();
+        if (backendSession) {
+          setSession({
+            access_token: backendSession.access_token,
+            refresh_token: backendSession.refresh_token || '',
+            user: {
+              id: backendSession.user.id,
+              email: `${backendSession.user.wallet_address}@wallet.local`,
+              user_metadata: {
+                wallet_address: backendSession.user.wallet_address,
+              },
+            } as any,
+            expires_at: Math.floor(Date.now() / 1000) + 3600,
+          } as any);
+          setUser(mapBackendUserToUser(backendSession.user));
+          syncAuthCookie();
+        } else {
+          setSession(null);
+          setUser(null);
+          clearAuthCookie();
+        }
       }
 
       setLoading(false);
@@ -148,7 +192,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error(errorData.error || 'SIWE verification failed');
       }
 
-      const { access_token, refresh_token } = await verifyResponse.json();
+      const { access_token, refresh_token, user: backendUser } = await verifyResponse.json();
       console.log('SIWE verification successful');
 
       // Step 5: Set session using the verified tokens
@@ -158,7 +202,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (error) {
-        throw new Error(`Failed to establish authenticated session: ${error.message}`);
+        if (!backendUser?.id || !backendUser?.wallet_address) {
+          throw new Error(`Failed to establish authenticated session: ${error.message}`);
+        }
+
+        const fallbackSession = {
+          access_token,
+          refresh_token,
+          user: {
+            id: backendUser.id,
+            wallet_address: backendUser.wallet_address,
+          },
+        };
+
+        saveBackendAuthSession(fallbackSession);
+        const mappedFallbackUser = mapBackendUserToUser(fallbackSession.user);
+        setSession({
+          access_token,
+          refresh_token: refresh_token || '',
+          user: {
+            id: backendUser.id,
+            email: `${backendUser.wallet_address}@wallet.local`,
+            user_metadata: {
+              wallet_address: backendUser.wallet_address,
+            },
+          } as any,
+          expires_at: Math.floor(Date.now() / 1000) + 3600,
+        } as any);
+        setUser(mappedFallbackUser);
+        await syncAuthCookie();
+        setLoading(false);
+        return mappedFallbackUser;
       }
 
       if (!data.session?.user) {
@@ -191,9 +265,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setLoading(true);
       const { error } = await supabase.auth.signOut();
-
+      clearBackendAuthSession();
       if (error) {
-        throw error;
+        console.warn('Supabase signOut returned error, local auth state was still cleared:', error);
       }
 
       setSession(null);
@@ -207,6 +281,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const mapBackendUserToUser = (backendUser: { id: string; wallet_address: string }): User => {
+    return {
+      id: backendUser.id,
+      wallet: backendUser.wallet_address,
+      role: 'Security Ops',
+      email: `${backendUser.wallet_address}@wallet.local`,
+    };
   };
 
   /**

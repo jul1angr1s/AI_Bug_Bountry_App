@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { loadBackendAuthSession } from './backend-auth';
 
 /**
  * Sync Supabase JWT token to cookies for SSE authentication
@@ -16,13 +17,15 @@ import { supabase } from './supabase';
 export async function syncAuthCookie(): Promise<void> {
   try {
     const { data: { session } } = await supabase.auth.getSession();
+    const backendSession = loadBackendAuthSession();
+    const accessToken = session?.access_token || backendSession?.access_token;
 
-    if (session?.access_token) {
+    if (accessToken) {
       // Set cookie for SSE authentication
       const secure = window.location.protocol === 'https:';
       const maxAge = 60 * 60 * 24; // 24 hours (matches typical JWT expiration)
 
-      document.cookie = `auth_token=${session.access_token}; path=/; SameSite=Lax; max-age=${maxAge}${secure ? '; Secure' : ''}`;
+      document.cookie = `auth_token=${accessToken}; path=/; SameSite=Lax; max-age=${maxAge}${secure ? '; Secure' : ''}`;
 
       console.log('[Auth] JWT token synced to cookie for SSE');
     } else {

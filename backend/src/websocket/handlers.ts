@@ -1,5 +1,5 @@
 import type { Server, Socket } from 'socket.io';
-import { supabaseAdmin } from '../lib/supabase.js';
+import { resolveUserFromToken } from '../lib/auth-token.js';
 import { registerRoomHandlers } from './rooms.js';
 import { setSocketIO } from './events.js';
 
@@ -13,12 +13,12 @@ export function registerSocketHandlers(io: Server): void {
       : undefined;
 
     if (token) {
-      const { data, error } = await supabaseAdmin.auth.getUser(token);
-      if (error || !data.user) {
+      const user = await resolveUserFromToken(token);
+      if (!user) {
         socket.disconnect(true);
         return;
       }
-      socket.data.user = data.user;
+      socket.data.user = user;
     } else {
       socket.disconnect(true);
       return;
