@@ -1,15 +1,11 @@
 import { Queue, Job } from 'bullmq';
 import type { ProofSubmissionMessage } from '../messages/schemas.js';
 import { createLogger } from '../lib/logger.js';
+import { getRedisConnectionOptions } from '../lib/redis.js';
 
 const log = createLogger('ValidationQueue');
 
-const redisConnection = {
-  host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT || '6379', 10),
-  password: process.env.REDIS_PASSWORD,
-  maxRetriesPerRequest: null,
-};
+const redisConnection = getRedisConnectionOptions();
 
 /**
  * Validation Queue — replaces Redis Pub/Sub for proof submissions.

@@ -1,13 +1,8 @@
 import { Queue, Worker, Job, QueueOptions, WorkerOptions } from 'bullmq';
-import { getRedisClient } from '../lib/redis.js';
+import { getRedisConnectionOptions } from '../lib/redis.js';
 
 // Redis connection for BullMQ
-const redisConnection = {
-  host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT || '6379', 10),
-  password: process.env.REDIS_PASSWORD,
-  maxRetriesPerRequest: null,
-};
+const redisConnection = getRedisConnectionOptions();
 
 // Scan Job Queue
 export const scanQueue = new Queue('scan-jobs', {

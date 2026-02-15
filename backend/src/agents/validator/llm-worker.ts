@@ -14,18 +14,14 @@ import { reputationService } from '../../services/reputation.service.js';
 import { agentIdentityService } from '../../services/agent-identity.service.js';
 import { createLogger } from '../../lib/logger.js';
 import type { FeedbackType, AgentIdentityType } from '@prisma/client';
+import { getRedisConnectionOptions } from '../../lib/redis.js';
 
 const prisma = getPrismaClient();
 const log = createLogger('ValidatorLLM');
 
 let validatorLLMWorker: Worker<ProofSubmissionMessage> | null = null;
 
-const redisConnection = {
-  host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT || '6379', 10),
-  password: process.env.REDIS_PASSWORD,
-  maxRetriesPerRequest: null,
-};
+const redisConnection = getRedisConnectionOptions();
 
 /**
  * Start Validator Agent with LLM-based Proof Analysis

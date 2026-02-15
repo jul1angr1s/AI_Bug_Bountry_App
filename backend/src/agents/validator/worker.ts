@@ -16,6 +16,7 @@ import { agentIdentityService } from '../../services/agent-identity.service.js';
 import type { FeedbackType, AgentIdentityType } from '@prisma/client';
 import type { ProofSubmissionMessage } from '../../messages/schemas.js';
 import { validateMessage, ProofSubmissionSchema } from '../../messages/schemas.js';
+import { getRedisConnectionOptions } from '../../lib/redis.js';
 
 const log = createLogger('ValidatorAgent');
 
@@ -23,12 +24,7 @@ const prisma = getPrismaClient();
 
 let validatorWorker: Worker<ProofSubmissionMessage> | null = null;
 
-const redisConnection = {
-  host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT || '6379', 10),
-  password: process.env.REDIS_PASSWORD,
-  maxRetriesPerRequest: null,
-};
+const redisConnection = getRedisConnectionOptions();
 
 /**
  * Start Validator Agent

@@ -2,7 +2,7 @@ import { Worker, Job } from 'bullmq';
 import { ScanState, ScanStep, AgentStatus } from '@prisma/client';
 import { scanRepository, scanStepRepository, findingRepository, proofRepository, agentRunRepository } from '../../db/repositories.js';
 import { getPrismaClient } from '../../lib/prisma.js';
-import { getRedisClient } from '../../lib/redis.js';
+import { getRedisConnectionOptions } from '../../lib/redis.js';
 import { emitScanStarted, emitScanProgress, emitScanCompleted, emitScanLog } from '../../websocket/events.js';
 import { ScanJobData } from '../../queues/scanQueue.js';
 import { ChildProcess } from 'child_process';
@@ -148,12 +148,7 @@ export function createResearcherWorker(): Worker<ScanJobData> {
       }
     },
     {
-      connection: {
-        host: process.env.REDIS_HOST || 'localhost',
-        port: parseInt(process.env.REDIS_PORT || '6379', 10),
-        password: process.env.REDIS_PASSWORD,
-        maxRetriesPerRequest: null,
-      },
+      connection: getRedisConnectionOptions(),
       concurrency: 2, // Process up to 2 scans concurrently
       stalledInterval: 30000, // Check for stalled jobs every 30s
       maxStalledCount: 2, // Max stalled job retries
