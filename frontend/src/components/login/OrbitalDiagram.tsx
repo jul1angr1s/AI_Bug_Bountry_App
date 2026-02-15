@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 
 // 3D-style SVG icons with gradients and highlights
 
@@ -218,27 +218,27 @@ const positionClasses = {
   left: 'top-1/2 -left-5 -translate-y-1/2',
 };
 
-const floatDelays: Record<string, string> = {
+const floatDelays: Record<NodePosition, string> = {
   top: '0s',
   right: '1s',
   bottom: '2s',
   left: '3s',
 };
 
-// Tooltip position: appears opposite to where the node sits
+// Tooltip position: appears outward from each node to avoid center overlap.
 const tooltipPositionClasses = {
-  top: 'top-full mt-2 left-1/2 -translate-x-1/2',
-  right: 'right-full mr-3 top-1/2 -translate-y-1/2',
-  bottom: 'bottom-full mb-2 left-1/2 -translate-x-1/2',
-  left: 'left-full ml-3 top-1/2 -translate-y-1/2',
+  top: 'bottom-full mb-4 sm:mb-5 left-1/2 -translate-x-1/2',
+  right: 'left-full ml-4 sm:ml-5 top-1/2 -translate-y-1/2',
+  bottom: 'top-full mt-4 sm:mt-5 left-1/2 -translate-x-1/2',
+  left: 'right-full mr-4 sm:mr-5 top-1/2 -translate-y-1/2',
 };
 
 // Arrow/caret pointing toward the node
 const tooltipArrowClasses = {
-  top: 'absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rotate-45',
-  right: 'absolute top-1/2 -translate-y-1/2 -right-1.5 w-3 h-3 rotate-45',
-  bottom: 'absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rotate-45',
-  left: 'absolute top-1/2 -translate-y-1/2 -left-1.5 w-3 h-3 rotate-45',
+  top: 'absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rotate-45',
+  right: 'absolute top-1/2 -translate-y-1/2 -left-1.5 w-3 h-3 rotate-45',
+  bottom: 'absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rotate-45',
+  left: 'absolute top-1/2 -translate-y-1/2 -right-1.5 w-3 h-3 rotate-45',
 };
 
 const tooltipBorderClasses = {
@@ -256,25 +256,43 @@ const tooltipGlowClasses = {
 };
 
 const arrowBgClasses = {
-  cyan: 'bg-[#0d1117] border-r border-b border-cyan-500/40',
-  purple: 'bg-[#0d1117] border-r border-b border-purple-500/40',
-  green: 'bg-[#0d1117] border-r border-b border-emerald-500/40',
-  blue: 'bg-[#0d1117] border-r border-b border-blue-500/40',
-};
-
-// Override arrow rotation per position so border edges face the node
-const arrowRotation = {
-  top: 'rotate-[225deg]',
-  right: 'rotate-[315deg]',
-  bottom: 'rotate-45',
-  left: 'rotate-[135deg]',
+  cyan: 'bg-[#0d1117] border border-cyan-500/40',
+  purple: 'bg-[#0d1117] border border-purple-500/40',
+  green: 'bg-[#0d1117] border border-emerald-500/40',
+  blue: 'bg-[#0d1117] border border-blue-500/40',
 };
 
 export function OrbitalDiagram() {
+  const idPrefix = useId();
+  const containerRef = useRef<HTMLDivElement>(null);
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
+  const [activeNode, setActiveNode] = useState<string | null>(null);
+  const visibleNode = hoveredNode ?? activeNode;
+
+  useEffect(() => {
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!containerRef.current?.contains(event.target as Node)) {
+        setActiveNode(null);
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setActiveNode(null);
+        setHoveredNode(null);
+      }
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, []);
 
   return (
-    <div className="relative w-[280px] h-[280px] sm:w-[340px] sm:h-[340px] mx-auto">
+    <div ref={containerRef} className="relative w-[280px] h-[280px] sm:w-[340px] sm:h-[340px] mx-auto">
       {/* Orbital rings */}
       <svg
         className="absolute inset-0 w-full h-full"
@@ -303,7 +321,7 @@ export function OrbitalDiagram() {
       </svg>
 
       {/* Center core */}
-      <div className="absolute inset-0 flex items-center justify-center">
+      <div className="absolute inset-0 flex items-center justify-center z-10">
         <div className="flex flex-col items-center gap-1.5">
           <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-accent-cyan/5 border border-accent-cyan/20 flex items-center justify-center animate-pulse-glow">
             <Icon3DCore className="w-12 h-12 sm:w-14 sm:h-14" />
@@ -317,35 +335,57 @@ export function OrbitalDiagram() {
       {/* Agent nodes */}
       {nodes.map(({ label, description, Icon, color, position }) => {
         const classes = colorClasses[color];
-        const isHovered = hoveredNode === label;
+        const isVisible = visibleNode === label;
+        const tooltipId = `${idPrefix}-${label.toLowerCase()}-tooltip`;
+
+        const handleToggleNode = () => {
+          setHoveredNode(null);
+          setActiveNode((current) => (current === label ? null : label));
+        };
+
         return (
           <div
             key={label}
             className={`absolute ${positionClasses[position]} animate-float`}
-            style={{ animationDelay: floatDelays[position], zIndex: isHovered ? 30 : 1 }}
+            style={{ animationDelay: floatDelays[position], zIndex: isVisible ? 40 : 20 }}
             onMouseEnter={() => setHoveredNode(label)}
-            onMouseLeave={() => setHoveredNode(null)}
+            onMouseLeave={() => setHoveredNode((current) => (current === label ? null : current))}
+            onFocus={() => setHoveredNode(label)}
+            onBlur={() => setHoveredNode((current) => (current === label ? null : current))}
           >
-            <div className={`flex flex-col items-center gap-1 ${classes.shadow} rounded-xl cursor-pointer transition-transform duration-200 ${isHovered ? 'scale-110' : ''}`}>
+            <button
+              type="button"
+              className={`flex flex-col items-center gap-1 ${classes.shadow} rounded-xl cursor-pointer transition-transform duration-200 ${
+                isVisible ? 'scale-110' : ''
+              }`}
+              onClick={handleToggleNode}
+              aria-expanded={isVisible}
+              aria-controls={tooltipId}
+              aria-label={`${label} helper`}
+            >
               <div
-                className={`w-12 h-12 sm:w-14 sm:h-14 rounded-lg ${classes.bg} border ${classes.border} flex items-center justify-center transition-all duration-200 ${isHovered ? classes.shadow : ''}`}
+                className={`w-12 h-12 sm:w-14 sm:h-14 rounded-lg ${classes.bg} border ${classes.border} flex items-center justify-center transition-all duration-200 ${
+                  isVisible ? classes.shadow : ''
+                }`}
               >
                 <Icon className="w-8 h-8 sm:w-9 sm:h-9" />
               </div>
               <span className={`text-[10px] sm:text-xs font-medium ${classes.text}`}>
                 {label}
               </span>
-            </div>
+            </button>
 
             {/* Hover tooltip */}
             <div
-              className={`absolute ${tooltipPositionClasses[position]} w-56 pointer-events-none transition-all duration-200 ${
-                isHovered ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
+              id={tooltipId}
+              role="tooltip"
+              className={`absolute ${tooltipPositionClasses[position]} w-52 sm:w-56 pointer-events-none transition-all duration-200 origin-center ${
+                isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
               }`}
             >
               <div className={`relative bg-[#0d1117] border ${tooltipBorderClasses[color]} ${tooltipGlowClasses[color]} rounded-lg p-3 backdrop-blur-sm`}>
                 {/* Arrow */}
-                <div className={`${tooltipArrowClasses[position].replace('rotate-45', arrowRotation[position])} ${arrowBgClasses[color]}`} />
+                <div className={`${tooltipArrowClasses[position]} ${arrowBgClasses[color]}`} />
                 <h4 className={`text-xs font-bold ${classes.text} mb-1`}>{label}</h4>
                 <p className="text-[11px] leading-relaxed text-gray-400">{description}</p>
               </div>
