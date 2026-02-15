@@ -60,6 +60,19 @@ export function setupUncaughtExceptionHandler(): void {
   process.on('uncaughtException', (error: Error) => {
     log.error({ err: error }, 'Uncaught Exception');
 
+    const code = (error as NodeJS.ErrnoException).code;
+    const isTransientNetworkError =
+      code === 'ENOTFOUND' ||
+      code === 'ECONNREFUSED' ||
+      code === 'EAI_AGAIN' ||
+      code === 'ECONNRESET';
+
+    // Keep API available in production when background network dependencies flap.
+    if (process.env.NODE_ENV === 'production' && isTransientNetworkError) {
+      log.warn({ code }, 'Ignoring transient network uncaught exception in production');
+      return;
+    }
+
     // Report to Sentry if configured
     if (Sentry) {
       Sentry.captureException(error, {

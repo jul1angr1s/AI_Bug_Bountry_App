@@ -5,6 +5,16 @@
  * any code — so console.log() at the top of server.ts never runs if an
  * import fails. Dynamic import() catches those failures.
  */
+import { runStartupEnvPreflight, printStartupReport } from './startup/env-preflight.js';
+
+const startupReport = runStartupEnvPreflight(process.env);
+printStartupReport(startupReport);
+
+if (!startupReport.ok) {
+  console.error('[START] FATAL: Startup environment preflight failed');
+  process.exit(1);
+}
+
 console.log('[START] Loading server module...');
 
 try {

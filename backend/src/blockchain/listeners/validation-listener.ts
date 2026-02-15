@@ -4,8 +4,7 @@ import { getPrismaClient } from '../../lib/prisma.js';
 import { addPaymentJob, type PaymentJobData } from '../../queues/payment.queue.js';
 import { contractAddresses } from '../config.js';
 import { createLogger } from '../../lib/logger.js';
-// @ts-ignore - Contract artifact may not exist in CI/Railway builds
-import ValidationRegistryABI from '../../../contracts/out/ValidationRegistry.sol/ValidationRegistry.json' with { type: 'json' };
+import ValidationRegistryABI from '../abis/ValidationRegistry.json' with { type: 'json' };
 
 const prisma = getPrismaClient();
 const log = createLogger('ValidationListener');

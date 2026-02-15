@@ -7,6 +7,13 @@ import { getReconciliationService } from '../services/reconciliation.service.js'
 
 const router = Router();
 
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T | null> {
+  return Promise.race([
+    promise,
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), timeoutMs)),
+  ]);
+}
+
 /**
  * Middleware to require admin API key for sensitive endpoints.
  * Set ADMIN_API_KEY env var and pass it via X-Admin-Key header.
@@ -32,10 +39,15 @@ router.get('/health', async (_req, res) => {
   let redis = 'ok';
   let eventListener = 'ok';
   let status = 'ok';
+  const checkTimeoutMs = 3000;
 
   // Check database
   try {
-    await prisma.$queryRaw`SELECT 1`;
+    const dbResult = await withTimeout(prisma.$queryRaw`SELECT 1`, checkTimeoutMs);
+    if (dbResult === null) {
+      database = 'unreachable';
+      status = 'degraded';
+    }
   } catch (error) {
     database = 'unreachable';
     status = 'degraded';
@@ -43,7 +55,7 @@ router.get('/health', async (_req, res) => {
 
   // Check Redis
   try {
-    const redisHealthy = await pingRedis();
+    const redisHealthy = await withTimeout(pingRedis(), checkTimeoutMs);
     if (!redisHealthy) {
       redis = 'unreachable';
       status = 'degraded';
@@ -56,7 +68,7 @@ router.get('/health', async (_req, res) => {
   // Check Event Listener Service
   try {
     const eventListenerService = getEventListenerService();
-    const isHealthy = await eventListenerService.healthCheck();
+    const isHealthy = await withTimeout(eventListenerService.healthCheck(), checkTimeoutMs);
     const stats = eventListenerService.getStats();
 
     if (!isHealthy || !stats.isConnected) {

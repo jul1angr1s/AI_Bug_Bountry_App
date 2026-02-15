@@ -79,13 +79,6 @@ export class EventListenerService {
         this.handleProviderError(error);
       });
 
-      this.wsProvider.on('close', () => {
-        log.warn('WebSocket connection closed');
-        if (!this.isShuttingDown) {
-          this.handleProviderError(new Error('WebSocket connection closed'));
-        }
-      });
-
       // Test connection by getting current block
       const currentBlock = await this.wsProvider.getBlockNumber();
       log.info({ currentBlock }, 'Connected successfully');

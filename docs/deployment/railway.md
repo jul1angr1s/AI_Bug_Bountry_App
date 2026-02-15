@@ -239,12 +239,46 @@ Error: P1001: Can't reach database server
 
 ### Runtime Issues
 
+**Issue: Backend URL returns 502 and frontend shows CORS errors**
+```
+https://your-backend.up.railway.app/api/v1/health -> 502 Bad Gateway
+Access to fetch ... has been blocked by CORS policy
+```
+**What this means:**
+- `502` is the primary failure (backend process not serving traffic)
+- CORS error is secondary because preflight never reaches Express
+
+**Solution:**
+- Check backend logs first:
+  ```bash
+  railway logs --service backend --tail 300
+  ```
+- Look for startup preflight failures:
+  - `[STARTUP_ENV][ERROR][MISSING_PAYER_KEY]`
+  - `[STARTUP_ENV][ERROR][MISSING_RESEARCHER_KEY]`
+  - `[START] FATAL: Startup environment preflight failed`
+- Ensure these vars are set in backend service:
+  - `DATABASE_URL`
+  - `SUPABASE_URL`
+  - `SUPABASE_ANON_KEY`
+  - `SUPABASE_SERVICE_ROLE_KEY`
+  - `FRONTEND_URL` (single exact origin, no trailing slash)
+  - `PRIVATE_KEY` (or `WALLET_PRIVATE_KEY`)
+  - `PRIVATE_KEY2`
+- Redeploy and verify:
+  ```bash
+  curl https://your-backend.up.railway.app/api/v1/health
+  ```
+
 **Issue: CORS errors from frontend**
 ```
 Access to fetch blocked by CORS policy
 ```
 **Solution:** 
-- Verify `FRONTEND_URL` matches your actual frontend domain
+- Verify backend health first (`/api/v1/health` must return 200/503, not 502)
+- Verify `FRONTEND_URL` matches your actual frontend domain exactly
+- Remove trailing slash from `FRONTEND_URL`
+- Ensure `FRONTEND_URL` is a single origin (not comma-separated)
 - Check if `http://` vs `https://` mismatch
 
 **Issue: WebSocket connection fails**

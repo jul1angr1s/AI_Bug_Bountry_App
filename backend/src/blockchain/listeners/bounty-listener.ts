@@ -2,8 +2,7 @@ import { EventLog } from 'ethers';
 import { getEventListenerService } from '../../services/event-listener.service.js';
 import { getPrismaClient } from '../../lib/prisma.js';
 import { contractAddresses } from '../config.js';
-// @ts-ignore - Contract artifact may not exist in CI/Railway builds
-import BountyPoolABI from '../../../contracts/out/BountyPool.sol/BountyPool.json' with { type: 'json' };
+import BountyPoolABI from '../abis/BountyPool.json' with { type: 'json' };
 import type { PaymentStatus } from '@prisma/client';
 import { createLogger } from '../../lib/logger.js';
 
