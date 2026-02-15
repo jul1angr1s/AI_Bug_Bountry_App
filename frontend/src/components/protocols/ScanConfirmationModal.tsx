@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { MaterialIcon } from '../shared/MaterialIcon';
-import { requestProtocolScan } from '@/lib/api';
+import { requestProtocolScan, retryRequestProtocolScanWithPayment, type X402PaymentTerms } from '@/lib/api';
+import PaymentRequiredModal from '../agents/PaymentRequiredModal';
 
 /**
  * ScanConfirmationModal Component Props
@@ -40,6 +41,8 @@ export const ScanConfirmationModal: React.FC<ScanConfirmationModalProps> = ({
 }) => {
   const [isRequesting, setIsRequesting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentTerms, setPaymentTerms] = useState<X402PaymentTerms | undefined>(undefined);
 
   const handleConfirm = async () => {
     setIsRequesting(true);
@@ -49,8 +52,33 @@ export const ScanConfirmationModal: React.FC<ScanConfirmationModalProps> = ({
       const result = await requestProtocolScan(protocolId, branch);
       onScanStarted?.(result.scanId);
       onClose();
-    } catch (err) {
+    } catch (err: any) {
+      if (err?.status === 402) {
+        setPaymentTerms(err.paymentTerms);
+        setShowPaymentModal(true);
+        setIsRequesting(false);
+        return;
+      }
       setError(err instanceof Error ? err.message : 'Failed to start scan');
+    } finally {
+      setIsRequesting(false);
+    }
+  };
+
+  const handlePaymentRetry = async (txHash: string) => {
+    try {
+      setIsRequesting(true);
+      const result = await retryRequestProtocolScanWithPayment(protocolId, txHash, branch);
+      onScanStarted?.(result.scanId);
+      setShowPaymentModal(false);
+      onClose();
+    } catch (err: any) {
+      if (err?.retryFailed) {
+        setError('Payment was sent but scan fee verification failed. Please retry in a few moments.');
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to start scan after payment');
+      }
+      setShowPaymentModal(false);
     } finally {
       setIsRequesting(false);
     }
@@ -59,7 +87,8 @@ export const ScanConfirmationModal: React.FC<ScanConfirmationModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <>
+      <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
@@ -182,7 +211,15 @@ export const ScanConfirmationModal: React.FC<ScanConfirmationModalProps> = ({
           </button>
         </div>
       </div>
-    </div>
+      </div>
+      <PaymentRequiredModal
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        onRetry={handlePaymentRetry}
+        paymentType="SCAN_REQUEST_FEE"
+        paymentTerms={paymentTerms}
+      />
+    </>
   );
 };
 

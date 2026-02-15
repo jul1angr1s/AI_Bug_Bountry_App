@@ -686,27 +686,30 @@ async function executeScanPipeline(
 
     // Stream A: Pay exploit submission fee ($0.50 per exploit) to validator
     if (submitResult.proofsSubmitted > 0) {
-      try {
-        if (validatorAssoc?.agentIdentity?.walletAddress && researcherAssoc?.agentIdentity?.walletAddress) {
-          const proofs = await proofRepository.getProofsByScan(scanId);
-          for (const proof of proofs) {
-            const feeResult = await agentPaymentService.payExploitSubmissionFee(
-              researcherAssoc.agentIdentity.walletAddress,
-              validatorAssoc.agentIdentity.walletAddress,
-              proof.findingId || proof.id,
-              protocolId
-            );
-            if (feeResult) {
-              await emitScanLog(scanId, protocolId, 'INFO', `[INFO] Exploit fee paid to validator: ${feeResult.txHash}`);
-            }
-          }
-        } else {
-          await emitScanLog(scanId, protocolId, 'DEFAULT', `> No agent associations found, skipping exploit fees`);
+      if (!validatorAssoc?.agentIdentity?.walletAddress || !researcherAssoc?.agentIdentity?.walletAddress) {
+        const msg = 'Exploit fee required but protocol is missing validator/researcher agent wallet associations';
+        log.error({ protocolId, scanId }, msg);
+        await emitScanLog(scanId, protocolId, 'ALERT', `[ALERT] ${msg}`);
+        throw new Error(msg);
+      }
+
+      const proofs = await proofRepository.getProofsByScan(scanId);
+      for (const proof of proofs) {
+        const feeResult = await agentPaymentService.payExploitSubmissionFee(
+          researcherAssoc.agentIdentity.walletAddress,
+          validatorAssoc.agentIdentity.walletAddress,
+          proof.findingId || proof.id,
+          protocolId
+        );
+
+        if (!feeResult.ok) {
+          const msg = `Exploit fee payment failed (${feeResult.reasonCode}): ${feeResult.reason}`;
+          log.error({ protocolId, scanId, findingId: proof.findingId || proof.id }, msg);
+          await emitScanLog(scanId, protocolId, 'ALERT', `[ALERT] ${msg}`);
+          throw new Error(msg);
         }
-      } catch (feeError) {
-        // Non-fatal: exploit fee payment failure should not block scan completion
-        log.error({ err: feeError }, 'Exploit fee payment error (non-fatal)');
-        await emitScanLog(scanId, protocolId, 'ALERT', `[WARN] Exploit fee payment failed (non-fatal)`);
+
+        await emitScanLog(scanId, protocolId, 'INFO', `[INFO] Exploit fee paid to validator: ${feeResult.txHash}`);
       }
     }
 

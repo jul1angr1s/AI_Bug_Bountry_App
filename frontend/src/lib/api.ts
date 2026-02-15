@@ -442,6 +442,44 @@ export interface ProtocolListResponse {
   };
 }
 
+export interface X402PaymentTerms {
+  amount: string;
+  asset: string;
+  chain: string;
+  recipient: string;
+  memo?: string;
+  expiresAt: string;
+}
+
+function parseX402PaymentTerms(response: Response, fallbackMemo: string, fallbackAmount: string): X402PaymentTerms {
+  const paymentHeader = response.headers.get('PAYMENT-REQUIRED');
+  if (paymentHeader) {
+    try {
+      const decoded = JSON.parse(atob(paymentHeader));
+      const req = decoded.accepts?.[0] || {};
+      return {
+        amount: req.amount || fallbackAmount,
+        asset: 'USDC',
+        chain: 'base-sepolia',
+        recipient: req.payTo || '',
+        memo: decoded.resource?.description || fallbackMemo,
+        expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+      };
+    } catch (error) {
+      console.error('[API] Failed to decode PAYMENT-REQUIRED header:', error);
+    }
+  }
+
+  return {
+    amount: fallbackAmount,
+    asset: 'USDC',
+    chain: 'base-sepolia',
+    recipient: '',
+    memo: fallbackMemo,
+    expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+  };
+}
+
 /**
  * Create a new protocol registration
  */
@@ -466,45 +504,11 @@ export async function createProtocol(request: CreateProtocolRequest): Promise<Cr
     if (response.status === 402) {
       const x402Error = new Error('Payment required');
       (x402Error as any).status = 402;
-
-      // x402 v2: payment terms in PAYMENT-REQUIRED header (base64 JSON)
-      const paymentHeader = response.headers.get('PAYMENT-REQUIRED');
-      let paymentTerms;
-
-      if (paymentHeader) {
-        try {
-          const decoded = JSON.parse(atob(paymentHeader));
-          console.log('[API] x.402 Payment Required (header):', decoded);
-          const req = decoded.accepts?.[0] || {};
-          paymentTerms = {
-            amount: req.amount || '1000000',
-            asset: 'USDC',
-            chain: 'base-sepolia',
-            recipient: req.payTo || '',
-            memo: decoded.resource?.description || 'Protocol registration fee',
-            expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
-          };
-        } catch (e) {
-          console.error('[API] Failed to decode PAYMENT-REQUIRED header:', e);
-        }
-      }
-
-      // Fallback: try body (v1 compat / custom responses)
-      if (!paymentTerms) {
-        const body = await response.json().catch(() => ({}));
-        console.log('[API] x.402 Payment Required (body fallback):', body);
-        const x402 = body.x402 || {};
-        paymentTerms = {
-          amount: x402.amount || '1000000',
-          asset: 'USDC',
-          chain: 'base-sepolia',
-          recipient: x402.payTo || x402.recipient || '',
-          memo: body.description || 'Protocol registration fee',
-          expiresAt: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
-        };
-      }
-
-      (x402Error as any).paymentTerms = paymentTerms;
+      (x402Error as any).paymentTerms = parseX402PaymentTerms(
+        response,
+        'Protocol registration fee',
+        '1000000'
+      );
       throw x402Error;
     }
 
@@ -1000,6 +1004,49 @@ export async function requestProtocolScan(
       body: JSON.stringify({ branch }),
     }
   );
+
+  if (response.status === 402) {
+    const x402Error = new Error('Payment required');
+    (x402Error as any).status = 402;
+    (x402Error as any).paymentTerms = parseX402PaymentTerms(
+      response,
+      'Scan request fee for AI Bug Bounty Platform',
+      '10000000'
+    );
+    throw x402Error;
+  }
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: response.statusText }));
+    throw new Error(error.error?.message || `Failed to request scan: ${response.statusText}`);
+  }
+
+  const result = await response.json();
+  return result.data;
+}
+
+export async function retryRequestProtocolScanWithPayment(
+  protocolId: string,
+  paymentTxHash: string,
+  branch?: string
+): Promise<{ scanId: string; message: string }> {
+  const headers = await getMutationHeaders();
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/protocols/${protocolId}/request-scan`,
+    {
+      method: 'POST',
+      headers: { ...headers, 'payment-signature': paymentTxHash },
+      credentials: 'include',
+      body: JSON.stringify({ branch }),
+    }
+  );
+
+  if (response.status === 402) {
+    const retryError = new Error('Payment verification failed. The blockchain transaction could not be verified by the server.');
+    (retryError as any).status = 402;
+    (retryError as any).retryFailed = true;
+    throw retryError;
+  }
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: response.statusText }));

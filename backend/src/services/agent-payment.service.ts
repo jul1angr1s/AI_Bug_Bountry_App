@@ -16,6 +16,10 @@ const ERC20_ABI = [
 // Exploit submission fee: 0.5 USDC (500000 in 6-decimal base units)
 const EXPLOIT_FEE_AMOUNT = BigInt(500000);
 
+export type ExploitFeePaymentResult =
+  | { ok: true; txHash: string }
+  | { ok: false; reasonCode: 'MISSING_RESEARCHER_WALLET' | 'MISSING_VALIDATOR_ADDRESS' | 'INSUFFICIENT_USDC_BALANCE' | 'TRANSFER_FAILED' | 'UNKNOWN_ERROR'; reason: string };
+
 export class AgentPaymentService {
   /**
    * Pay exploit submission fee from researcher wallet to validator wallet.
@@ -29,15 +33,25 @@ export class AgentPaymentService {
     validatorAddress: string,
     findingId: string,
     protocolId?: string
-  ): Promise<{ txHash: string } | null> {
+  ): Promise<ExploitFeePaymentResult> {
     if (!researcherAgentWallet) {
-      log.info('Researcher agent wallet (PRIVATE_KEY3) not configured, skipping exploit fee');
-      return null;
+      const reason = 'Researcher agent wallet (PRIVATE_KEY3) not configured';
+      log.error(reason);
+      return {
+        ok: false,
+        reasonCode: 'MISSING_RESEARCHER_WALLET',
+        reason,
+      };
     }
 
     if (!validatorAddress) {
-      log.info('No validator address provided, skipping exploit fee');
-      return null;
+      const reason = 'No validator address provided';
+      log.error(reason);
+      return {
+        ok: false,
+        reasonCode: 'MISSING_VALIDATOR_ADDRESS',
+        reason,
+      };
     }
 
     try {
@@ -57,8 +71,25 @@ export class AgentPaymentService {
       // Check balance first
       const balance = await usdcContract.balanceOf(researcherAgentWallet.address);
       if (balance < EXPLOIT_FEE_AMOUNT) {
-        log.error({ balance: ethers.formatUnits(balance, 6), required: '0.5' }, 'Insufficient USDC balance');
-        return null;
+        const reason = `Insufficient USDC balance. Required=0.5, Available=${ethers.formatUnits(balance, 6)}`;
+        log.error({ balance: ethers.formatUnits(balance, 6), required: '0.5' }, reason);
+        await prisma.x402PaymentRequest.create({
+          data: {
+            requestType: 'EXPLOIT_SUBMISSION_FEE',
+            requesterAddress: researcherAddress.toLowerCase(),
+            amount: EXPLOIT_FEE_AMOUNT,
+            status: 'FAILED',
+            recipientAddress: validatorAddress.toLowerCase(),
+            protocolId: protocolId || null,
+            expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+          },
+        }).catch(err => log.error({ err }, 'Failed to record failed payment'));
+
+        return {
+          ok: false,
+          reasonCode: 'INSUFFICIENT_USDC_BALANCE',
+          reason,
+        };
       }
 
       // Execute transfer
@@ -66,8 +97,25 @@ export class AgentPaymentService {
       const receipt = await tx.wait();
 
       if (!receipt || receipt.status !== 1) {
-        log.error('Transfer transaction failed');
-        return null;
+        const reason = 'Transfer transaction failed';
+        log.error(reason);
+        await prisma.x402PaymentRequest.create({
+          data: {
+            requestType: 'EXPLOIT_SUBMISSION_FEE',
+            requesterAddress: researcherAddress.toLowerCase(),
+            amount: EXPLOIT_FEE_AMOUNT,
+            status: 'FAILED',
+            recipientAddress: validatorAddress.toLowerCase(),
+            protocolId: protocolId || null,
+            expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+          },
+        }).catch(err => log.error({ err }, 'Failed to record failed payment'));
+
+        return {
+          ok: false,
+          reasonCode: 'TRANSFER_FAILED',
+          reason,
+        };
       }
 
       log.info({ txHash: tx.hash }, 'Exploit fee paid');
@@ -87,7 +135,7 @@ export class AgentPaymentService {
         },
       });
 
-      return { txHash: tx.hash };
+      return { ok: true, txHash: tx.hash };
     } catch (error) {
       log.error({ err: error }, 'Failed to pay exploit fee');
 
@@ -104,7 +152,11 @@ export class AgentPaymentService {
         },
       }).catch(err => log.error({ err }, 'Failed to record failed payment'));
 
-      return null;
+      return {
+        ok: false,
+        reasonCode: 'UNKNOWN_ERROR',
+        reason: error instanceof Error ? error.message : 'Unknown exploit fee error',
+      };
     }
   }
 }

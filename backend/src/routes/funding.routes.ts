@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { validateRequest } from '../middleware/validation.js';
 import { dashboardRateLimits } from '../middleware/rate-limit.js';
+import { x402ScanRequestFeeGate } from '../middleware/x402-payment-gate.middleware.js';
 import { protocolIdSchema } from '../schemas/protocol.schema.js';
 import { z } from 'zod';
 import {
@@ -10,11 +11,24 @@ import {
   recordFundingTransaction,
   getProtocolFundingStatus,
 } from '../services/funding.service.js';
-import type { Request, Response } from 'express';
+import type { NextFunction, Request, Response } from 'express';
 import { createLogger } from '../lib/logger.js';
 
 const log = createLogger('FundingRoutes');
 const router = Router();
+
+function attachScanFeeRequestContext(req: Request, _res: Response, next: NextFunction) {
+  req.body = {
+    ...req.body,
+    protocolId: req.params.id,
+    researcherAddress:
+      (req.user as any)?.user_metadata?.wallet_address ||
+      (typeof (req.user as any)?.email === 'string' && (req.user as any).email.endsWith('@wallet.local')
+        ? (req.user as any).email.slice(0, -'@wallet.local'.length)
+        : req.body?.researcherAddress),
+  };
+  next();
+}
 
 // Schema for request-scan endpoint
 const requestScanSchema = z.object({
@@ -101,6 +115,8 @@ router.post(
     params: protocolIdSchema,
     body: requestScanSchema,
   }),
+  attachScanFeeRequestContext,
+  x402ScanRequestFeeGate(),
   async (req: Request, res: Response) => {
     try {
       const userId = req.user?.id;

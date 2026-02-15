@@ -74,6 +74,26 @@ function getProvider(): ethers.JsonRpcProvider {
   return _provider;
 }
 
+function resolveRequesterAddress(req: Request): string | null {
+  const fromBody = req.body?.researcherAddress;
+  if (typeof fromBody === 'string' && fromBody.trim()) return fromBody.toLowerCase();
+
+  const fromHeader = req.headers['x-researcher-wallet'];
+  if (typeof fromHeader === 'string' && fromHeader.trim()) return fromHeader.toLowerCase();
+
+  const walletFromMetadata = (req.user as any)?.user_metadata?.wallet_address;
+  if (typeof walletFromMetadata === 'string' && walletFromMetadata.trim()) {
+    return walletFromMetadata.toLowerCase();
+  }
+
+  const email = (req.user as any)?.email;
+  if (typeof email === 'string' && email.endsWith('@wallet.local')) {
+    return email.slice(0, -'@wallet.local'.length).toLowerCase();
+  }
+
+  return null;
+}
+
 /**
  * Verify an on-chain USDC transfer by checking the transaction receipt.
  * Returns true if the tx is confirmed, transfers USDC to the expected recipient
@@ -283,6 +303,13 @@ export function x402ScanRequestFeeGate() {
 
   return async (req: Request, res: Response, next: NextFunction) => {
     const originalNext = next;
+    const requester = resolveRequesterAddress(req);
+    if (!requester) {
+      return res.status(400).json({
+        error: 'Bad Request',
+        message: 'Authenticated requester wallet is required for scan fee payment.',
+      });
+    }
 
     // Check if payment-signature looks like a raw tx hash (direct USDC transfer)
     const paymentSig = req.headers['payment-signature'] as string | undefined;
@@ -294,11 +321,10 @@ export function x402ScanRequestFeeGate() {
           BigInt(10000000), // 10 USDC in base units
         );
         if (verified) {
-          const requester = req.body?.researcherAddress || req.headers['x-researcher-wallet'] || 'unknown';
           await prisma.x402PaymentRequest.create({
             data: {
               requestType: 'SCAN_REQUEST_FEE',
-              requesterAddress: String(requester).toLowerCase(),
+              requesterAddress: requester,
               amount: BigInt(10000000),
               status: 'COMPLETED',
               txHash: paymentSig,
@@ -320,12 +346,10 @@ export function x402ScanRequestFeeGate() {
     // Standard x402 facilitator path
     const wrappedNext = async () => {
       try {
-        const requester = req.body?.researcherAddress || req.headers['x-researcher-wallet'] || 'unknown';
-
         await prisma.x402PaymentRequest.create({
           data: {
             requestType: 'SCAN_REQUEST_FEE',
-            requesterAddress: String(requester).toLowerCase(),
+            requesterAddress: requester,
             amount: BigInt(10000000),
             status: 'COMPLETED',
             txHash: null, // Updated by onAfterSettle hook with real settlement tx
