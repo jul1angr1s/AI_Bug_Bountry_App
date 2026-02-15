@@ -18,8 +18,7 @@
 import { ethers } from 'ethers';
 import { provider, payerWallet } from '../src/blockchain/config.js';
 
-// The canonical AgentIdentityRegistry where NFTs actually live (tokens 0-3)
-const AGENT_IDENTITY_REGISTRY = '0x59932bDf3056D88DC07cb320263419B8ec1e942d';
+const AGENT_IDENTITY_REGISTRY = process.env.AGENT_IDENTITY_REGISTRY_ADDRESS;
 
 const ABI = [
   'function setBaseURI(string memory newBaseURI) external',
@@ -35,6 +34,11 @@ async function main() {
     console.error('');
     console.error('Example:');
     console.error('  npx tsx scripts/update-base-uri.ts https://api.thundersecurity.xyz/api/v1/agent-identities/metadata/');
+    process.exit(1);
+  }
+
+  if (!AGENT_IDENTITY_REGISTRY) {
+    console.error('Missing AGENT_IDENTITY_REGISTRY_ADDRESS in environment.');
     process.exit(1);
   }
 

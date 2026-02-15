@@ -29,7 +29,9 @@ export function getExplorerAddressUrl(address: string): string {
 }
 
 const AGENT_REGISTRY_ADDRESS =
-  import.meta.env.VITE_AGENT_REGISTRY_ADDRESS || '';
+  import.meta.env.VITE_AGENT_IDENTITY_REGISTRY_ADDRESS ||
+  import.meta.env.VITE_AGENT_REGISTRY_ADDRESS ||
+  '';
 
 export function getExplorerNftUrl(contractAddress: string, tokenId: string | number): string {
   return `${EXPLORER_BASE_URL}/nft/${contractAddress}/${tokenId}`;

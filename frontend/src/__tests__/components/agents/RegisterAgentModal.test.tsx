@@ -74,4 +74,23 @@ describe('RegisterAgentModal', () => {
     // Resolve the submission to clean up
     resolveSubmit!();
   });
+
+  it('submits with registerOnChain enabled by default', async () => {
+    render(
+      <RegisterAgentModal isOpen={true} onClose={mockOnClose} onSubmit={mockOnSubmit} />
+    );
+
+    const input = screen.getByPlaceholderText('0x...');
+    fireEvent.change(input, { target: { value: '0x59932bDf3056D88DC07cb320263419B8ec1e942d' } });
+
+    fireEvent.click(screen.getByRole('button', { name: /Register Agent/i }));
+
+    await waitFor(() => {
+      expect(mockOnSubmit).toHaveBeenCalledWith({
+        walletAddress: '0x59932bDf3056D88DC07cb320263419B8ec1e942d',
+        agentType: 'RESEARCHER',
+        registerOnChain: true,
+      });
+    });
+  });
 });

@@ -10,7 +10,7 @@ interface RegisterAgentModalProps {
 export function RegisterAgentModal({ isOpen, onClose, onSubmit }: RegisterAgentModalProps) {
   const [walletAddress, setWalletAddress] = useState('');
   const [agentType, setAgentType] = useState<'RESEARCHER' | 'VALIDATOR'>('RESEARCHER');
-  const [registerOnChain, setRegisterOnChain] = useState(false);
+  const [registerOnChain, setRegisterOnChain] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,7 +30,7 @@ export function RegisterAgentModal({ isOpen, onClose, onSubmit }: RegisterAgentM
     if (!isOpen) {
       setWalletAddress('');
       setAgentType('RESEARCHER');
-      setRegisterOnChain(false);
+      setRegisterOnChain(true);
       setError(null);
       setIsSubmitting(false);
     }
