@@ -15,10 +15,12 @@ export function setCsrfCookie(req: Request, res: Response, next: NextFunction): 
   let token = req.cookies[CSRF_COOKIE_NAME];
   if (!token) {
     token = generateCsrfToken();
+    const isProduction = process.env.NODE_ENV === 'production';
     res.cookie(CSRF_COOKIE_NAME, token, {
       httpOnly: false, // Frontend needs to read the cookie
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: isProduction,
+      // Railway frontend/backend are on different subdomains in production.
+      sameSite: isProduction ? 'none' : 'lax',
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
     });
   }

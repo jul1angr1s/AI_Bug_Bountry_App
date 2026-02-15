@@ -40,11 +40,40 @@ router.get('/stats', requireAuth, dashboardRateLimits.stats, validateRequest({ q
     const stats = await getDashboardStats(protocolId, userId);
 
     if (!stats) {
-      return res.status(404).json({
-        error: {
-          code: 'STATS_UNAVAILABLE',
-          message: 'Statistics not available',
-          requestId: req.id,
+      return res.json({
+        data: {
+          bountyPool: {
+            total: 0,
+            available: 0,
+            paid: 0,
+            currency: 'USDC',
+          },
+          vulnerabilities: {
+            total: 0,
+            bySeverity: {
+              CRITICAL: 0,
+              HIGH: 0,
+              MEDIUM: 0,
+              LOW: 0,
+              INFO: 0,
+            },
+            byStatus: {
+              OPEN: 0,
+              ACKNOWLEDGED: 0,
+              RESOLVED: 0,
+              DISMISSED: 0,
+            },
+          },
+          payments: {
+            total: 0,
+            count: 0,
+            lastPayment: null,
+          },
+          scans: {
+            total: 0,
+            lastScan: null,
+            avgDuration: 0,
+          },
         },
       });
     }

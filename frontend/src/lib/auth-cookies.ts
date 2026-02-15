@@ -1,5 +1,5 @@
-import { supabase } from './supabase';
 import { loadBackendAuthSession } from './backend-auth';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 
 /**
  * Sync Supabase JWT token to cookies for SSE authentication
@@ -14,32 +14,30 @@ import { loadBackendAuthSession } from './backend-auth';
  * - Secure flag enabled in production (HTTPS)
  * - Cookie cleared on logout
  */
-export async function syncAuthCookie(): Promise<void> {
+export async function syncAuthCookie(accessToken?: string): Promise<void> {
   try {
-    const { data: { session } } = await supabase.auth.getSession();
     const backendSession = loadBackendAuthSession();
-    const accessToken = session?.access_token || backendSession?.access_token;
+    const token = accessToken || backendSession?.access_token;
 
-    if (accessToken) {
-      // Set cookie for SSE authentication
-      const secure = window.location.protocol === 'https:';
-      const maxAge = 60 * 60 * 24; // 24 hours (matches typical JWT expiration)
-
-      document.cookie = `auth_token=${accessToken}; path=/; SameSite=Lax; max-age=${maxAge}${secure ? '; Secure' : ''}`;
-
-      console.log('[Auth] JWT token synced to cookie for SSE');
-    } else {
-      // Clear cookie on logout
-      document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-
-      console.log('[Auth] Auth cookie cleared');
-    }
-  } catch (error) {
-    // Ignore AbortError from React Strict Mode or navigation
-    if (error instanceof Error && error.name === 'AbortError') {
-      console.log('[Auth] Cookie sync aborted (expected in dev mode)');
+    if (!token) {
+      await clearAuthCookie();
       return;
     }
+
+    const response = await fetch(`${API_BASE_URL}/api/v1/auth/session-cookie`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to sync session cookie: ${response.status} ${response.statusText}`);
+    }
+
+    console.log('[Auth] Backend auth cookie synced');
+  } catch (error) {
     console.error('[Auth] Failed to sync auth cookie:', error);
   }
 }
@@ -48,7 +46,13 @@ export async function syncAuthCookie(): Promise<void> {
  * Manually clear the auth cookie
  * Useful for logout flows
  */
-export function clearAuthCookie(): void {
-  document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-  console.log('[Auth] Auth cookie cleared manually');
+export async function clearAuthCookie(): Promise<void> {
+  try {
+    await fetch(`${API_BASE_URL}/api/v1/auth/session-cookie`, {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+  } catch (error) {
+    console.warn('[Auth] Failed to clear backend auth cookie:', error);
+  }
 }

@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { verifyMessage } from 'ethers';
 import jwt from 'jsonwebtoken';
 import { supabaseAdmin } from '../lib/supabase.js';
+import { resolveUserFromToken } from '../lib/auth-token.js';
 import { z } from 'zod';
 import { createLogger } from '../lib/logger.js';
 
@@ -17,6 +18,17 @@ const siweSchema = z.object({
 });
 
 type SiweRequest = z.infer<typeof siweSchema>;
+
+function getAuthCookieOptions() {
+  const isProduction = process.env.NODE_ENV === 'production';
+  return {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: (isProduction ? 'none' : 'lax') as 'none' | 'lax',
+    path: '/',
+    maxAge: 60 * 60 * 1000, // 1 hour
+  };
+}
 
 /**
  * POST /siwe - Verify SIWE signature and create/update user session
@@ -219,6 +231,44 @@ router.post('/siwe', async (req: Request, res: Response, next: NextFunction): Pr
     log.error({ err: error }, 'SIWE verification failed');
     next(error);
   }
+});
+
+/**
+ * POST /session-cookie - set backend-domain auth cookie for SSE/EventSource
+ *
+ * Expects Authorization: Bearer <token>
+ */
+router.post('/session-cookie', async (req: Request, res: Response): Promise<void> => {
+  const header = req.headers.authorization;
+  const token = header?.startsWith('Bearer ') ? header.slice(7) : undefined;
+
+  if (!token) {
+    res.status(401).json({ error: 'Missing bearer token' });
+    return;
+  }
+
+  const user = await resolveUserFromToken(token);
+  if (!user) {
+    res.status(401).json({ error: 'Invalid or expired token' });
+    return;
+  }
+
+  res.cookie('auth_token', token, getAuthCookieOptions());
+  res.status(204).send();
+});
+
+/**
+ * DELETE /session-cookie - clear backend-domain auth cookie
+ */
+router.delete('/session-cookie', (_req: Request, res: Response): void => {
+  const isProduction = process.env.NODE_ENV === 'production';
+  res.clearCookie('auth_token', {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: (isProduction ? 'none' : 'lax') as 'none' | 'lax',
+    path: '/',
+  });
+  res.status(204).send();
 });
 
 export default router;

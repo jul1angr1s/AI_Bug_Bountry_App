@@ -1,4 +1,3 @@
-import { supabase } from './supabase';
 import { getCsrfToken } from './csrf';
 import { loadBackendAuthSession } from './backend-auth';
 import type {
@@ -67,71 +66,17 @@ export async function checkBackendHealth(): Promise<{
  */
 async function getAuthHeaders(): Promise<HeadersInit> {
   try {
-    const result = await supabase.auth.getSession();
-
-    if (!result || !result.data) {
-      console.error('[API] Supabase getSession returned invalid response:', result);
-      throw new Error('Authentication service is not responding correctly. Please refresh the page.');
-    }
-
-    const { data: { session }, error } = result;
-
-    if (error) {
-      console.error('[API] Supabase session error:', error);
-      throw new Error(`Authentication error: ${error.message}`);
-    }
-
-    if (!session?.access_token) {
-      const backendSession = loadBackendAuthSession();
-      if (backendSession?.access_token) {
-        return {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${backendSession.access_token}`,
-        };
-      }
-
-      console.error('[API] No active session found');
+    const backendSession = loadBackendAuthSession();
+    if (!backendSession?.access_token) {
+      console.error('[API] No active backend session found');
       throw new Error('No active session. Please log in to continue.');
     }
 
-    console.log('[API] Authentication successful, user:', session.user?.email);
     return {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${session.access_token}`,
+      Authorization: `Bearer ${backendSession.access_token}`,
     };
   } catch (error) {
-    // Handle AbortError specifically (from React Strict Mode or navigation)
-    if (error instanceof Error && error.name === 'AbortError') {
-      console.log('[API] Session fetch aborted, trying localStorage fallback...');
-
-      // Fallback: Try to get session from localStorage directly
-      const storageKey = 'thunder-security-auth';
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-      const projectId = supabaseUrl ? new URL(supabaseUrl).hostname.split('.')[0] : '';
-      const keys = [`sb-${projectId}-auth-token`, storageKey];
-
-      for (const key of keys) {
-        try {
-          const stored = localStorage.getItem(key);
-          if (stored) {
-            const sessionData = JSON.parse(stored);
-            const token = sessionData?.access_token || sessionData?.currentSession?.access_token;
-            if (token) {
-              console.log('[API] Using token from localStorage');
-              return {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${token}`,
-              };
-            }
-          }
-        } catch (e) {
-          // Continue to next key
-        }
-      }
-
-      throw new Error('No active session. Please connect your wallet.');
-    }
-
     if (error instanceof Error && error.message.includes('No active session')) {
       throw error;
     }

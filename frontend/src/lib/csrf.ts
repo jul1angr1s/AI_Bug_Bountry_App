@@ -1,5 +1,6 @@
 const CSRF_COOKIE_NAME = 'X-CSRF-Token';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+let cachedCsrfToken: string | null = null;
 
 /**
  * Read CSRF token from cookie
@@ -19,29 +20,29 @@ function getCsrfTokenFromCookie(): string | null {
  * 3. Backend validates cookie === header
  */
 export async function getCsrfToken(): Promise<string> {
-  // Try to read from cookie first
-  let cookieToken = getCsrfTokenFromCookie();
-  if (cookieToken) {
-    return cookieToken;
+  if (cachedCsrfToken) {
+    return cachedCsrfToken;
   }
 
-  // If no cookie exists, fetch from endpoint to trigger cookie creation
   const res = await fetch(`${API_BASE_URL}/api/v1/csrf-token`, {
-    credentials: 'include', // Include cookies in request
+    credentials: 'include',
   });
 
   if (!res.ok) {
     throw new Error(`Failed to fetch CSRF token: ${res.status} ${res.statusText}`);
   }
 
-  // After fetching, the backend should have set the cookie
-  // Read it from the cookie (not from response body)
-  cookieToken = getCsrfTokenFromCookie();
-  if (!cookieToken) {
-    throw new Error('CSRF cookie not set after fetching token');
+  const data = await res.json().catch(() => ({}));
+  const responseToken = data?.csrfToken;
+  const cookieToken = getCsrfTokenFromCookie();
+  const token = responseToken || cookieToken;
+
+  if (!token) {
+    throw new Error('Failed to obtain CSRF token from response');
   }
 
-  return cookieToken;
+  cachedCsrfToken = token;
+  return token;
 }
 
 /**
@@ -49,5 +50,5 @@ export async function getCsrfToken(): Promise<string> {
  * Kept for API compatibility
  */
 export function clearCsrfToken(): void {
-  // No-op: we always read fresh from cookie
+  cachedCsrfToken = null;
 }
