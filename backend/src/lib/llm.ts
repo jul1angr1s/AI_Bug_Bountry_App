@@ -60,71 +60,106 @@ export class KimiLLMClient {
     maxTokens: number = 16384,
     enableThinking: boolean = true
   ): Promise<LLMResponse> {
-    try {
-      const response = await fetch(`${this.baseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.apiKey}`,
-          Accept: 'application/json', // Use 'text/event-stream' for streaming
-        },
-        body: JSON.stringify({
-          model: this.model,
-          messages,
-          temperature,
-          max_tokens: maxTokens,
-          top_p: 1.0,
-          stream: false, // Set to true for streaming support
-          chat_template_kwargs: {
-            thinking: enableThinking, // Enable extended thinking for Kimi 2.5
+    const requestTimeoutMs = Number(process.env.KIMI_REQUEST_TIMEOUT_MS || '120000');
+    const maxRetries = Math.max(0, Number(process.env.KIMI_MAX_RETRIES || '2'));
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), requestTimeoutMs);
+
+      try {
+        const response = await fetch(`${this.baseUrl}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${this.apiKey}`,
+            Accept: 'application/json', // Use 'text/event-stream' for streaming
           },
-        }),
-      });
+          signal: controller.signal,
+          body: JSON.stringify({
+            model: this.model,
+            messages,
+            temperature,
+            max_tokens: maxTokens,
+            top_p: 1.0,
+            stream: false, // Set to true for streaming support
+            chat_template_kwargs: {
+              thinking: enableThinking, // Enable extended thinking for Kimi 2.5
+            },
+          }),
+        });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(
-          `Kimi API error: ${response.status} ${response.statusText} - ${errorText}`
-        );
-      }
+        if (!response.ok) {
+          const errorText = await response.text();
+          const error = new Error(
+            `Kimi API error: ${response.status} ${response.statusText} - ${errorText}`
+          );
 
-      const data = await response.json();
-
-      // Extract response
-      // Kimi 2.5 with thinking mode returns reasoning in 'reasoning_content' or 'reasoning' field
-      // and the final answer in 'content' field (may be null if all tokens used for thinking)
-      const message = data.choices?.[0]?.message;
-      const content = message?.content || '';
-      const reasoning = message?.reasoning_content || message?.reasoning || '';
-
-      // If thinking mode is enabled and we got reasoning but no content,
-      // use the reasoning as the response
-      // Otherwise, combine reasoning and content if both present
-      let fullContent = '';
-      if (reasoning && !content) {
-        fullContent = reasoning;
-      } else if (reasoning && content) {
-        fullContent = `${reasoning}\n\n---\n\n${content}`;
-      } else {
-        fullContent = content;
-      }
-
-      const usage = data.usage
-        ? {
-            promptTokens: data.usage.prompt_tokens,
-            completionTokens: data.usage.completion_tokens,
-            totalTokens: data.usage.total_tokens,
+          if (attempt < maxRetries && (response.status >= 500 || response.status === 429 || response.status === 408)) {
+            const delayMs = 1000 * (attempt + 1);
+            log.warn({ attempt: attempt + 1, maxRetries, status: response.status, delayMs }, 'Kimi API request failed, retrying');
+            await sleep(delayMs);
+            continue;
           }
-        : undefined;
 
-      return {
-        content: fullContent,
-        usage,
-      };
-    } catch (error) {
-      log.error({ err: error }, 'Chat completion failed');
-      throw error;
+          throw error;
+        }
+
+        const data = await response.json();
+
+        // Extract response
+        // Kimi 2.5 with thinking mode returns reasoning in 'reasoning_content' or 'reasoning' field
+        // and the final answer in 'content' field (may be null if all tokens used for thinking)
+        const message = data.choices?.[0]?.message;
+        const content = message?.content || '';
+        const reasoning = message?.reasoning_content || message?.reasoning || '';
+
+        // If thinking mode is enabled and we got reasoning but no content,
+        // use the reasoning as the response
+        // Otherwise, combine reasoning and content if both present
+        let fullContent = '';
+        if (reasoning && !content) {
+          fullContent = reasoning;
+        } else if (reasoning && content) {
+          fullContent = `${reasoning}\n\n---\n\n${content}`;
+        } else {
+          fullContent = content;
+        }
+
+        const usage = data.usage
+          ? {
+              promptTokens: data.usage.prompt_tokens,
+              completionTokens: data.usage.completion_tokens,
+              totalTokens: data.usage.total_tokens,
+            }
+          : undefined;
+
+        return {
+          content: fullContent,
+          usage,
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const retryable =
+          errorMessage.toLowerCase().includes('timeout') ||
+          errorMessage.toLowerCase().includes('fetch failed') ||
+          errorMessage.toLowerCase().includes('headers timeout');
+
+        if (attempt < maxRetries && retryable) {
+          const delayMs = 1000 * (attempt + 1);
+          log.warn({ attempt: attempt + 1, maxRetries, delayMs, err: error }, 'Kimi request failed with retryable error, retrying');
+          await sleep(delayMs);
+          continue;
+        }
+
+        log.error({ err: error }, 'Chat completion failed');
+        throw error;
+      } finally {
+        clearTimeout(timeoutId);
+      }
     }
+
+    throw new Error('Kimi chat request exhausted retries');
   }
 
   /**
@@ -281,4 +316,8 @@ export function getKimiClient(): KimiLLMClient {
     kimiClient = new KimiLLMClient();
   }
   return kimiClient;
+}
+
+async function sleep(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
 }
