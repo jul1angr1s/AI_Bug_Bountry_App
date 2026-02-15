@@ -7,6 +7,7 @@ import { PrismaClient } from '@prisma/client';
 import { ethers } from 'ethers';
 import { escrowService } from '../services/escrow.service.js';
 import { createLogger } from '../lib/logger.js';
+import { buildProtocolRegistrationFingerprint } from '../lib/protocol-payment-fingerprint.js';
 
 const log = createLogger('X402PaymentGate');
 
@@ -24,6 +25,7 @@ const FACILITATOR_URL = process.env.X402_FACILITATOR_URL || 'https://www.x402.or
 
 // Network CAIP-2 identifier: Base Sepolia = eip155:84532, Base Mainnet = eip155:8453
 const NETWORK = (process.env.X402_NETWORK || 'eip155:84532') as Network;
+const PROTOCOL_PAYMENT_RETRY_WINDOW_MS = 30 * 60 * 1000;
 
 // Protocol registration fee: 1 USDC
 const PROTOCOL_REGISTRATION_FEE_USD = '$1.00';
@@ -141,6 +143,38 @@ export function x402ProtocolRegistrationGate() {
   // Wrap to also record payment in our database
   return async (req: Request, res: Response, next: NextFunction) => {
     const originalNext = next;
+    const ownerAddress = (req.body?.ownerAddress || '').toLowerCase();
+    const registrationFingerprint = buildProtocolRegistrationFingerprint(req.body || {});
+
+    // If a recent successful payment exists for this exact registration payload and
+    // it has not been consumed by a created protocol yet, bypass 402 to avoid double charge.
+    if (ownerAddress && registrationFingerprint) {
+      const existingCompletedPayment = await prisma.x402PaymentRequest.findFirst({
+        where: {
+          requestType: 'PROTOCOL_REGISTRATION',
+          requesterAddress: ownerAddress,
+          status: 'COMPLETED',
+          protocolId: null,
+          paymentReceipt: registrationFingerprint,
+          completedAt: {
+            gte: new Date(Date.now() - PROTOCOL_PAYMENT_RETRY_WINDOW_MS),
+          },
+        },
+        orderBy: { completedAt: 'desc' },
+      });
+
+      if (existingCompletedPayment) {
+        log.info(
+          {
+            requesterAddress: ownerAddress,
+            paymentId: existingCompletedPayment.id,
+            fingerprint: registrationFingerprint.slice(0, 12),
+          },
+          'Bypassing protocol registration 402 due to recent completed payment'
+        );
+        return originalNext();
+      }
+    }
 
     // Check if payment-signature looks like a raw tx hash (direct USDC transfer)
     // If so, verify the transfer on-chain before falling through to the facilitator
@@ -160,6 +194,7 @@ export function x402ProtocolRegistrationGate() {
               requesterAddress: requester.toLowerCase(),
               amount: BigInt(1000000),
               status: 'COMPLETED',
+              paymentReceipt: registrationFingerprint,
               txHash: paymentSig,
               expiresAt: new Date(Date.now() + 30 * 60 * 1000),
               completedAt: new Date(),
@@ -188,6 +223,7 @@ export function x402ProtocolRegistrationGate() {
             requesterAddress: requester.toLowerCase(),
             amount: BigInt(1000000), // 1 USDC
             status: 'COMPLETED',
+            paymentReceipt: registrationFingerprint,
             txHash: null, // Updated by onAfterSettle hook with real settlement tx
             expiresAt: new Date(Date.now() + 30 * 60 * 1000),
             completedAt: new Date(),

@@ -15,6 +15,7 @@ import {
   protocolIdSchema,
 } from '../schemas/protocol.schema.js';
 import { getPrismaClient } from '../lib/prisma.js';
+import { buildProtocolRegistrationFingerprint } from '../lib/protocol-payment-fingerprint.js';
 import {
   registerProtocol,
   fundProtocol,
@@ -26,6 +27,7 @@ import { addProtocolRegistrationJob } from '../queues/protocol.queue.js';
 import { getRedisClient } from '../lib/redis.js';
 
 const router = Router();
+const prisma = getPrismaClient();
 
 // GET /api/v1/protocols - List all protocols
 router.get(
@@ -78,7 +80,6 @@ router.get(
         });
       }
 
-      const prisma = getPrismaClient();
       const versions = await prisma.protocol.findMany({
         where: {
           githubUrl,
@@ -180,6 +181,22 @@ router.post(
 
       // Queue protocol registration job
       if (result.protocol?.id) {
+        const fingerprint = buildProtocolRegistrationFingerprint(req.body || {});
+        const requesterAddress = (req.body?.ownerAddress || '').toLowerCase();
+
+        if (fingerprint && requesterAddress) {
+          await prisma.x402PaymentRequest.updateMany({
+            where: {
+              requestType: 'PROTOCOL_REGISTRATION',
+              requesterAddress,
+              status: 'COMPLETED',
+              protocolId: null,
+              paymentReceipt: fingerprint,
+            },
+            data: { protocolId: result.protocol.id },
+          });
+        }
+
         await addProtocolRegistrationJob(result.protocol.id);
       }
 
