@@ -25,6 +25,12 @@ export default function X402Payments() {
 
   const filteredPayments = useMemo(() => {
     if (activeFilter === 'ALL') return onChainPayments;
+    if (activeFilter === 'FINDING_SUBMISSION') {
+      // "Submissions" is a combined view: finding submission fees + exploit submission fees.
+      return onChainPayments.filter(
+        (p) => p.requestType === 'FINDING_SUBMISSION' || p.requestType === 'EXPLOIT_SUBMISSION_FEE'
+      );
+    }
     return onChainPayments.filter((p) => p.requestType === activeFilter);
   }, [onChainPayments, activeFilter]);
 
