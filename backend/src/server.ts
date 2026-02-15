@@ -115,20 +115,20 @@ server.listen(config.PORT, async () => {
     log.error({ err: error }, 'Failed to bootstrap default agents');
   }
 
+  // Start researcher agent worker as early as possible for scan availability
+  try {
+    await startResearcherAgent();
+    log.info({ queue: 'scan-jobs', concurrency: 2 }, 'Researcher agent worker started successfully');
+  } catch (error) {
+    log.error({ err: error }, 'Failed to start researcher agent worker');
+  }
+
   // Start Validator Agent (LLM-based for Phase 2)
   try {
     await startValidatorAgentLLM();
     log.info('Validator Agent (LLM) started successfully');
   } catch (error) {
     log.error({ err: error }, 'Failed to start Validator Agent (LLM)');
-  }
-
-  // Start researcher agent worker before other long-startup listeners
-  try {
-    await startResearcherAgent();
-    log.info({ queue: 'scan-jobs', concurrency: 2 }, 'Researcher agent worker started successfully');
-  } catch (error) {
-    log.error({ err: error }, 'Failed to start researcher agent worker');
   }
 
   // Start ValidationRecorded event listener
