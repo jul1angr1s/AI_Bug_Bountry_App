@@ -4,6 +4,7 @@
 FROM node:20-alpine AS base
 WORKDIR /app
 RUN apk add --no-cache openssl git curl bash ca-certificates tar \
+  && export SHELL=/bin/bash \
   && curl -L https://foundry.paradigm.xyz | bash \
   && /root/.foundry/bin/foundryup \
   && ln -sf /root/.foundry/bin/forge /usr/local/bin/forge \
