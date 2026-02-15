@@ -7,7 +7,7 @@ interface ProtectedRouteProps {
 }
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { user, loading } = useAuth();
+  const { user, session, loading } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -21,7 +21,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     );
   }
 
-  if (!user) {
+  if (!user || !session?.access_token) {
     // Preserve attempted URL for post-auth redirect
     const returnUrl = location.pathname + location.search;
     return <Navigate to={`/login?returnUrl=${encodeURIComponent(returnUrl)}`} replace />;

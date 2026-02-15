@@ -11,10 +11,16 @@ vi.mock('../../lib/auth', () => ({
 }));
 
 describe('ProtectedRoute', () => {
+  const mockSession = {
+    access_token: 'token',
+    refresh_token: 'refresh',
+    user: { id: '1', email: 'test@wallet.local' },
+  } as any;
+
   it('renders ProtectedRoute component', () => {
     vi.spyOn(auth, 'useAuth').mockReturnValue({
       user: { id: '1', wallet: '0x123', role: 'User' },
-      session: null,
+      session: mockSession,
       loading: false,
       signIn: vi.fn(),
       signOut: vi.fn(),
@@ -34,7 +40,7 @@ describe('ProtectedRoute', () => {
   it('renders children when user is authenticated', async () => {
     vi.spyOn(auth, 'useAuth').mockReturnValue({
       user: { id: '1', wallet: '0x123', role: 'User' },
-      session: null,
+      session: mockSession,
       loading: false,
       signIn: vi.fn(),
       signOut: vi.fn(),
@@ -56,6 +62,36 @@ describe('ProtectedRoute', () => {
   it('redirects to login when user is not authenticated', async () => {
     vi.spyOn(auth, 'useAuth').mockReturnValue({
       user: null,
+      session: null,
+      loading: false,
+      signIn: vi.fn(),
+      signOut: vi.fn(),
+    });
+
+    render(
+      <BrowserRouter>
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <div>Protected Content</div>
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/login" element={<div>Login Page</div>} />
+        </Routes>
+      </BrowserRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Login Page')).toBeInTheDocument();
+    });
+  });
+
+  it('redirects to login when user exists but session is missing', async () => {
+    vi.spyOn(auth, 'useAuth').mockReturnValue({
+      user: { id: '1', wallet: '0x123', role: 'User' },
       session: null,
       loading: false,
       signIn: vi.fn(),
