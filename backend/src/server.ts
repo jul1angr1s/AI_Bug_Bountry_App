@@ -26,6 +26,7 @@ import { startPaymentWorker, stopPaymentWorker } from './workers/payment.worker.
 import { startProtocolWorker, stopProtocolWorker } from './queues/protocol.queue.js';
 import { startResearcherAgent, stopResearcherAgent } from './agents/researcher/index.js';
 import { setupProcessErrorHandlers } from './lib/process-error-handler.js';
+import { bootstrapDefaultAgents } from './startup/agent-bootstrap.js';
 import type { Worker } from 'bullmq';
 
 const log = createLogger('Server');
@@ -107,12 +108,27 @@ let paymentWorkerInstance: Worker | null = null;
 server.listen(config.PORT, async () => {
   log.info({ port: config.PORT, env: config.NODE_ENV }, 'Backend listening');
 
+  // Ensure baseline agent records exist before workers begin consuming queue jobs
+  try {
+    await bootstrapDefaultAgents();
+  } catch (error) {
+    log.error({ err: error }, 'Failed to bootstrap default agents');
+  }
+
   // Start Validator Agent (LLM-based for Phase 2)
   try {
     await startValidatorAgentLLM();
     log.info('Validator Agent (LLM) started successfully');
   } catch (error) {
     log.error({ err: error }, 'Failed to start Validator Agent (LLM)');
+  }
+
+  // Start researcher agent worker before other long-startup listeners
+  try {
+    await startResearcherAgent();
+    log.info({ queue: 'scan-jobs', concurrency: 2 }, 'Researcher agent worker started successfully');
+  } catch (error) {
+    log.error({ err: error }, 'Failed to start researcher agent worker');
   }
 
   // Start ValidationRecorded event listener
@@ -137,14 +153,6 @@ server.listen(config.PORT, async () => {
     log.info({ queue: 'protocol-registration', concurrency: 2 }, 'Protocol registration worker started successfully');
   } catch (error) {
     log.error({ err: error }, 'Failed to start protocol worker');
-  }
-
-  // Start researcher agent worker
-  try {
-    await startResearcherAgent();
-    log.info({ queue: 'scan-jobs', concurrency: 2 }, 'Researcher agent worker started successfully');
-  } catch (error) {
-    log.error({ err: error }, 'Failed to start researcher agent worker');
   }
 
   // Start payment processing worker

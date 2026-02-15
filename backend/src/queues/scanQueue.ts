@@ -24,6 +24,7 @@ export interface ScanJobData {
   protocolId: string;
   targetBranch?: string;
   targetCommitHash?: string;
+  queuedAt?: number;
 }
 
 export interface ScanStepData {
@@ -39,7 +40,10 @@ export interface ScanStepData {
 
 // Add scan job to queue
 export async function enqueueScan(jobData: ScanJobData): Promise<Job<ScanJobData>> {
-  return scanQueue.add(`scan:${jobData.scanId}`, jobData, {
+  return scanQueue.add(`scan:${jobData.scanId}`, {
+    ...jobData,
+    queuedAt: jobData.queuedAt ?? Date.now(),
+  }, {
     jobId: jobData.scanId,
     priority: 1,
   });

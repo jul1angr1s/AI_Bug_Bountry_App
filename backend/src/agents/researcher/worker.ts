@@ -42,6 +42,16 @@ export const ScanErrorCodes = {
 
 export type ScanErrorCode = typeof ScanErrorCodes[keyof typeof ScanErrorCodes];
 
+const NO_RESEARCHER_CAPACITY_WAIT_MS = 5 * 60 * 1000;
+const NO_RESEARCHER_CAPACITY_POLL_MS = 15 * 1000;
+
+class NoResearcherCapacityTimeoutError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'NO_RESEARCHER_CAPACITY_TIMEOUT';
+  }
+}
+
 // Step timeouts (in milliseconds)
 const STEP_TIMEOUTS: Record<ScanStep, number> = {
   [ScanStep.CLONE]: 5 * 60 * 1000,           // 5 minutes
@@ -62,19 +72,8 @@ export function createResearcherWorker(): Worker<ScanJobData> {
       
       // Get agent ID (in production, this would be the current worker's agent)
       const prisma = getPrismaClient();
-      // Find an available researcher agent - accept ONLINE or SCANNING status
-      // The worker concurrency (set to 2) already controls parallel job capacity
-      // so this check should not block jobs when the agent is busy
-      const agent = await prisma.agent.findFirst({
-        where: {
-          type: 'RESEARCHER',
-          status: { in: ['ONLINE', 'SCANNING'] },
-        },
-      });
-
-      if (!agent) {
-        throw new Error('No available Researcher Agent found');
-      }
+      const queueStartedAt = job.data.queuedAt ?? Date.now();
+      const agent = await waitForResearcherCapacity(prisma, scanId, protocolId, queueStartedAt);
 
       // Start agent run tracking
       const agentRun = await agentRunRepository.startRun({
@@ -163,9 +162,25 @@ export function createResearcherWorker(): Worker<ScanJobData> {
   // Handle job failure
   worker.on('failed', async (job: Job<ScanJobData> | undefined, error: Error) => {
     if (job) {
+      const totalAttempts = job.opts.attempts ?? 1;
+      const exhaustedRetries = job.attemptsMade >= totalAttempts;
+
+      if (!exhaustedRetries && error.name !== 'NO_RESEARCHER_CAPACITY_TIMEOUT') {
+        log.warn(
+          {
+            scanId: job.data.scanId,
+            attempt: job.attemptsMade,
+            totalAttempts,
+            err: error,
+          },
+          'Scan attempt failed; waiting for retry'
+        );
+        return;
+      }
+
       log.error({ scanId: job.data.scanId, err: error }, 'Scan failed');
-      
-      // Mark scan as failed
+
+      // Mark scan as failed only after retries are exhausted or when explicitly timed out by capacity wait
       await scanRepository.markScanFailed(
         job.data.scanId,
         error.name || 'UNKNOWN',
@@ -189,6 +204,66 @@ export function createResearcherWorker(): Worker<ScanJobData> {
   });
 
   return worker;
+}
+
+async function waitForResearcherCapacity(
+  prisma: ReturnType<typeof getPrismaClient>,
+  scanId: string,
+  protocolId: string,
+  queuedAtMs: number
+) {
+  const deadlineMs = queuedAtMs + NO_RESEARCHER_CAPACITY_WAIT_MS;
+  let agent = await findAvailableResearcher(prisma);
+
+  while (!agent && Date.now() < deadlineMs) {
+    const remainingMs = deadlineMs - Date.now();
+    const remainingSeconds = Math.max(0, Math.ceil(remainingMs / 1000));
+
+    log.warn(
+      {
+        scanId,
+        protocolId,
+        remainingSeconds,
+      },
+      'No available researcher agent, waiting for capacity'
+    );
+
+    await emitScanProgress(
+      scanId,
+      protocolId,
+      'QUEUE',
+      ScanState.QUEUED,
+      0,
+      `Waiting for available researcher agent (${remainingSeconds}s remaining)`
+    );
+
+    await sleep(Math.min(NO_RESEARCHER_CAPACITY_POLL_MS, Math.max(0, remainingMs)));
+    agent = await findAvailableResearcher(prisma);
+  }
+
+  if (!agent) {
+    throw new NoResearcherCapacityTimeoutError(
+      `No researcher capacity available within ${Math.floor(NO_RESEARCHER_CAPACITY_WAIT_MS / 60000)} minutes`
+    );
+  }
+
+  return agent;
+}
+
+async function findAvailableResearcher(prisma: ReturnType<typeof getPrismaClient>) {
+  return prisma.agent.findFirst({
+    where: {
+      type: 'RESEARCHER',
+      status: { in: ['ONLINE', 'SCANNING'] },
+    },
+  });
+}
+
+async function sleep(ms: number): Promise<void> {
+  if (ms <= 0) {
+    return;
+  }
+  await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 // Execute the full scan pipeline
