@@ -12,7 +12,6 @@ const FILTER_TABS: { key: FilterTab; label: string }[] = [
   { key: 'PROTOCOL_REGISTRATION', label: 'Registration' },
   { key: 'SCAN_REQUEST_FEE', label: 'Scan Fees' },
   { key: 'EXPLOIT_SUBMISSION_FEE', label: 'Exploit Fees' },
-  { key: 'FINDING_SUBMISSION', label: 'Submissions' },
 ];
 
 export default function X402Payments() {
@@ -25,12 +24,6 @@ export default function X402Payments() {
 
   const filteredPayments = useMemo(() => {
     if (activeFilter === 'ALL') return onChainPayments;
-    if (activeFilter === 'FINDING_SUBMISSION') {
-      // "Submissions" is a combined view: finding submission fees + exploit submission fees.
-      return onChainPayments.filter(
-        (p) => p.requestType === 'FINDING_SUBMISSION' || p.requestType === 'EXPLOIT_SUBMISSION_FEE'
-      );
-    }
     return onChainPayments.filter((p) => p.requestType === activeFilter);
   }, [onChainPayments, activeFilter]);
 
