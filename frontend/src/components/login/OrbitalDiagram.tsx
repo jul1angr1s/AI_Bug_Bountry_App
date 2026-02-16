@@ -186,26 +186,26 @@ const nodes: NodeDef[] = [
 
 const colorClasses = {
   cyan: {
-    bg: 'bg-cyan-500/10',
-    border: 'border-cyan-500/30',
+    bg: 'bg-[#0d1117]',
+    border: 'border-cyan-500',
     text: 'text-cyan-400',
     shadow: 'shadow-glow-cyan',
   },
   purple: {
-    bg: 'bg-purple-500/10',
-    border: 'border-purple-500/30',
+    bg: 'bg-[#0d1117]',
+    border: 'border-purple-500',
     text: 'text-purple-400',
     shadow: 'shadow-glow-purple',
   },
   green: {
-    bg: 'bg-emerald-500/10',
-    border: 'border-emerald-500/30',
+    bg: 'bg-[#0d1117]',
+    border: 'border-emerald-500',
     text: 'text-emerald-400',
     shadow: 'shadow-glow-green',
   },
   blue: {
-    bg: 'bg-blue-500/10',
-    border: 'border-blue-500/30',
+    bg: 'bg-[#0d1117]',
+    border: 'border-blue-500',
     text: 'text-blue-400',
     shadow: 'shadow-glow-blue',
   },
@@ -249,10 +249,10 @@ const tooltipBorderClasses = {
 };
 
 const tooltipGlowClasses = {
-  cyan: 'bg-cyan-500/5',
-  purple: 'bg-purple-500/5',
-  green: 'bg-emerald-500/5',
-  blue: 'bg-blue-500/5',
+  cyan: 'shadow-[0_0_28px_rgba(0,240,255,0.55)]',
+  purple: 'shadow-[0_0_28px_rgba(189,0,255,0.55)]',
+  green: 'shadow-[0_0_28px_rgba(11,218,94,0.55)]',
+  blue: 'shadow-[0_0_28px_rgba(6,99,249,0.55)]',
 };
 
 const arrowBgClasses = {
@@ -383,7 +383,7 @@ export function OrbitalDiagram() {
                 isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
               }`}
             >
-              <div className={`relative bg-[#0d1117] border ${tooltipBorderClasses[color]} ${tooltipGlowClasses[color]} rounded-lg p-3 backdrop-blur-sm`}>
+              <div className={`relative bg-[#0d1117] border ${tooltipBorderClasses[color]} ${tooltipGlowClasses[color]} rounded-lg p-3`}>
                 {/* Arrow */}
                 <div className={`${tooltipArrowClasses[position]} ${arrowBgClasses[color]}`} />
                 <h4 className={`text-xs font-bold ${classes.text} mb-1`}>{label}</h4>

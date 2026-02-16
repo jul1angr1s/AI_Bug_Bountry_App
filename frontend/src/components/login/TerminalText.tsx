@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 
 const lines = [
   { text: 'Deploy specialized AI agents to hunt and validate vulnerabilities in real-time.', color: 'text-gray-300' },
-  { text: 'From protocol registration to automated settlement in under 4 minutes.', color: 'text-gray-400' },
+  { text: 'From protocol registration to automated settlement in minutes.', color: 'text-gray-400' },
   { text: 'Zero human intervention.', color: 'text-accent-cyan' },
   { text: 'Powered by X.402 & ERC-8004.', color: 'text-accent-cyan' },
 ];
