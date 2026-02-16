@@ -229,7 +229,8 @@ const floatDelays: Record<NodePosition, string> = {
 const tooltipPositionClasses = {
   top: 'bottom-full mb-4 sm:mb-5 left-1/2 -translate-x-1/2',
   right: 'left-full ml-4 sm:ml-5 top-1/2 -translate-y-1/2',
-  bottom: 'top-full mt-4 sm:mt-5 left-1/2 -translate-x-1/2',
+  // Bottom node sits close to the CTA buttons; render tooltip above to avoid overlap.
+  bottom: 'bottom-full mb-4 sm:mb-5 left-1/2 -translate-x-1/2',
   left: 'right-full mr-4 sm:mr-5 top-1/2 -translate-y-1/2',
 };
 
@@ -237,7 +238,7 @@ const tooltipPositionClasses = {
 const tooltipArrowClasses = {
   top: 'absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rotate-45',
   right: 'absolute top-1/2 -translate-y-1/2 -left-1.5 w-3 h-3 rotate-45',
-  bottom: 'absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rotate-45',
+  bottom: 'absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rotate-45',
   left: 'absolute top-1/2 -translate-y-1/2 -right-1.5 w-3 h-3 rotate-45',
 };
 
