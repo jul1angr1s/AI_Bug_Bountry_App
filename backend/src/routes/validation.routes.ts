@@ -56,7 +56,14 @@ router.get('/', async (req, res) => {
             },
           },
         },
-        orderBy: { validatedAt: 'desc' },
+        // Keep unvalidated findings (validatedAt = null) at the bottom so
+        // freshly validated/rejected results are immediately visible.
+        orderBy: {
+          validatedAt: {
+            sort: 'desc',
+            nulls: 'last',
+          },
+        },
         skip,
         take: limitNum,
       }),
