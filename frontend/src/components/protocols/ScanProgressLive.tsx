@@ -20,6 +20,10 @@ const SCAN_STEPS = [
  */
 export default function ScanProgressLive({ scanId }: ScanProgressLiveProps) {
   const progress = useScanProgressLive(scanId);
+  const scanShort = scanId.slice(0, 8);
+  const lastEventLabel = progress.lastEventAt
+    ? new Date(progress.lastEventAt).toLocaleTimeString()
+    : 'none';
 
   const getStepState = (stepKey: string) => {
     if (progress.state === 'FAILED' && progress.currentStep === stepKey) {
@@ -82,6 +86,25 @@ export default function ScanProgressLive({ scanId }: ScanProgressLiveProps) {
 
   return (
     <div className="space-y-4">
+      {/* Lightweight debug hint for E2E and production troubleshooting */}
+      <div className="text-[11px] text-gray-500 font-mono">
+        <span>scan</span> <span className="text-gray-400">#{scanShort}</span>
+        <span className="mx-2 text-gray-700">|</span>
+        <span>stream</span>{' '}
+        <span className={progress.isConnected ? 'text-green-400' : 'text-yellow-400'}>
+          {progress.isConnected ? 'connected' : 'disconnected'}
+        </span>
+        <span className="text-gray-500">{progress.transport !== 'none' ? ` (${progress.transport})` : ''}</span>
+        <span className="mx-2 text-gray-700">|</span>
+        <span>events</span> <span className="text-gray-400">{progress.eventCount}</span>
+        <span className="mx-2 text-gray-700">|</span>
+        <span>last</span> <span className="text-gray-400">{lastEventLabel}</span>
+        <span className="mx-2 text-gray-700">|</span>
+        <span>state</span> <span className="text-gray-400">{progress.state}</span>
+        <span className="mx-2 text-gray-700">|</span>
+        <span>step</span> <span className="text-gray-400">{progress.currentStep}</span>
+      </div>
+
       {/* Overall Progress Bar */}
       <div>
         <div className="flex items-center justify-between text-sm mb-2">

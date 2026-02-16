@@ -21,6 +21,11 @@ export interface ScanProgressState {
   progress: number;
   message: string;
   isConnected: boolean;
+  transport: 'sse' | 'websocket' | 'none';
+  eventCount: number;
+  lastOpenAt: string | null;
+  lastEventAt: string | null;
+  lastErrorAt: string | null;
   error: string | null;
 }
 
@@ -28,18 +33,37 @@ export interface ScanProgressState {
  * Hook to stream scan progress via WebSocket with SSE fallback
  */
 export function useScanProgressLive(scanId: string | null) {
-  const [progressState, setProgressState] = useState<ScanProgressState>({
-    scanId: null,
+  const initialState: ScanProgressState = {
+    scanId,
     currentStep: 'INITIALIZING',
     state: 'PENDING',
     progress: 0,
     message: 'Waiting to start...',
     isConnected: false,
+    transport: scanId ? 'sse' : 'none',
+    eventCount: 0,
+    lastOpenAt: null,
+    lastEventAt: null,
+    lastErrorAt: null,
     error: null,
+  };
+
+  const [progressState, setProgressState] = useState<ScanProgressState>({
+    ...initialState,
   });
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const useSSE = true; // Use SSE for scan progress (WebSocket requires Socket.IO client for room support)
+
+  // Reset state when the scanId changes
+  useEffect(() => {
+    setProgressState({
+      ...initialState,
+      scanId,
+      transport: scanId ? 'sse' : 'none',
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scanId]);
 
   // WebSocket approach (disabled - requires Socket.IO client)
   useEffect(() => {
@@ -54,15 +78,19 @@ export function useScanProgressLive(scanId: string | null) {
       if (event.scanId === scanId) {
         console.log('[WebSocket] Scan progress update:', event);
 
-        setProgressState({
+        setProgressState((prev) => ({
+          ...prev,
           scanId: event.scanId,
           currentStep: event.data.currentStep,
           state: event.data.state,
           progress: event.data.progress || 0,
           message: event.data.message || '',
           isConnected: true,
+          transport: 'websocket',
+          eventCount: prev.eventCount + 1,
+          lastEventAt: event.timestamp || new Date().toISOString(),
           error: null,
-        });
+        }));
       }
     });
 
@@ -97,6 +125,8 @@ export function useScanProgressLive(scanId: string | null) {
       setProgressState((prev) => ({
         ...prev,
         isConnected: true,
+        transport: 'sse',
+        lastOpenAt: new Date().toISOString(),
         error: null,
       }));
     };
@@ -106,15 +136,19 @@ export function useScanProgressLive(scanId: string | null) {
         const progressEvent: ScanProgressEvent = JSON.parse(event.data);
         console.log('[SSE] Scan progress update:', progressEvent);
 
-        setProgressState({
+        setProgressState((prev) => ({
+          ...prev,
           scanId: progressEvent.scanId,
           currentStep: progressEvent.data.currentStep,
           state: progressEvent.data.state,
           progress: progressEvent.data.progress || 0,
           message: progressEvent.data.message || '',
           isConnected: true,
+          transport: 'sse',
+          eventCount: prev.eventCount + 1,
+          lastEventAt: progressEvent.timestamp || new Date().toISOString(),
           error: null,
-        });
+        }));
 
         // Close connection if scan completed or failed
         if (
@@ -134,6 +168,8 @@ export function useScanProgressLive(scanId: string | null) {
       setProgressState((prev) => ({
         ...prev,
         isConnected: false,
+        transport: 'sse',
+        lastErrorAt: new Date().toISOString(),
         error: 'Connection error - retrying...',
       }));
       eventSource.close();
