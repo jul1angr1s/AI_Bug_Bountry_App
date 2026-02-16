@@ -180,29 +180,6 @@ export interface AgentFeedback {
   researcherAgent?: AgentIdentity;
 }
 
-// ========== Escrow Types ==========
-
-export type EscrowTransactionType = 'DEPOSIT' | 'WITHDRAWAL' | 'SUBMISSION_FEE' | 'PROTOCOL_FEE';
-
-export interface EscrowBalance {
-  balance: string;
-  totalDeposited: string;
-  totalDeducted: string;
-  remainingSubmissions: number;
-  submissionFee: string;
-}
-
-export interface EscrowTransaction {
-  id: string;
-  agentEscrowId: string;
-  transactionType: EscrowTransactionType;
-  amount: string;
-  txHash?: string | null;
-  findingId?: string | null;
-  protocolId?: string | null;
-  createdAt: string;
-}
-
 // ========== x.402 Payment Types ==========
 
 export type X402RequestType = 'PROTOCOL_REGISTRATION' | 'FINDING_SUBMISSION' | 'SCAN_REQUEST_FEE' | 'EXPLOIT_SUBMISSION_FEE';

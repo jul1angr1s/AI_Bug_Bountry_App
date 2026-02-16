@@ -1111,8 +1111,6 @@ import type {
   AgentIdentity,
   AgentReputation,
   AgentFeedback,
-  EscrowBalance,
-  EscrowTransaction,
   X402PaymentEvent,
   AgentIdentityType,
 } from '../types/dashboard';
@@ -1189,39 +1187,6 @@ export async function fetchAgentLeaderboard(limit = 10): Promise<AgentIdentity[]
   const headers = await getAuthHeaders();
   const response = await fetch(`${API_BASE_URL}/api/v1/agent-identities/leaderboard?limit=${limit}`, { headers, credentials: 'include' });
   if (!response.ok) throw new Error(`Failed to fetch leaderboard: ${response.statusText}`);
-  const result = await response.json();
-  return result.data || [];
-}
-
-export async function fetchEscrowBalance(agentId: string): Promise<EscrowBalance> {
-  const headers = await getAuthHeaders();
-  const response = await fetch(`${API_BASE_URL}/api/v1/agent-identities/${agentId}/escrow`, { headers, credentials: 'include' });
-  if (!response.ok) throw new Error(`Failed to fetch escrow balance: ${response.statusText}`);
-  const result = await response.json();
-  return result.data;
-}
-
-export async function depositEscrow(
-  agentId: string,
-  amount: string,
-  txHash?: string
-): Promise<{ balance: string; totalDeposited: string; remainingSubmissions: number }> {
-  const headers = await getMutationHeaders();
-  const response = await fetch(`${API_BASE_URL}/api/v1/agent-identities/${agentId}/escrow/deposit`, {
-    method: 'POST',
-    headers,
-    credentials: 'include',
-    body: JSON.stringify({ amount, txHash }),
-  });
-  if (!response.ok) throw new Error(`Failed to deposit: ${response.statusText}`);
-  const result = await response.json();
-  return result.data;
-}
-
-export async function fetchEscrowTransactions(agentId: string): Promise<EscrowTransaction[]> {
-  const headers = await getAuthHeaders();
-  const response = await fetch(`${API_BASE_URL}/api/v1/agent-identities/${agentId}/escrow/transactions`, { headers, credentials: 'include' });
-  if (!response.ok) throw new Error(`Failed to fetch escrow transactions: ${response.statusText}`);
   const result = await response.json();
   return result.data || [];
 }

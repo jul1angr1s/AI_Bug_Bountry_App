@@ -20,7 +20,6 @@ const ScanDetailRouter = React.lazy(() =>
 const PaymentDashboard = React.lazy(() => import('./pages/PaymentDashboard'));
 const Payments = React.lazy(() => import('./pages/Payments'));
 const AgentRegistry = React.lazy(() => import('./pages/AgentRegistry'));
-const EscrowDashboard = React.lazy(() => import('./pages/EscrowDashboard'));
 const ReputationTracker = React.lazy(() => import('./pages/ReputationTracker'));
 const X402Payments = React.lazy(() => import('./pages/X402Payments'));
 const SmartContracts = React.lazy(() => import('./pages/SmartContracts'));
@@ -52,7 +51,6 @@ function App() {
           <Route path="/payments" element={<ErrorBoundary><Suspense fallback={<LoadingSpinner />}><Payments /></Suspense></ErrorBoundary>} />
           <Route path="/protocols/:id/payments" element={<ErrorBoundary><Suspense fallback={<LoadingSpinner />}><PaymentDashboard /></Suspense></ErrorBoundary>} />
           <Route path="/agents" element={<ErrorBoundary><Suspense fallback={<LoadingSpinner />}><AgentRegistry /></Suspense></ErrorBoundary>} />
-          <Route path="/agents/:id/escrow" element={<ErrorBoundary><Suspense fallback={<LoadingSpinner />}><EscrowDashboard /></Suspense></ErrorBoundary>} />
           <Route path="/agents/:id/reputation" element={<ErrorBoundary><Suspense fallback={<LoadingSpinner />}><ReputationTracker /></Suspense></ErrorBoundary>} />
           <Route path="/x402-payments" element={<ErrorBoundary><Suspense fallback={<LoadingSpinner />}><X402Payments /></Suspense></ErrorBoundary>} />
           <Route path="/contracts" element={<ErrorBoundary><Suspense fallback={<LoadingSpinner />}><SmartContracts /></Suspense></ErrorBoundary>} />

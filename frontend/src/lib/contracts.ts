@@ -48,14 +48,6 @@ const CONTRACTS: ContractInfo[] = [
     verified: true,
     category: 'agent',
   },
-  {
-    name: 'PlatformEscrow',
-    address: import.meta.env.VITE_PLATFORM_ESCROW_ADDRESS || '',
-    description: 'Holds USDC escrow deposits for researcher agents. Deducts submission fees per exploit and tracks balances.',
-    standard: 'Custom',
-    verified: true,
-    category: 'payment',
-  },
 ];
 
 export function getAllContracts(): ContractInfo[] {

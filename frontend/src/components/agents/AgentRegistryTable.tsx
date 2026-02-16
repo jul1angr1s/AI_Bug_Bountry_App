@@ -188,13 +188,6 @@ export function AgentRegistryTable({ agents, isLoading }: AgentRegistryTableProp
                       >
                         Reputation
                       </Link>
-                      <span className="text-gray-700">|</span>
-                      <Link
-                        to={`/agents/${agent.id}/escrow`}
-                        className="text-xs text-gray-400 hover:text-white transition-colors"
-                      >
-                        Escrow
-                      </Link>
                     </div>
                   </td>
                 </tr>
