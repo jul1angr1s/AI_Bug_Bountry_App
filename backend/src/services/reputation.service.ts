@@ -46,6 +46,7 @@ export class ReputationService {
 
     const validator = await prisma.agentIdentity.findUnique({
       where: { walletAddress: validatorWallet.toLowerCase() },
+      include: { reputation: true },
     });
 
     if (!validator) {
@@ -79,6 +80,21 @@ export class ReputationService {
           (researcher.reputation?.totalSubmissions || 0) + 1
         ),
         lastUpdated: new Date(),
+      },
+    });
+
+    // Also update the validator's reputation stats
+    await prisma.agentReputation.update({
+      where: { agentIdentityId: validator.id },
+      data: {
+        validatorConfirmedCount: isConfirmed ? { increment: 1 } : undefined,
+        validatorRejectedCount: !isConfirmed ? { increment: 1 } : undefined,
+        validatorTotalSubmissions: { increment: 1 },
+        validatorReputationScore: this.calculateScore(
+          (validator.reputation?.validatorConfirmedCount || 0) + (isConfirmed ? 1 : 0),
+          (validator.reputation?.validatorTotalSubmissions || 0) + 1
+        ),
+        validatorLastUpdated: new Date(),
       },
     });
 
