@@ -154,10 +154,10 @@ Reputation score (0-100) with on-chain verification badge, per-role stats (AS RE
 
 ![Reputation Tracker](project/UI/agents3.png)
 
-### Escrow Dashboard
-Escrow balance with remaining submissions count, deposit/deduction totals, and full transaction history.
+### Smart Contracts
+On-chain contract overview with all 6 deployed contracts, addresses, verification status, and BaseScan links.
 
-![Escrow Dashboard](project/UI/agents4.png)
+![Smart Contracts](project/UI/agents4.png)
 
 ### Scan Findings
 AI-discovered vulnerabilities with severity badges, confidence scores, and detailed descriptions.
@@ -214,7 +214,7 @@ All on-chain payments processed through the x.402 payment protocol — registrat
 - **💳 x.402 Payment Gating**: Coinbase x.402 facilitator gates protocol registration with HTTP 402 USDC payment flows
 - **⚡ EIP-7702 Smart Accounts**: Single-click atomic approve+transfer via `wallet_sendCalls` for delegated wallets, eliminating the 2-popup pain point
 - **🧠 Hybrid AI Analysis**: Kimi 2.5 discovers business logic flaws, access control issues, and DoS vectors that static analysis misses
-- **⛓️ Blockchain-Native**: 6 smart contracts on Base L2 — platform registry, agent identity, reputation, and escrow
+- **⛓️ Blockchain-Native**: 6 smart contracts on Base L2 — platform registry, agent identity, reputation, and escrow (5 visible in frontend)
 - **🔬 Sandboxed Validation**: Isolated Anvil environments ensure exploit verification without risk
 - **📡 Real-Time Everything**: WebSocket + SSE streaming for live vulnerability feeds and payment tracking
 - **🔒 Typed Messaging**: BullMQ + Zod schemas for type-safe, validated inter-agent communication
@@ -240,6 +240,13 @@ This platform has completed all development phases including comprehensive testi
 - ✨ **Registration Workflow Hardening**: Fixed gas estimation (explicit 300k limit), SSE resilience, failure UI state with polling, and `failureReason` field surfaced through API
 - ✨ **On-Chain Event Fixes**: Fixed findingId bytes32 encoding via `ethers.id()`, isolated reputation recording try-catch, corrected `recordFeedbackOnChain()` method call
 - ✨ **Security Hardening**: CSRF protection, Helmet security headers, Pino structured logging with PII redaction, secrets management abstraction, auth bypass removal, atomic payment locking with idempotency keys
+- ✨ **Scan Pipeline Hardening**: Slither accepts JSON on non-zero exit, analyzer errors surfaced to user, AI-first scan outcomes enforced, Slither PEP 668 Docker fix
+- ✨ **On-Chain Fee Enforcement**: $10 USDC scan fees and $0.50 USDC exploit fees strictly enforced via x.402 gates
+- ✨ **Validator Reputation Fix**: Both researcher and validator reputation scores now update on each validation (previously validator scores stayed at zero)
+- ✨ **PlatformEscrow UI Removal**: Escrow Dashboard removed from frontend (backend escrow service preserved for submission fee deduction)
+- ✨ **x402 Dashboard On-Chain Only**: x.402 Payments page now shows only on-chain verified transactions
+- ✨ **Validation Sort Order**: Validated results display before pending entries in the validations list
+- ✨ **Login UX Improvements**: Clearer copy, tooltip positioning fixes, validator helper overlap prevention
 
 ### Recent Changes Architecture
 
@@ -279,8 +286,20 @@ graph TB
 
     style Contracts fill:#10B981,stroke:#059669,stroke-width:2px,color:#fff
     style Versioning fill:#8B5CF6,stroke:#7C3AED,stroke-width:2px,color:#fff
+    subgraph Hardening["🔒 Scan & Validation Hardening"]
+        H1[Slither JSON on<br/>non-zero exit]
+        H2[On-chain scan fees<br/>$10 USDC enforced]
+        H3[Exploit fees $0.50<br/>strictly enforced]
+        H4[Validator reputation<br/>fix — both scores update]
+        H5[AI-first scan<br/>outcomes enforced]
+        H1 --> H2
+        H3 --> H4
+        H4 --> H5
+    end
+
     style Payments fill:#F59E0B,stroke:#D97706,stroke-width:2px,color:#fff
     style Welcome fill:#3B82F6,stroke:#1E40AF,stroke-width:2px,color:#fff
+    style Hardening fill:#EF4444,stroke:#DC2626,stroke-width:2px,color:#fff
     style FIX fill:#10B981,stroke:#059669,stroke-width:2px,color:#fff
     style NEW fill:#10B981,stroke:#059669,stroke-width:2px,color:#fff
 ```
@@ -596,71 +615,142 @@ We include a vulnerable DeFi protocol (Thunder Loan by Cyfrin) perfect for testi
 # 🟡 MEDIUM: Front-running vulnerability
 ```
 
-### 🎯 Live Demonstration - Real On-Chain Payments
+### 🎯 Live Example — Full Lifecycle on Base Sepolia
 
-**Verified on Base Sepolia** - This is not a simulation. Real USDC was transferred on-chain.
+**This is not a simulation.** Every step below executed real USDC transactions on Base Sepolia. Click any transaction hash to verify on BaseScan.
 
-#### Proof of Real Payment
+#### Summary
 
-| Field | Value |
-|-------|-------|
-| **Transaction Hash** | [`0x5159763e0a2ed9ccd848a996f26d0d13eb9e5a15bcc2515194a67f803cfbc1ee`](https://sepolia.basescan.org/tx/0x5159763e0a2ed9ccd848a996f26d0d13eb9e5a15bcc2515194a67f803cfbc1ee) |
-| **Network** | Base Sepolia |
-| **Amount** | 3 USDC |
-| **Researcher** | `0x6b26F796b7C494a65ca42d29EF13E9eF1CeCE166` |
-| **BountyPool Contract** | [`0x2BE4c7Bd7b341A6D16Ba7e38A77a3A8ddA6d6C91`](https://sepolia.basescan.org/address/0x2BE4c7Bd7b341A6D16Ba7e38A77a3A8ddA6d6C91) |
+| Step | Action | Fee | Contract | BaseScan |
+|------|--------|-----|----------|----------|
+| 1 | Protocol Registration | $1 USDC (x.402) | ProtocolRegistry | [`0x842099...ead6`](https://sepolia.basescan.org/tx/0x842099f45159f489d7e36b6f4085d9908f36ce2b7a610f604228ea7dac71ead6) |
+| 2 | Fund Bounty Pool | 50 USDC deposit | BountyPool | [`0x2BE4...6C91`](https://sepolia.basescan.org/address/0x2BE4c7Bd7b341A6D16Ba7e38A77a3A8ddA6d6C91) |
+| 3 | Request Scan | $10 USDC (x.402) | — | x.402 facilitator receipt |
+| 4 | 7-Step Research Pipeline | — | Anvil (local) | Off-chain |
+| 5 | Finding Submission | $0.50 USDC per finding | PlatformEscrow | [`0x1EC2...6eC`](https://sepolia.basescan.org/address/0x1EC275172C191670C9fbB290dcAB31A9784BC6eC) |
+| 6 | Validator Confirms | $0.50 USDC exploit fee | ValidationRegistry | [`0x4815f5...bcb3`](https://sepolia.basescan.org/tx/0x4815f5b8cdbd24e291ca35b9511ae9c694d3531a9ae24cfaf8294b81f565bcb3) |
+| 7 | Agent Identity + Reputation | — | AgentIdentityRegistry + AgentReputationRegistry | [`0x772A...f8b`](https://sepolia.basescan.org/address/0x772ADB0bC03B1b465942091a35D8F6fCC6F84f8b) |
+| 8 | Bounty Payment | Severity multiplier | BountyPool → USDC | [`0x515976...c1ee`](https://sepolia.basescan.org/tx/0x5159763e0a2ed9ccd848a996f26d0d13eb9e5a15bcc2515194a67f803cfbc1ee) |
 
-#### Replicate the Full E2E Flow
+#### Step-by-Step
 
-```bash
-# 1. Start backend and frontend
-cd backend && npm run dev
-# In new terminal:
-cd frontend && npm run dev
+1. **Protocol Registration** — User submits a GitHub URL (e.g., `Cyfrin/2023-11-Thunder-Loan`). The x.402 middleware gates the request with a $1 USDC payment. After payment clears, the Protocol Agent clones, compiles, and registers the protocol on-chain.
 
-# 2. Register protocol via frontend UI
-#    Navigate to http://localhost:5173
-#    Register: https://github.com/Cyfrin/2023-11-Thunder-Loan
+2. **Fund Bounty Pool** — User deposits 50 USDC into the BountyPool contract via the 3-step FundingGate wizard (Approve → Deposit → Verify). The pool holds funds for automatic payouts.
 
-# 3. Fund the bounty pool (50 USDC)
-cd backend
-npx tsx scripts/fund-bounty-pool.ts 50
+3. **Request Scan** — User clicks "Request Scan" which triggers a $10 USDC x.402 payment. After payment, the scan job is queued.
 
-# 4. Wait for scan to complete or force-validate a finding
-npx tsx scripts/force-validate-finding.ts
+4. **7-Step Research Pipeline** — The Researcher Agent executes CLONE → COMPILE → DEPLOY → ANALYZE → AI_ANALYSIS → PROOF → SUBMIT. Slither finds 1 vulnerability; Kimi 2.5 AI discovers 5 more (6x improvement).
 
-# 5. Watch backend logs for PRODUCTION MODE payment:
-#    [PaymentWorker] PRODUCTION MODE: Executing real on-chain payment
-#    [PaymentWorker] Bounty released successfully!
-#    TX Hash: 0x... (real blockchain TX)
-```
+5. **Finding Submission** — Each finding costs $0.50 USDC deducted from the researcher's escrow balance. Findings are queued for validation.
 
-#### What Happens Behind the Scenes
+6. **Validator Confirms** — The Validator Agent replays exploit proofs in an isolated Anvil sandbox. On confirmation, it records the validation on-chain and pays a $0.50 USDC exploit fee.
+
+7. **Agent Identity + Reputation** — Both researcher and validator are auto-registered as soulbound NFTs on AgentIdentityRegistry. Reputation scores update on AgentReputationRegistry after each validation.
+
+8. **Bounty Payment** — The Payment Agent reads the severity multiplier from BountyPool (e.g., HIGH = 3x → 3 USDC) and releases USDC directly to the researcher's wallet.
+
+#### Full Lifecycle Sequence
 
 ```mermaid
 sequenceDiagram
-    participant Script as 📜 Validate Script
-    participant DB as 🗄️ Database
-    participant Queue as 📋 BullMQ
-    participant Worker as ⚙️ PaymentWorker
-    participant Pool as 💰 BountyPool
+    participant User as 👤 User
+    participant x402 as 💳 x.402 Gate
+    participant PA as 🛡️ Protocol Agent
+    participant PR as 📝 ProtocolRegistry
+    participant BP as 💰 BountyPool
+    participant RA as 🔬 Researcher Agent
+    participant Escrow as 🏦 PlatformEscrow
+    participant VA as ✅ Validator Agent
+    participant VR as ✅ ValidationRegistry
+    participant NFT as 🪪 AgentIdentity
+    participant Rep as ⭐ Reputation
+    participant Pay as 💰 Payment Agent
     participant USDC as 💵 USDC Token
 
-    Script->>DB: Update Finding → VALIDATED
-    DB->>Queue: Enqueue payment job
-    Queue->>Worker: Dequeue job
-    Worker->>Pool: Check protocol balance
-    Pool-->>Worker: 50 USDC available
-    Note over Worker: PRODUCTION MODE ✅
-    Worker->>Pool: releaseBounty()
-    Pool->>USDC: transfer(researcher, 3 USDC)
-    USDC-->>Pool: Success
-    Pool-->>Worker: TX: 0x5159...bc1ee
-    Worker->>DB: Update Payment → COMPLETED
-    Note over DB: Real TX hash stored!
+    rect rgb(59, 130, 246)
+    Note over User,PR: Step 1: Protocol Registration ($1 USDC)
+    User->>x402: POST /register (HTTP 402)
+    x402->>USDC: Transfer 1 USDC
+    x402->>PA: Registration approved
+    PA->>PR: registerProtocol()
+    PR-->>PA: protocolId (bytes32)
+    end
+
+    rect rgb(16, 185, 129)
+    Note over User,BP: Step 2: Fund Bounty Pool (50 USDC)
+    User->>USDC: approve(BountyPool, 50)
+    User->>BP: depositBounty(protocolId, 50)
+    BP-->>User: Funded ✅
+    end
+
+    rect rgb(139, 92, 246)
+    Note over User,RA: Steps 3-4: Request Scan ($10 USDC) + 7-Step Pipeline
+    User->>x402: POST /scans (HTTP 402)
+    x402->>USDC: Transfer 10 USDC
+    x402->>RA: Scan job queued
+    RA->>RA: CLONE → COMPILE → DEPLOY → ANALYZE → AI → PROOF → SUBMIT
+    Note over RA: 6 vulnerabilities found (6x)
+    end
+
+    rect rgb(245, 158, 11)
+    Note over RA,Escrow: Step 5: Finding Submission ($0.50 each)
+    RA->>Escrow: deductSubmissionFee() × 6
+    Escrow->>USDC: 3 USDC total fees
+    end
+
+    rect rgb(236, 72, 153)
+    Note over VA,Rep: Steps 6-7: Validation + Identity + Reputation
+    VA->>VA: Replay exploit in Anvil sandbox
+    VA->>VR: recordValidation(CONFIRMED)
+    VA->>NFT: ensureAgentRegistered() (soulbound NFT)
+    VA->>Rep: recordFeedback(CONFIRMED_HIGH)
+    Note over Rep: Both researcher & validator scores update
+    end
+
+    rect rgb(255, 215, 0)
+    Note over Pay,USDC: Step 8: Bounty Payment (severity multiplier)
+    Pay->>BP: releaseBounty(HIGH → 3 USDC)
+    BP->>USDC: transfer(researcher, 3 USDC)
+    USDC-->>Pay: TX: 0x5159...c1ee ✅
+    end
 ```
 
-**Result**: The researcher wallet receives real USDC on Base Sepolia. View the transaction on [Basescan](https://sepolia.basescan.org/tx/0x5159763e0a2ed9ccd848a996f26d0d13eb9e5a15bcc2515194a67f803cfbc1ee).
+#### Verified Transactions
+
+| Transaction | Hash | What It Proves |
+|-------------|------|----------------|
+| **Protocol Registration** | [`0x842099...ead6`](https://sepolia.basescan.org/tx/0x842099f45159f489d7e36b6f4085d9908f36ce2b7a610f604228ea7dac71ead6) | Real protocol registered on ProtocolRegistry |
+| **Validation Recording** | [`0x4815f5...bcb3`](https://sepolia.basescan.org/tx/0x4815f5b8cdbd24e291ca35b9511ae9c694d3531a9ae24cfaf8294b81f565bcb3) | Validator confirmed exploit on ValidationRegistry |
+| **Bounty Release** | [`0x6dada5...bb78`](https://sepolia.basescan.org/tx/0x6dada5c52d531e255309f05f8ae3086fa588e7591c86b2d33028b741ac3abb78) | BountyPool released USDC to researcher |
+| **USDC Payment (3 USDC)** | [`0x515976...c1ee`](https://sepolia.basescan.org/tx/0x5159763e0a2ed9ccd848a996f26d0d13eb9e5a15bcc2515194a67f803cfbc1ee) | Researcher received 3 USDC bounty |
+
+#### Replicate It Yourself
+
+```bash
+# 1. Start the platform
+cd backend && npm run dev     # Terminal 1
+cd frontend && npm run dev    # Terminal 2
+
+# 2. Register a protocol (pays $1 USDC via x.402)
+#    Open http://localhost:5173 → Protocols → Register
+#    Enter: https://github.com/Cyfrin/2023-11-Thunder-Loan
+
+# 3. Fund the bounty pool (50 USDC)
+cd backend && npx tsx scripts/fund-bounty-pool.ts 50
+
+# 4. Request a scan (pays $10 USDC via x.402)
+#    Click "Request Scan" on the protocol detail page
+
+# 5. Watch the 7-step pipeline execute in real-time
+#    Dashboard shows: CLONE → COMPILE → DEPLOY → ANALYZE → AI → PROOF → SUBMIT
+
+# 6. Validation + payment happen automatically
+#    Backend logs: [PaymentWorker] Bounty released! TX: 0x...
+
+# 7. Verify on BaseScan
+#    https://sepolia.basescan.org/address/0x2BE4c7Bd7b341A6D16Ba7e38A77a3A8ddA6d6C91
+```
 
 ---
 
@@ -963,7 +1053,7 @@ sequenceDiagram
 |----------|---------|---------|
 | **AgentIdentityRegistry** | [`0x772ADB0bC03B1b465942091a35D8F6fCC6F84f8b`](https://sepolia.basescan.org/address/0x772ADB0bC03B1b465942091a35D8F6fCC6F84f8b) | Soulbound NFT agent registration |
 | **AgentReputationRegistry** | [`0x53f126F6F79414d8Db4cd08B05b84f5F1128de16`](https://sepolia.basescan.org/address/0x53f126F6F79414d8Db4cd08B05b84f5F1128de16) | On-chain reputation scoring |
-| **PlatformEscrow** | [`0x1EC275172C191670C9fbB290dcAB31A9784BC6eC`](https://sepolia.basescan.org/address/0x1EC275172C191670C9fbB290dcAB31A9784BC6eC) | USDC escrow for submission fees |
+| **PlatformEscrow** | [`0x1EC275172C191670C9fbB290dcAB31A9784BC6eC`](https://sepolia.basescan.org/address/0x1EC275172C191670C9fbB290dcAB31A9784BC6eC) | USDC escrow for submission fees (backend only — removed from UI) |
 
 ### Tokens
 
@@ -1873,9 +1963,9 @@ Imagine a world where:
 ### Current Metrics
 
 **Code:**
-- Smart Contracts: 6 deployed (3 platform + 3 agent)
+- Smart Contracts: 6 deployed (3 platform + 3 agent), 5 visible in frontend
 - TypeScript Backend: ~17,000 lines (agents + AI + payments + agent economy)
-- React Frontend: ~9,000 lines (7+ pages + agent components + E2E tests)
+- React Frontend: ~9,000 lines (10 pages + agent components + E2E tests)
 - Documentation: 11,600+ lines of comprehensive documentation
 - Test Coverage: 12,000+ lines (contracts + backend + frontend + E2E tests)
 

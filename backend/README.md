@@ -69,9 +69,18 @@ graph LR
         FEAT3[findingId bytes32<br/>encoding fix]
     end
 
+    subgraph Hardening["🔒 Scan & Validation Hardening"]
+        H1[Slither JSON on<br/>non-zero exit]
+        H2[On-chain scan fees<br/>$10 USDC enforced]
+        H3[Exploit fees $0.50<br/>strictly enforced]
+        H4[AI-first scan<br/>outcomes enforced]
+        H5[Validator reputation<br/>updates each validation]
+    end
+
     style Contracts fill:#10B981,stroke:#059669,stroke-width:2px,color:#fff
     style Fixes fill:#F59E0B,stroke:#D97706,stroke-width:2px,color:#fff
     style Features fill:#8B5CF6,stroke:#7C3AED,stroke-width:2px,color:#fff
+    style Hardening fill:#EF4444,stroke:#DC2626,stroke-width:2px,color:#fff
 ```
 
 ---
@@ -224,9 +233,9 @@ graph TB
         Registry[📝 Protocol Registry<br/>0xee76...0027]
         Validation[✅ Validation Registry<br/>0x90b7...6b73]
         Bounty[🏦 Bounty Pool<br/>0x2BE4...6C91]
-        AgentID[🪪 Agent Identity<br/>0x5993...942d]
-        AgentRep[⭐ Agent Reputation<br/>0x8160...b850]
-        Escrow[🏦 Platform Escrow<br/>0x33e5...D1ab]
+        AgentID[🪪 Agent Identity<br/>0x772A...f8b]
+        AgentRep[⭐ Agent Reputation<br/>0x53f1...e16]
+        Escrow[🏦 Platform Escrow<br/>0x1EC2...6eC]
         USDC[💵 USDC Token<br/>0x036C...CF7e]
     end
 
@@ -596,6 +605,12 @@ interface AIEnhancedFinding {
 
 **Total**: ~66 seconds for complete analysis
 
+**Scan Pipeline Hardening** (Feb 2026):
+- Slither accepts JSON output on non-zero exit codes — prevents scan failures on warnings (commit `d802539`)
+- Analyzer errors surfaced to user instead of silently swallowed (commit `6f81a7f`)
+- AI-first scan outcomes enforced with strict on-chain validation (commit `69be37e`)
+- Slither PEP 668 Docker fix for containerized environments (commit `a7314d2`)
+
 **Tech Stack**: Slither, Foundry, Anvil, Kimi 2.5 AI, ethers.js
 
 ---
@@ -615,7 +630,7 @@ interface AIEnhancedFinding {
 8. **Auto-register agents** on-chain via `ensureAgentRegisteredOnChain()` (idempotent)
 9. **Initialize reputation** on-chain via `initializeReputationOnChainIfNeeded()` (idempotent)
 10. **Record** validation on ValidationRegistry contract (findingId hashed via `ethers.id()`)
-11. **Record** reputation feedback on AgentReputationRegistry (isolated try-catch)
+11. **Record** reputation feedback on AgentReputationRegistry — both researcher AND validator scores update on each validation (isolated try-catch, commit `d79f053`)
 12. **Trigger** payment if validation confirmed
 13. **Kill** Anvil sandbox and cleanup
 
@@ -726,7 +741,7 @@ await escrowService.deductSubmissionFee(walletAddress, findingId);
 
 **Purpose**: HTTP 402-based payment gating using Coinbase's x.402 facilitator
 
-**Two Gate Types**:
+**Four Gate Types**:
 
 1. **Protocol Registration Gate** (`x402ProtocolRegistrationGate`):
    - Returns HTTP 402 with `PAYMENT-REQUIRED` header
@@ -734,10 +749,22 @@ await escrowService.deductSubmissionFee(walletAddress, findingId);
    - Facilitator verifies cryptographic receipt
    - Records payment in `X402PaymentRequest` table
 
-2. **Finding Submission Gate** (`x402FindingSubmissionGate`):
+2. **Scan Fee Gate** (`x402ScanFeeGate`):
+   - Returns HTTP 402 requiring $10 USDC payment before scan starts
+   - Strictly enforced — no scan without payment
+   - Payment recorded with scan association
+
+3. **Exploit Fee Gate** (`x402ExploitFeeGate`):
+   - $0.50 USDC per exploit submission, strictly enforced
+   - Paid by researcher agent to validator via escrow deduction
+   - Recorded as x.402 Submission category
+
+4. **Finding Submission Gate** (`x402FindingSubmissionGate`):
    - Checks prepaid USDC escrow balance
    - Returns 402 with deposit instructions if insufficient
    - Deducts 0.5 USDC per submission from escrow
+
+**x402 Dashboard**: Now shows on-chain verified transactions only (commit `a916435`). Submissions filter removed from x402 payments view.
 
 **Configuration**:
 ```bash

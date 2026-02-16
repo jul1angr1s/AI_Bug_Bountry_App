@@ -51,9 +51,18 @@ graph LR
         FX3[Registration failure<br/>UI state + polling]
     end
 
+    subgraph Latest["🔧 Latest Updates"]
+        L1[PlatformEscrow<br/>removed from UI]
+        L2[Validated results<br/>before pending]
+        L3[Submissions filter<br/>removed from x402]
+        L4[Exploit fees in<br/>x402 Submissions]
+        L5[Login copy &<br/>tooltip fixes]
+    end
+
     style Welcome fill:#3B82F6,stroke:#1E40AF,stroke-width:2px,color:#fff
     style Features fill:#8B5CF6,stroke:#7C3AED,stroke-width:2px,color:#fff
     style Fixes fill:#F59E0B,stroke:#D97706,stroke-width:2px,color:#fff
+    style Latest fill:#EF4444,stroke:#DC2626,stroke-width:2px,color:#fff
 ```
 
 ---
@@ -68,7 +77,9 @@ This isn't just another React dashboard. It's a **real-time mission control** fo
 - **🔄 Versioned Protocol Registration** - Same GitHub URL can be re-registered as v2, v3... with auto-detection of existing versions and INITIAL/DELTA registration types
 - **💳 x.402 Payment Modal** - USDC Approve → Transfer flow for protocol registration via Coinbase x.402, with real settlement txHash capture
 - **🪪 Agent Wallet Selector** - Payment modal restricts payouts to registered active agents via dropdown (replaces free-text address input)
-- **🪪 Agent Dashboard** - Agent Registry, Escrow Dashboard, Reputation Tracker pages
+- **🪪 Agent Dashboard** - Agent Registry and Reputation Tracker pages
+- **📊 Validation Sort Order** - Validated results display before pending entries
+- **💳 On-Chain x402 Dashboard** - Shows only on-chain verified transactions (registration fees, scan fees, exploit fees)
 - **🔴 Live Agent Visualization** - Watch Protocol, Researcher, and Validator agents work in real-time
 - **⚡ WebSocket Streaming** - Sub-second updates for every vulnerability discovered
 - **🎯 7-Step Progress Tracking** - Visual pipeline showing CLONE → COMPILE → DEPLOY → ANALYZE → AI → PROOF → SUBMIT
@@ -468,15 +479,15 @@ Reputation scoring:
 </td>
 <td width="33%">
 
-#### 🏦 Escrow Dashboard
-**Route**: `/agents/escrow`
+#### 💳 x.402 Payments
+**Route**: `/x402-payments`
 
-Escrow management:
-- USDC balance tracking
-- Deposit history
-- Fee deduction log
-- Remaining submissions
-- On-chain verification
+Payment audit trail:
+- All x.402 transactions
+- On-chain verified only
+- Registration & scan fees
+- Exploit submission fees
+- Settlement tx links
 
 </td>
 </tr>
