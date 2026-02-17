@@ -229,7 +229,10 @@ cd ../backend/contracts && forge install
 Copy `backend/.env.example` to `backend/.env` and `frontend/.env.example` to `frontend/.env`, then fill in your keys. See [Setup Instructions](docs/SETUP_INSTRUCTIONS.md) for full details.
 
 ```bash
-# Start services
+# Option A: Start everything with one command (recommended)
+bash scripts/dev-improved.sh
+
+# Option B: Start services manually in separate terminals
 cd backend && npm run dev          # Terminal 1 - API + agents
 cd frontend && npm run dev         # Terminal 2 - Dashboard
 ```
