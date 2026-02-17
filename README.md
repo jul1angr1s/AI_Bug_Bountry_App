@@ -8,7 +8,7 @@
 [![Base Sepolia](https://img.shields.io/badge/Network-Base%20Sepolia-0052FF)](https://sepolia.basescan.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6)](https://www.typescriptlang.org/)
 [![Smart Contracts](https://img.shields.io/badge/Contracts-Verified-success)](https://sepolia.basescan.org/address/0xee7620019d3ff8b2fe3e8a8f2F8bA3d8e3950027)
-[![Tests](https://img.shields.io/badge/Tests-302%20Unit%20%2B%2087%20Contract-brightgreen)](https://github.com/jul1angr1s/AI_Bug_Bountry_App)
+[![Tests](https://img.shields.io/badge/Tests-Passing-brightgreen)](https://github.com/jul1angr1s/AI_Bug_Bountry_App)
 
 **4 Autonomous Agents** &bull; **ERC-8004 Identity** &bull; **x.402 Payments** &bull; **Results in Minutes**
 
