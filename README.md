@@ -56,12 +56,13 @@ Six verified smart contracts on Base Sepolia record every protocol registration,
 
 **Verified transactions on BaseScan:**
 
-| Transaction | Hash | What It Proves |
+| Contract | BaseScan | What It Proves |
 |---|---|---|
-| Protocol Registration | [`0x842099...ead6`](https://sepolia.basescan.org/tx/0x842099f45159f489d7e36b6f4085d9908f36ce2b7a610f604228ea7dac71ead6) | Real protocol registered on ProtocolRegistry |
-| Validation Recording | [`0x4815f5...bcb3`](https://sepolia.basescan.org/tx/0x4815f5b8cdbd24e291ca35b9511ae9c694d3531a9ae24cfaf8294b81f565bcb3) | Validator confirmed exploit on ValidationRegistry |
-| Bounty Release | [`0x6dada5...bb78`](https://sepolia.basescan.org/tx/0x6dada5c52d531e255309f05f8ae3086fa588e7591c86b2d33028b741ac3abb78) | BountyPool released USDC to researcher |
-| USDC Payment | [`0x515976...c1ee`](https://sepolia.basescan.org/tx/0x5159763e0a2ed9ccd848a996f26d0d13eb9e5a15bcc2515194a67f803cfbc1ee) | Researcher received 3 USDC bounty |
+| ProtocolRegistry | [`0xee76...0027`](https://sepolia.basescan.org/address/0xee7620019d3ff8b2fe3e8a8f2F8bA3d8e3950027) | On-chain protocol registration & management |
+| ValidationRegistry | [`0x90b7...6b73`](https://sepolia.basescan.org/address/0x90b76978afa9BfA19017290D2B06689E95EB6b73) | Validator confirmed exploits recorded on-chain |
+| BountyPool | [`0x2BE4...6C91`](https://sepolia.basescan.org/address/0x2BE4c7Bd7b341A6D16Ba7e38A77a3A8ddA6d6C91) | USDC bounty releases to researchers |
+| AgentIdentityRegistry | [`0x772A...f8b`](https://sepolia.basescan.org/address/0x772ADB0bC03B1b465942091a35D8F6fCC6F84f8b) | Soulbound NFT agent identity |
+| AgentReputationRegistry | [`0x53f1...e16`](https://sepolia.basescan.org/address/0x53f126F6F79414d8Db4cd08B05b84f5F1128de16) | On-chain reputation scoring |
 
 ---
 
