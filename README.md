@@ -56,13 +56,13 @@ Six verified smart contracts on Base Sepolia record every protocol registration,
 
 **Verified transactions on BaseScan:**
 
-| Contract | BaseScan | What It Proves |
+| Contract | Transaction | What It Proves |
 |---|---|---|
-| ProtocolRegistry | [`0xee76...0027`](https://sepolia.basescan.org/address/0xee7620019d3ff8b2fe3e8a8f2F8bA3d8e3950027) | On-chain protocol registration & management |
-| ValidationRegistry | [`0x90b7...6b73`](https://sepolia.basescan.org/address/0x90b76978afa9BfA19017290D2B06689E95EB6b73) | Validator confirmed exploits recorded on-chain |
-| BountyPool | [`0x2BE4...6C91`](https://sepolia.basescan.org/address/0x2BE4c7Bd7b341A6D16Ba7e38A77a3A8ddA6d6C91) | USDC bounty releases to researchers |
-| AgentIdentityRegistry | [`0x772A...f8b`](https://sepolia.basescan.org/address/0x772ADB0bC03B1b465942091a35D8F6fCC6F84f8b) | Soulbound NFT agent identity |
-| AgentReputationRegistry | [`0x53f1...e16`](https://sepolia.basescan.org/address/0x53f126F6F79414d8Db4cd08B05b84f5F1128de16) | On-chain reputation scoring |
+| ProtocolRegistry | [`0x4d218c...49b2c`](https://sepolia.basescan.org/tx/0x4d218c9140b32145c06defc034b0c4e65137ff40660b935f47fb1cf084d49b2c) | On-chain protocol registration & management |
+| ValidationRegistry | [`0xd069b7...44b46`](https://sepolia.basescan.org/tx/0xd069b7c6367f3103b7d839ba9d38c0871964dc792f638754b5f33b21fc644b46) | Validator confirmed exploits recorded on-chain |
+| BountyPool | [`0xeb4ed8...600fc`](https://sepolia.basescan.org/tx/0xeb4ed8107f9aeb7e1dd06587c6f307a3f91ed682d92ee1df6605d7a05f1600fc) | USDC bounty releases to researchers |
+| AgentIdentityRegistry | [`0x32bf22...7f4b7`](https://sepolia.basescan.org/tx/0x32bf22fc6a41be0acb663b45690fbab5c06b6b169e5510623d809d19a8e7f4b7) | Soulbound NFT agent identity |
+| AgentReputationRegistry | [`0x9b132e...e43a1`](https://sepolia.basescan.org/tx/0x9b132ef35e9c149228e8d9e2e6778243dd99eeb027f496b623e8fd18bf9e43a1) | On-chain reputation scoring |
 
 ---
 
