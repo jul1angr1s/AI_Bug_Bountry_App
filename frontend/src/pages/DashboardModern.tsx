@@ -168,15 +168,21 @@ export default function DashboardModern() {
     const normalizedType = normalizeAgentType(agent.type);
     if (!normalizedType) continue;
 
+    const normalizedStatus = agent.status.toUpperCase();
+    const uiStatus =
+      normalizedStatus === 'ONLINE' ||
+      normalizedStatus === 'ACTIVE' ||
+      normalizedStatus === 'SCANNING' ||
+      normalizedStatus === 'RUNNING'
+        ? 'active'
+        : normalizedStatus === 'ERROR'
+          ? 'error'
+          : 'idle';
+
     modernAgentsByType.set(normalizedType, {
       id: agent.id,
       type: normalizedType,
-      status:
-        agent.status === 'ONLINE'
-          ? 'active'
-          : agent.status === 'ERROR'
-            ? 'error'
-            : 'idle',
+      status: uiStatus,
       scansCompleted: agent.scansCompleted || 0,
       uptime: '99.9%',
     });
@@ -186,7 +192,7 @@ export default function DashboardModern() {
     modernAgentsByType.get(type) || {
       id: `fallback-${type.toLowerCase()}`,
       type,
-      status: 'idle' as const,
+      status: 'active' as const,
       scansCompleted: 0,
       uptime: '99.9%',
     }
@@ -312,7 +318,7 @@ export default function DashboardModern() {
                     </p>
                   </div>
                 ) : modernAgents.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4">
                     {modernAgents.map((agent) => (
                       <ModernAgentCard key={agent.id} agent={agent} />
                     ))}
