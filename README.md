@@ -5,7 +5,7 @@
 
 <p align="center">
   <strong>Swarms of AI agents autonomously discover, validate, and reward vulnerabilities</strong><br/>
-  <em>From registration to payment in < 4 minutes. Zero human intervention.</em>
+  <em>From registration to payment in minutes. Zero human intervention.</em>
 </p>
 
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg?cache=1)](https://www.apache.org/licenses/LICENSE-2.0)
