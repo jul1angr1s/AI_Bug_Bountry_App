@@ -23,7 +23,27 @@ import {
 } from '@/hooks/useDashboardData';
 import { useProtocols } from '@/hooks/useProtocols';
 import { useDashboardStore } from '@/stores/dashboardStore';
-import type { Alert } from '@/types/dashboard';
+import type { AgentType, Alert } from '@/types/dashboard';
+
+const AGENT_ORDER: AgentType[] = ['Researcher', 'Protocol', 'Validator', 'Payment'];
+type ModernAgentStatus = 'active' | 'idle' | 'error';
+
+interface ModernAgentView {
+  id: string;
+  type: AgentType;
+  status: ModernAgentStatus;
+  scansCompleted: number;
+  uptime: string;
+}
+
+function normalizeAgentType(type: string): AgentType | null {
+  const normalized = type.toUpperCase();
+  if (normalized === 'RESEARCHER') return 'Researcher';
+  if (normalized === 'PROTOCOL') return 'Protocol';
+  if (normalized === 'VALIDATOR') return 'Validator';
+  if (normalized === 'PAYMENT') return 'Payment';
+  return null;
+}
 
 export default function DashboardModern() {
   const navigate = useNavigate();
@@ -141,14 +161,36 @@ export default function DashboardModern() {
     },
   ];
 
-  // Transform agents data for ModernAgentCard
-  const modernAgents = agents?.map(agent => ({
-    id: agent.id,
-    type: agent.type as 'Protocol' | 'Researcher' | 'Validator' | 'Payment',
-    status: agent.status === 'ONLINE' ? 'active' as const : agent.status === 'ERROR' ? 'error' as const : 'idle' as const,
-    scansCompleted: agent.scansCompleted || 0,
-    uptime: '99.9%',
-  })) || [];
+  // Transform agent data and ensure all core agent cards (including Payment) are always visible.
+  const modernAgentsByType = new Map<AgentType, ModernAgentView>();
+
+  for (const agent of agents || []) {
+    const normalizedType = normalizeAgentType(agent.type);
+    if (!normalizedType) continue;
+
+    modernAgentsByType.set(normalizedType, {
+      id: agent.id,
+      type: normalizedType,
+      status:
+        agent.status === 'ONLINE'
+          ? 'active'
+          : agent.status === 'ERROR'
+            ? 'error'
+            : 'idle',
+      scansCompleted: agent.scansCompleted || 0,
+      uptime: '99.9%',
+    });
+  }
+
+  const modernAgents = AGENT_ORDER.map((type) => (
+    modernAgentsByType.get(type) || {
+      id: `fallback-${type.toLowerCase()}`,
+      type,
+      status: 'idle' as const,
+      scansCompleted: 0,
+      uptime: '99.9%',
+    }
+  ));
 
   // Empty state - no protocols
   if (!protocolsListLoading && !protocolsData?.protocols?.length) {
@@ -270,7 +312,7 @@ export default function DashboardModern() {
                     </p>
                   </div>
                 ) : modernAgents.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     {modernAgents.map((agent) => (
                       <ModernAgentCard key={agent.id} agent={agent} />
                     ))}
