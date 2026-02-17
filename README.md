@@ -134,8 +134,8 @@ Protocol list with security scores, status filters, and one-click registration.
 
 ![Protocols](docs/UI/protocols1.png)
 
-### Register Protocol
-Multi-step registration wizard — select researcher and validator agents by wallet, reputation score, and status, then continue to protocol details. Shows expected workflow and ~60 second processing time.
+### Funding Gate
+Protocol funding gate with the 3-step flow (Approve USDC, Fund Protocol, Verify Funding), deposit amount controls, and live transaction state.
 
 ![Register Protocol](docs/UI/protocol2.png)
 
@@ -155,7 +155,7 @@ Reputation score (0-100) with on-chain verification badge, per-role stats (AS RE
 ![Reputation Tracker](docs/UI/agents3.png)
 
 ### Smart Contracts
-On-chain contract overview with all 6 deployed contracts, addresses, verification status, and BaseScan links.
+On-chain contract overview showing deployed registry contracts, verification badges, contract addresses, and direct BaseScan links.
 
 ![Smart Contracts](docs/UI/agents4.png)
 
@@ -172,7 +172,7 @@ Live validation workflow with an active LLM worker panel, step-by-step progress 
 ![Validations](docs/UI/validations1.png)
 
 ### Validation Detail
-Validation detail modal showing AI analysis of a vulnerability — analysis method, file location, and proof of exploit.
+Validation detail modal with file location, analysis method (AI/Hybrid), and concrete remediation guidance for the finding.
 
 ![Validation Detail](docs/UI/validations2.png)
 
@@ -181,12 +181,27 @@ Bounty tracking with payout distribution by severity, top earners leaderboard, a
 
 ![Payments Overview](docs/UI/payments1.png)
 
-![Payment Details](docs/UI/payments2.png)
+![On-Chain Payment/Validation Record](docs/UI/payments2.png)
 
 ### x.402 Payment Gating
-All on-chain payments processed through the x.402 payment protocol — registration fees, scan fees, exploit fees, and submission fees — with category filtering and per-transaction blockchain verification.
+x.402 scan request fee modal showing amount, chain, recipient, memo, expiry, and the payment confirmation step before starting a scan.
 
 ![x.402 Payments](docs/UI/x402.png)
+
+### Welcome Screen
+Animated welcome/login experience with autonomous core visualization and wallet onboarding entry point.
+
+![Welcome Screen](docs/UI/updated/home_new.png)
+
+### Railway Observability
+Railway infrastructure metrics dashboard for CPU, memory, network egress, and disk usage across platform services.
+
+![Railway Observability](docs/UI/updated/railway obserbavility new.png)
+
+### Railway Logs
+Centralized log exploration view used to trace real-time backend/AI worker execution in production.
+
+![Railway Logs](docs/UI/updated/railway logs.png)
 
 </div>
 
