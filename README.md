@@ -188,6 +188,8 @@ x.402 scan request fee modal showing amount, chain, recipient, memo, expiry, and
 
 ![x.402 Payments](docs/UI/x402.png)
 
+</div>
+
 ### Welcome Screen
 Animated welcome/login experience with autonomous core visualization and wallet onboarding entry point.
 
@@ -196,14 +198,12 @@ Animated welcome/login experience with autonomous core visualization and wallet 
 ### Railway Observability
 Railway infrastructure metrics dashboard for CPU, memory, network egress, and disk usage across platform services.
 
-![Railway Observability](docs/UI/updated/railway obserbavility new.png)
+![Railway Observability](docs/UI/updated/railway-observability-new.png)
 
 ### Railway Logs
 Centralized log exploration view used to trace real-time backend/AI worker execution in production.
 
-![Railway Logs](docs/UI/updated/railway logs.png)
-
-</div>
+![Railway Logs](docs/UI/updated/railway-logs.png)
 
 ---
 
