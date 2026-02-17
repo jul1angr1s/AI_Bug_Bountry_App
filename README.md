@@ -167,7 +167,7 @@ AI-discovered vulnerabilities with severity badges, confidence scores, and detai
 ![Scan Details](docs/UI/scans2.png)
 
 ### Validations
-Proof validation results powered by Kimi 2.5 LLM — VALIDATED or REJECTED per finding.
+Live validation workflow with an active LLM worker panel, step-by-step progress timeline, and terminal log stream, followed by per-finding validation outcomes (VALIDATED or REJECTED).
 
 ![Validations](docs/UI/validations1.png)
 
