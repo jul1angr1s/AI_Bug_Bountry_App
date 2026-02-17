@@ -101,6 +101,7 @@ router.get('/activity/stream', sseAuthenticate, async (req, res, next) => {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
 
     // Check for currently active validation and send initial state
     const activeProof = await prisma.proof.findFirst({
@@ -126,6 +127,18 @@ router.get('/activity/stream', sseAuthenticate, async (req, res, next) => {
     // Subscribe to all validation progress channels via pattern
     const redis = getRedisClient();
     const subscriber = redis.duplicate();
+    const heartbeat = setInterval(() => {
+      res.write(': ping\n\n');
+    }, 15000);
+    let cleanedUp = false;
+    const cleanup = () => {
+      if (cleanedUp) return;
+      cleanedUp = true;
+      clearInterval(heartbeat);
+      subscriber.punsubscribe().catch(() => {});
+      subscriber.quit().catch(() => {});
+    };
+
     await subscriber.psubscribe('validation:*:progress');
 
     subscriber.on('pmessage', (_pattern: string, _channel: string, message: string) => {
@@ -144,8 +157,7 @@ router.get('/activity/stream', sseAuthenticate, async (req, res, next) => {
 
     // Handle client disconnect
     req.on('close', () => {
-      subscriber.punsubscribe();
-      subscriber.quit();
+      cleanup();
     });
   } catch (error) {
     next(error);
@@ -282,12 +294,24 @@ router.get('/:id/progress', sseAuthenticate, async (req, res, next) => {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
 
     // Subscribe to Redis FIRST so we don't miss events during the initial state read
     const redis = getRedisClient();
     const subscriber = redis.duplicate();
     const bufferedMessages: string[] = [];
     let streaming = false;
+    const heartbeat = setInterval(() => {
+      res.write(': ping\n\n');
+    }, 15000);
+    let cleanedUp = false;
+    const cleanup = () => {
+      if (cleanedUp) return;
+      cleanedUp = true;
+      clearInterval(heartbeat);
+      subscriber.unsubscribe().catch(() => {});
+      subscriber.quit().catch(() => {});
+    };
 
     subscriber.on('message', (_channel: string, message: string) => {
       if (!streaming) {
@@ -300,8 +324,7 @@ router.get('/:id/progress', sseAuthenticate, async (req, res, next) => {
       try {
         const data = JSON.parse(message);
         if (data.data?.state === 'COMPLETED' || data.data?.state === 'FAILED') {
-          subscriber.unsubscribe();
-          subscriber.quit();
+          cleanup();
           res.end();
         }
       } catch { /* ignore parse errors */ }
@@ -341,8 +364,7 @@ router.get('/:id/progress', sseAuthenticate, async (req, res, next) => {
       try {
         const cached = JSON.parse(cachedProgress);
         if (cached.data?.state === 'COMPLETED' || cached.data?.state === 'FAILED') {
-          subscriber.unsubscribe();
-          subscriber.quit();
+          cleanup();
           res.end();
           return;
         }
@@ -351,8 +373,7 @@ router.get('/:id/progress', sseAuthenticate, async (req, res, next) => {
 
     // Handle client disconnect
     req.on('close', () => {
-      subscriber.unsubscribe();
-      subscriber.quit();
+      cleanup();
     });
   } catch (error) {
     next(error);
@@ -388,6 +409,7 @@ router.get('/:id/logs', sseAuthenticate, async (req, res, next) => {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
 
     // Send initial connection event
     res.write(`data: ${JSON.stringify({
@@ -404,6 +426,17 @@ router.get('/:id/logs', sseAuthenticate, async (req, res, next) => {
     // Subscribe to Redis for real-time log and progress updates
     const redis = getRedisClient();
     const subscriber = redis.duplicate();
+    const heartbeat = setInterval(() => {
+      res.write(': ping\n\n');
+    }, 15000);
+    let cleanedUp = false;
+    const cleanup = () => {
+      if (cleanedUp) return;
+      cleanedUp = true;
+      clearInterval(heartbeat);
+      subscriber.unsubscribe().catch(() => {});
+      subscriber.quit().catch(() => {});
+    };
 
     await subscriber.subscribe(`validation:${id}:logs`, `validation:${id}:progress`);
 
@@ -415,8 +448,7 @@ router.get('/:id/logs', sseAuthenticate, async (req, res, next) => {
         try {
           const data = JSON.parse(message);
           if (data.data?.state === 'COMPLETED' || data.data?.state === 'FAILED') {
-            subscriber.unsubscribe();
-            subscriber.quit();
+            cleanup();
             res.end();
           }
         } catch { /* ignore parse errors */ }
@@ -425,8 +457,7 @@ router.get('/:id/logs', sseAuthenticate, async (req, res, next) => {
 
     // Handle client disconnect
     req.on('close', () => {
-      subscriber.unsubscribe();
-      subscriber.quit();
+      cleanup();
     });
   } catch (error) {
     next(error);

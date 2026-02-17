@@ -152,9 +152,9 @@ export function useScanProgressLive(scanId: string | null) {
 
         // Close connection if scan completed or failed
         if (
-          progressEvent.data.state === 'COMPLETED' ||
+          progressEvent.data.state === 'SUCCEEDED' ||
           progressEvent.data.state === 'FAILED' ||
-          progressEvent.data.state === 'ABORTED'
+          progressEvent.data.state === 'CANCELED'
         ) {
           eventSource.close();
         }

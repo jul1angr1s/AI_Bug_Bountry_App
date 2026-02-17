@@ -366,6 +366,17 @@ router.get(
       // Note: ioredis duplicate() returns an already-connected client - no .connect() needed
       const redis = await getRedisClient();
       const subscriber = redis.duplicate();
+      const heartbeat = setInterval(() => {
+        res.write(': ping\n\n');
+      }, 15000);
+      let cleanedUp = false;
+      const cleanup = () => {
+        if (cleanedUp) return;
+        cleanedUp = true;
+        clearInterval(heartbeat);
+        subscriber.unsubscribe().catch(() => {});
+        subscriber.quit().catch(() => {});
+      };
 
       const channel = `protocol:${id}:registration`;
       await subscriber.subscribe(channel);
@@ -387,7 +398,7 @@ router.get(
         };
         res.write(`data: ${JSON.stringify(completionEvent)}\n\n`);
         res.write('event: close\ndata: {}\n\n');
-        subscriber.quit();
+        cleanup();
         res.end();
         return;
       } else if (protocol.status === 'FAILED' || protocol.registrationState === 'FAILED') {
@@ -404,7 +415,7 @@ router.get(
         };
         res.write(`data: ${JSON.stringify(failureEvent)}\n\n`);
         res.write('event: close\ndata: {}\n\n');
-        subscriber.quit();
+        cleanup();
         res.end();
         return;
       }
@@ -419,7 +430,7 @@ router.get(
             // Close connection if registration completed or failed
             if (event.data.state === 'COMPLETED' || event.data.state === 'FAILED') {
               res.write('event: close\ndata: {}\n\n');
-              subscriber.quit();
+              cleanup();
               res.end();
             }
           } catch (err) {
@@ -431,14 +442,13 @@ router.get(
       // Handle client disconnect
       req.on('close', () => {
         log.info({ channel }, 'SSE client disconnected');
-        subscriber.quit();
-        res.end();
+        cleanup();
       });
 
       // Handle Redis errors
       subscriber.on('error', (err) => {
         log.error({ err }, 'SSE Redis subscriber error');
-        subscriber.quit();
+        cleanup();
         res.end();
       });
     } catch (error) {

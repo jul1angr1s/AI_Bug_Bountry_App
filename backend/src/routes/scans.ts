@@ -215,6 +215,7 @@ router.get('/:id/progress', sseAuthenticate, async (req, res, next) => {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
 
     // Send initial state (matching ScanProgressEvent format)
     res.write(`data: ${JSON.stringify({
@@ -233,27 +234,37 @@ router.get('/:id/progress', sseAuthenticate, async (req, res, next) => {
     // Subscribe to Redis for real-time updates
     const redis = getRedisClient();
     const subscriber = redis.duplicate();
-    
+    const heartbeat = setInterval(() => {
+      res.write(': ping\n\n');
+    }, 15000);
+
+    let cleanedUp = false;
+    const cleanup = () => {
+      if (cleanedUp) return;
+      cleanedUp = true;
+      clearInterval(heartbeat);
+      subscriber.unsubscribe().catch(() => {});
+      subscriber.quit().catch(() => {});
+    };
+
     await subscriber.subscribe(`scan:${id}:progress`);
-    
+
     subscriber.on('message', (_channel, message) => {
       res.write(`data: ${message}\n\n`);
       
       // Check if scan completed
       const data = JSON.parse(message);
-      if (data.state === ScanState.SUCCEEDED || 
-          data.state === ScanState.FAILED || 
-          data.state === ScanState.CANCELED) {
-        subscriber.unsubscribe();
-        subscriber.quit();
+      if (data.data?.state === ScanState.SUCCEEDED ||
+          data.data?.state === ScanState.FAILED ||
+          data.data?.state === ScanState.CANCELED) {
+        cleanup();
         res.end();
       }
     });
 
     // Handle client disconnect
     req.on('close', () => {
-      subscriber.unsubscribe();
-      subscriber.quit();
+      cleanup();
     });
   } catch (error) {
     next(error);
@@ -274,6 +285,7 @@ router.get('/:id/logs', sseAuthenticate, async (req, res, next) => {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
 
     // Send initial connection event
     res.write(`data: ${JSON.stringify({
@@ -290,6 +302,17 @@ router.get('/:id/logs', sseAuthenticate, async (req, res, next) => {
     // Subscribe to Redis for real-time log and progress updates
     const redis = getRedisClient();
     const subscriber = redis.duplicate();
+    const heartbeat = setInterval(() => {
+      res.write(': ping\n\n');
+    }, 15000);
+    let cleanedUp = false;
+    const cleanup = () => {
+      if (cleanedUp) return;
+      cleanedUp = true;
+      clearInterval(heartbeat);
+      subscriber.unsubscribe().catch(() => {});
+      subscriber.quit().catch(() => {});
+    };
 
     await subscriber.subscribe(`scan:${id}:logs`, `scan:${id}:progress`);
 
@@ -303,8 +326,7 @@ router.get('/:id/logs', sseAuthenticate, async (req, res, next) => {
           if (data.data?.state === ScanState.SUCCEEDED ||
               data.data?.state === ScanState.FAILED ||
               data.data?.state === ScanState.CANCELED) {
-            subscriber.unsubscribe();
-            subscriber.quit();
+            cleanup();
             res.end();
           }
         } catch { /* ignore parse errors */ }
@@ -313,8 +335,7 @@ router.get('/:id/logs', sseAuthenticate, async (req, res, next) => {
 
     // Handle client disconnect
     req.on('close', () => {
-      subscriber.unsubscribe();
-      subscriber.quit();
+      cleanup();
     });
   } catch (error) {
     next(error);
