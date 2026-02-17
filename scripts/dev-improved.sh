@@ -449,7 +449,7 @@ fi
 
 echo ""
 echo "🤖 Initializing agent records..."
-if (cd "$ROOT_DIR/backend" && npx tsx init-agents.ts); then
+if (cd "$ROOT_DIR/backend" && npx tsx scripts/init-agents.ts); then
   echo "✓ Agents initialized successfully"
 else
   echo "❌ ERROR: Failed to initialize agent records"

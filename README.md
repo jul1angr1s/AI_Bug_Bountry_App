@@ -127,66 +127,66 @@ graph LR
 ### Dashboard
 Real-time overview with agent status, bounty pool, and recent vulnerabilities.
 
-![Dashboard](project/UI/dashboard1.png)
+![Dashboard](docs/UI/dashboard1.png)
 
 ### Protocols
 Protocol list with security scores, status filters, and one-click registration.
 
-![Protocols](project/UI/protocols1.png)
+![Protocols](docs/UI/protocols1.png)
 
 ### Register Protocol
 Multi-step registration wizard — select researcher and validator agents by wallet, reputation score, and status, then continue to protocol details. Shows expected workflow and ~60 second processing time.
 
-![Register Protocol](project/UI/protocol2.png)
+![Register Protocol](docs/UI/protocol2.png)
 
 ### Agent Registry
 Agent Registry with stat cards (Total Agents, Active, On-Chain Verified, Avg Reputation), agent table with wallet, type, NFT ID, score, verification status, and reputation leaderboard sidebar.
 
-![Agent Registry](project/UI/agents1.png)
+![Agent Registry](docs/UI/agents1.png)
 
 ### Agent Identity NFT on BaseScan
 Soulbound ERC-721 agent identity NFT verified on BaseScan — proving on-chain registration with token ID, owner, and mint transaction.
 
-![Agent Identity NFT](project/UI/agents2.png)
+![Agent Identity NFT](docs/UI/agents2.png)
 
 ### Reputation Tracker
 Reputation score (0-100) with on-chain verification badge, per-role stats (AS RESEARCHER / AS VALIDATOR), and feedback history with on-chain/off-chain indicators.
 
-![Reputation Tracker](project/UI/agents3.png)
+![Reputation Tracker](docs/UI/agents3.png)
 
 ### Smart Contracts
 On-chain contract overview with all 6 deployed contracts, addresses, verification status, and BaseScan links.
 
-![Smart Contracts](project/UI/agents4.png)
+![Smart Contracts](docs/UI/agents4.png)
 
 ### Scan Findings
 AI-discovered vulnerabilities with severity badges, confidence scores, and detailed descriptions.
 
-![Scan Findings](project/UI/scans1.png)
+![Scan Findings](docs/UI/scans1.png)
 
-![Scan Details](project/UI/scans2.png)
+![Scan Details](docs/UI/scans2.png)
 
 ### Validations
 Proof validation results powered by Kimi 2.5 LLM — VALIDATED or REJECTED per finding.
 
-![Validations](project/UI/validations1.png)
+![Validations](docs/UI/validations1.png)
 
 ### Validation Detail
 Validation detail modal showing AI analysis of a vulnerability — analysis method, file location, and proof of exploit.
 
-![Validation Detail](project/UI/validations2.png)
+![Validation Detail](docs/UI/validations2.png)
 
 ### USDC Payments & Rewards
 Bounty tracking with payout distribution by severity, top earners leaderboard, and recent payouts.
 
-![Payments Overview](project/UI/payments1.png)
+![Payments Overview](docs/UI/payments1.png)
 
-![Payment Details](project/UI/payments2.png)
+![Payment Details](docs/UI/payments2.png)
 
 ### x.402 Payment Gating
 All on-chain payments processed through the x.402 payment protocol — registration fees, scan fees, exploit fees, and submission fees — with category filtering and per-transaction blockchain verification.
 
-![x.402 Payments](project/UI/x402.png)
+![x.402 Payments](docs/UI/x402.png)
 
 </div>
 
@@ -214,7 +214,7 @@ All on-chain payments processed through the x.402 payment protocol — registrat
 - **💳 x.402 Payment Gating**: Coinbase x.402 facilitator gates protocol registration with HTTP 402 USDC payment flows
 - **⚡ EIP-7702 Smart Accounts**: Single-click atomic approve+transfer via `wallet_sendCalls` for delegated wallets, eliminating the 2-popup pain point
 - **🧠 Hybrid AI Analysis**: Kimi 2.5 discovers business logic flaws, access control issues, and DoS vectors that static analysis misses
-- **⛓️ Blockchain-Native**: 6 smart contracts on Base L2 — platform registry, agent identity, reputation, and escrow (5 visible in frontend)
+- **⛓️ Blockchain-Native**: 6 smart contracts on Base L2 — platform registry, agent identity, reputation, and escrow (escrow is backend-only infrastructure)
 - **🔬 Sandboxed Validation**: Isolated Anvil environments ensure exploit verification without risk
 - **📡 Real-Time Everything**: WebSocket + SSE streaming for live vulnerability feeds and payment tracking
 - **🔒 Typed Messaging**: BullMQ + Zod schemas for type-safe, validated inter-agent communication
@@ -1963,7 +1963,7 @@ Imagine a world where:
 ### Current Metrics
 
 **Code:**
-- Smart Contracts: 6 deployed (3 platform + 3 agent), 5 visible in frontend
+- Smart Contracts: 6 deployed (3 platform + 3 agent), escrow is backend-only
 - TypeScript Backend: ~17,000 lines (agents + AI + payments + agent economy)
 - React Frontend: ~9,000 lines (10 pages + agent components + E2E tests)
 - Documentation: 11,600+ lines of comprehensive documentation
