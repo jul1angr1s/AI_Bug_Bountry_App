@@ -208,7 +208,7 @@ Centralized log exploration view used to trace real-time backend/AI worker execu
 ### Railway Architecture
 Railway architecture overview showing production service topology and how frontend, backend, and supporting infrastructure are connected.
 
-![Railway Architecture](docs/UI/updated/railway architecture.png)
+![Railway Architecture](docs/UI/updated/railway-architecture.png)
 
 ---
 
