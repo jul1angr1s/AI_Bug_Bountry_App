@@ -2205,7 +2205,7 @@ cd AI_Bug_Bountry_App
 ---
 
 <p align="center">
-  <strong>Built with ❤️ and ☕ by the AI Bug Bounty Platform Team</strong><br/>
+  <strong>Built with ❤️ and ☕ by jul1angr1s </strong><br/>
   <em>Democratizing smart contract security through autonomous AI agents</em>
 </p>
 
