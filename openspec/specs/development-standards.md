@@ -50,4 +50,4 @@ Local hooks are designed to mirror the CI pipeline. If a check fails locally via
 
 ## Change Specifications
 
-- [Code Quality Improvement](../changes/code-quality-improvement/) - Eliminate 152 `any` types, centralize error hierarchy, migrate TODOs to Issues, ESLint enforcement
+- [Code Quality Improvement](../changes/archive/2026-02-06-code-quality-improvement/) - Eliminated 131 `any` types, centralized error hierarchy, migrated TODOs to Issues, ESLint enforcement

@@ -5,7 +5,7 @@
 Third-party services and API integrations required for the platform.
 
 ## Source Documentation
-- **Primary**: [project/ExternalAPI.md](../../project/ExternalAPI.md)
+- **Primary**: [docs/EXTERNAL_API.md](../../docs/EXTERNAL_API.md)
 
 ## Cost Summary
 

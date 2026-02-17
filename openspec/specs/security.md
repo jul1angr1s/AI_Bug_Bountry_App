@@ -5,8 +5,8 @@
 Defense-in-depth security strategy covering AI agents, smart contracts, backend, and infrastructure.
 
 ## Source Documentation
-- **Primary**: [project/Security.md](../../project/Security.md)
-- **Supporting**: [project/Skills.md](../../project/Skills.md) (Trail of Bits Skills)
+- **Primary**: [docs/SECURITY.md](../../docs/SECURITY.md)
+- **Supporting**: [docs/SKILLS.md](../../docs/SKILLS.md) (Trail of Bits Skills)
 
 ## Security Layers
 
@@ -32,6 +32,10 @@ Defense-in-depth security strategy covering AI agents, smart contracts, backend,
 - **Rate Limiting**: Redis-based limits (see API spec)
 - **CORS Policy**: Restrict to specific frontend domains
 - **Helmet Headers**: CSP, HSTS, No-Sniff
+- **SIWE Server-Side Verification**: ethers.js `verifyMessage` for wallet signature auth
+- **CSRF Protection**: Double-submit cookie pattern
+- **x.402 Payment Gating**: 1 USDC protocol registration fee, 0.5 USDC submission escrow
+- **Pre-Commit Secret Detection**: Husky hook scans for leaked credentials
 
 ### 4. Infrastructure Security
 - **Container Hardening**: Non-root user, minimal base images
@@ -95,4 +99,4 @@ The Researcher Agent MUST sanitize repository inputs and constrain execution to 
 
 ## Change Specifications
 
-- [Security Posture Hardening](../changes/security-posture-hardening/) - Remove auth bypass, CSRF protection, payment race condition fix, secrets management, security headers
+- [Security Posture Hardening](../changes/archive/2026-02-06-security-posture-hardening/) - Remove auth bypass, CSRF protection, payment race condition fix, secrets management, security headers

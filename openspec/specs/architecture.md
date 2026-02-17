@@ -16,8 +16,8 @@ The system adheres to the following architectural principles to ensure maintaina
 - **Clean Architecture**: Dependencies point inwards. The domain layer has no dependencies on frameworks, databases, or UI.
 
 ## Source Documentation
-- **Primary**: [project/Architecture.md](../../project/Architecture.md)
-- **Supporting**: [project/Workflows.md](../../project/Workflows.md)
+- **Primary**: [docs/ARCHITECTURE.md](../../docs/ARCHITECTURE.md)
+- **Supporting**: [docs/WORKFLOWS.md](../../docs/WORKFLOWS.md)
 
 ## System Layers
 
@@ -32,6 +32,7 @@ The system adheres to the following architectural principles to ensure maintaina
 | Protocol Agent | Register protocols, fund pools | `register_protocol`, `fund_pool` |
 | Researcher Agent | Clone repos, scan contracts | `clone_repo`, `compile`, `deploy_fresh`, `scan_contract` |
 | Validator Agent | Execute exploits, update registry | `spawn_sandbox`, `execute_exploit`, `update_registry` |
+| Payment Agent | Process USDC bounty payments | `release_bounty`, `check_balance`, `track_payment` |
 
 ### 3. Backend Services
 - Node.js API Server (REST + WebSocket)
@@ -74,4 +75,4 @@ Production:
 
 ## Change Specifications
 
-- [Backend Architecture Hardening](../changes/backend-architecture-hardening/) - tsyringe DI, payment service decomposition, type safety, structured logging
+- [Backend Architecture Hardening](../changes/archive/2026-02-06-backend-architecture-hardening/) - tsyringe DI, payment service decomposition, type safety, structured logging

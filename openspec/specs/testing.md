@@ -5,7 +5,7 @@
 Zero-untested-code policy with automated test generation for new capabilities.
 
 ## Source Documentation
-- **Primary**: [project/Testing.md](../../project/Testing.md)
+- **Primary**: [docs/TESTING.md](../../docs/TESTING.md)
 
 ## Testing Pyramid
 
@@ -80,7 +80,24 @@ When new feature added (e.g., Anti-MEV), create acceptance test:
 2. Action: Malicious actor copies proof with different address
 3. Expected: Rejection, original researcher paid
 
+## Current Test Coverage
+
+| Category | Count | Details |
+|----------|-------|---------|
+| Backend Unit Tests | 302 | Across 8 test files (payment, protocol, escrow, blockchain clients) |
+| Integration Tests | 36 | Service-level integration test cases |
+| Frontend Regression | 46 | HTTP-level test cases |
+| Playwright E2E | 19 | Browser tests across 3 browsers (Chromium, Firefox, WebKit) |
+| Smart Contract Tests | 1,681 lines | Across 4 Foundry test files |
+
 ## CI Pipeline
+
+**GitHub Actions**: 5 parallel jobs
+- `backend-unit` — Vitest unit tests
+- `backend-integration` — Integration test suite
+- `smart-contracts` — Foundry forge test
+- `frontend-unit` — Vitest + RTL component tests
+- `ai-tests` — Agent eval suite
 
 ```
 Build → Lint → Unit Tests → Integration Tests → E2E (Nightly) → Security Scan
@@ -92,4 +109,4 @@ Build → Lint → Unit Tests → Integration Tests → E2E (Nightly) → Securi
 
 ## Change Specifications
 
-- [Testing & QA Expansion](../changes/testing-qa-expansion/) - Expand coverage to 70%+ backend, 70%+ frontend, 90%+ contracts with TDD, mock infrastructure, CI enforcement
+- [Testing & QA Expansion](../changes/archive/2026-02-06-testing-qa-expansion/) - 302 unit tests across 8 files, CI pipeline with 5 parallel jobs, mock infrastructure, Codecov integration

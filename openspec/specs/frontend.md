@@ -2,11 +2,11 @@
 
 ## Overview
 
-React 18 dashboard with real-time updates, Web3 wallet integration, and Supabase auth.
+React 18 dashboard with real-time updates, Web3 wallet integration, and Supabase auth. 10+ pages with React.lazy code splitting.
 
 ## Source Documentation
-- **Primary**: [project/Stack.md](../../project/Stack.md)
-- **Supporting**: [project/Skills.md](../../project/Skills.md) (Vercel Agent Skills)
+- **Primary**: [docs/STACK.md](../../docs/STACK.md)
+- **Supporting**: [docs/SKILLS.md](../../docs/SKILLS.md) (Vercel Agent Skills)
 
 ## Tech Stack
 - **Framework**: React 18 + TypeScript 5.x
@@ -41,6 +41,9 @@ React 18 dashboard with real-time updates, Web3 wallet integration, and Supabase
 - Wallet connection (ConnectKit)
 - Chain switching (Anvil ↔ Sepolia)
 - Transaction signing
+- SIWE (Sign-In with Ethereum) authentication flow
+- EIP-7702 smart account batching (`useSmartAccountBatching` hook)
+- x.402 payment modal for protocol registration fees
 
 ## State Management
 
@@ -69,4 +72,6 @@ interface AppStore {
 
 ## Change Specifications
 
-- [Frontend Architecture Optimization](../changes/frontend-architecture-optimization/) - Code splitting, component decomposition, Zod API validation, Web3 chain fix, performance
+- [Frontend Architecture Optimization](../changes/archive/2026-02-06-frontend-architecture-optimization/) - Code splitting, component decomposition, Zod API validation, Web3 chain fix, performance
+- [EIP-7702 Smart Account Batching](../changes/archive/2026-02-08-eip7702-smart-account-batching/) - 1-click atomic approve+transfer via wallet_sendCalls
+- [SIWE Auth Server Verification](../changes/archive/2026-02-07-fix-siwe-auth-server-verification/) - Server-side SIWE verification with ethers.js

@@ -2,11 +2,11 @@
 
 ## Overview
 
-MCP-powered AI agents using Kimi k.25 for inference. Three specialized agent types coordinate via Redis PubSub.
+MCP-powered AI agents using Kimi k.25 for inference. Five agent types (4 production + 1 dev tooling) coordinate via Redis PubSub.
 
 ## Source Documentation
-- **Primary**: [project/Subagents.md](../../project/Subagents.md)
-- **Supporting**: [project/Skills.md](../../project/Skills.md)
+- **Primary**: [docs/SUBAGENTS.md](../../docs/SUBAGENTS.md)
+- **Supporting**: [docs/SKILLS.md](../../docs/SKILLS.md)
 
 ## AI Stack
 - **Provider**: Kimi AI (Moonshot)

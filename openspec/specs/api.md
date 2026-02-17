@@ -5,8 +5,8 @@
 RESTful API with WebSocket support. Node.js/Express backend with Zod validation.
 
 ## Source Documentation
-- **Primary**: [project/APIRoutes.md](../../project/APIRoutes.md)
-- **Supporting**: [project/Integration.md](../../project/Integration.md)
+- **Primary**: [docs/API_ROUTES.md](../../docs/API_ROUTES.md)
+- **Supporting**: [docs/INTEGRATION.md](../../docs/INTEGRATION.md)
 
 ## Base Configuration
 ```

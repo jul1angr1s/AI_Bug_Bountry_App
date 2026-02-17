@@ -1,6 +1,6 @@
 schema: change
 version: 1.0
-status: in-progress
+status: completed
 started: 2026-02-08
 component:
   - Frontend

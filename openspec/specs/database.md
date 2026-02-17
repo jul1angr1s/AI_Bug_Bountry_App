@@ -5,7 +5,7 @@
 PostgreSQL database hosted on Supabase with Prisma ORM. Supports Web3 wallet authentication and real-time subscriptions.
 
 ## Source Documentation
-- **Primary**: [project/DatabaseSchema.md](../../project/DatabaseSchema.md)
+- **Primary**: [docs/DATABASE_SCHEMA.md](../../docs/DATABASE_SCHEMA.md)
 
 ## Provider Stack
 - **Database**: Supabase PostgreSQL 15.x

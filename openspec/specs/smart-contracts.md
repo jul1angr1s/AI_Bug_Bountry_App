@@ -7,8 +7,8 @@
 Solidity 0.8.24 contracts using Foundry toolchain. Production payment infrastructure deployed on Base Sepolia testnet with comprehensive test coverage (1,681 lines of tests across 4 test files).
 
 ## Source Documentation
-- **Primary**: [project/SmartContracts.md](../../project/SmartContracts.md)
-- **Supporting**: [project/Security.md](../../project/Security.md)
+- **Primary**: [docs/SMART_CONTRACTS.md](../../docs/SMART_CONTRACTS.md)
+- **Supporting**: [docs/SECURITY.md](../../docs/SECURITY.md)
 
 ## Contract Architecture
 
@@ -22,9 +22,12 @@ Solidity 0.8.24 contracts using Foundry toolchain. Production payment infrastruc
 ### Base Sepolia (Chain 84532) - Payment Infrastructure
 | Contract | Address | Purpose |
 |----------|---------|---------|
-| ProtocolRegistry | `0xc7DF730cf661a306a9aEC93D7180da6f6Da23235` | Register GitHub repos + bounty terms |
-| ValidationRegistry | `0x8fBE5E9B0C17Cb606091e5050529CE99baB7744d` | ERC-8004 validation states |
-| BountyPool | `0x6D0bA6dA342c4ce75281Ea90c71017BC94A397b0` | USDC escrow & severity-based payments |
+| ProtocolRegistry | `0xee7620019d3ff8b2fe3e8a8f2F8bA3d8e3950027` | Register GitHub repos + bounty terms |
+| ValidationRegistry | `0x90b76978afa9BfA19017290D2B06689E95EB6b73` | ERC-8004 validation states |
+| BountyPool | `0x2BE4c7Bd7b341A6D16Ba7e38A77a3A8ddA6d6C91` | USDC escrow & severity-based payments |
+| AgentIdentityRegistry | `0x772ADB0bC03B1b465942091a35D8F6fCC6F84f8b` | Soulbound NFT agent registration |
+| AgentReputationRegistry | `0x53f126F6F79414d8Db4cd08B05b84f5F1128de16` | On-chain reputation scoring |
+| PlatformEscrow | `0x1EC275172C191670C9fbB290dcAB31A9784BC6eC` | USDC escrow for submission fees |
 
 **Verification**: All contracts verified on [Basescan](https://sepolia.basescan.org/)
 
@@ -120,12 +123,12 @@ event ValidationRecorded(
 - ReentrancyGuard on all payment functions
 - Protocol-specific bounty pools
 
-**Payment Multipliers** (Base: 100 USDC):
-- CRITICAL: 5x (500 USDC)
-- HIGH: 3x (300 USDC)
-- MEDIUM: 1.5x (150 USDC)
-- LOW: 1x (100 USDC)
-- INFORMATIONAL: 0.25x (25 USDC)
+**Payment Multipliers** (Base: 1 USDC):
+- CRITICAL: 5x (5 USDC)
+- HIGH: 3x (3 USDC)
+- MEDIUM: 1.5x (1.5 USDC)
+- LOW: 1x (1 USDC)
+- INFORMATIONAL: 0.25x (0.25 USDC)
 
 **Functions**:
 ```solidity
@@ -161,6 +164,35 @@ event BountyReleased(
     uint256 timestamp
 )
 ```
+
+### AgentIdentityRegistry.sol
+
+**Purpose**: Soulbound ERC-721 NFTs for agent registration and identity
+
+**Key Features**:
+- ERC-721 soulbound (non-transferable) agent identity NFTs
+- Agent type classification (RESEARCHER, VALIDATOR)
+- Wallet-to-agent mapping
+- On-chain agent metadata
+
+### AgentReputationRegistry.sol
+
+**Purpose**: On-chain reputation scoring for registered agents
+
+**Key Features**:
+- Reputation scoring based on validation confirmation rates
+- Score updates linked to validation outcomes
+- Query functions for agent reputation and history
+
+### PlatformEscrow.sol
+
+**Purpose**: USDC escrow for x.402 submission fees
+
+**Key Features**:
+- Holds USDC deposits for researcher submission fees
+- 1 USDC protocol registration fee collection
+- 0.5 USDC per finding submission escrow
+- Platform revenue management
 
 ## Security
 
@@ -213,8 +245,5 @@ event BountyReleased(
 
 ## Next Steps
 
-1. Grant VALIDATOR_ROLE to Validator Agent wallet (Phase 4)
-2. Grant PAYOUT_ROLE to Validator Agent wallet (Phase 4)
-3. Implement automatic bounty release (Phase 4A)
-4. Add USDC approval flow for protocol owners (Phase 4A)
-5. Security audit before mainnet deployment (Post-MVP)
+1. Security audit before mainnet deployment
+2. Mainnet deployment (Base L2)

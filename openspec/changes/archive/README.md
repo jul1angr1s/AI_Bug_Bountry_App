@@ -337,6 +337,229 @@ Each archived change should include an `ARCHIVE_REASON.md` file explaining:
 
 ---
 
+### 2026-02-02: realtime-protocol-progress
+**Reason**: Completed and fully implemented
+**Archived**: 2026-02-02
+**Status**: Real-time progress tracking operational
+
+**Summary**: Implemented SSE and WebSocket progress tracking for protocol registration and scanning, with 7-step pipeline visualization and progress indicators in the UI.
+
+**Key Outcomes**:
+- SSE endpoint for protocol registration progress
+- 7-step pipeline visualization
+- WebSocket events for scan progress
+- Real-time UI progress indicators
+
+---
+
+### 2026-02-03: fix-payment-flow-dashboard
+**Reason**: Completed and fully implemented
+**Archived**: 2026-02-03
+**Status**: Payment flow aligned with backend data model
+
+**Summary**: Aligned payment workflow with backend data model by routing `/payments` to richer dashboard UI, scoping payments to specific protocols, and fixing ValidationService payment trigger integration.
+
+**Key Outcomes**:
+- Payments scoped to protocols
+- Dashboard payments UI improved
+- ValidationService payment trigger fixed
+
+---
+
+### 2026-02-04: fix-payment-workflow-demo
+**Reason**: Completed and fully implemented
+**Archived**: 2026-02-04
+**Status**: Demo mode USDC payment workflow operational
+
+**Summary**: Fixed payment workflow by correcting Vulnerability record creation (Finding → Vulnerability → Payment), using on-chain protocol IDs with BountyPool, supporting demo modes, and removing debug instrumentation.
+
+**Key Outcomes**:
+- Finding → Vulnerability → Payment pipeline fixed
+- On-chain protocol IDs used with BountyPool
+- Demo mode support (PAYMENT_OFFCHAIN_VALIDATION, SKIP_ONCHAIN_PAYMENT)
+- Debug instrumentation removed
+
+---
+
+### 2026-02-04: fix-sse-registration-progress
+**Reason**: Completed and fully implemented
+**Archived**: 2026-02-04
+**Status**: SSE connection reliability fixed
+
+**Summary**: Resolved SSE connection failures for protocol registration progress, ensuring the frontend reliably receives real-time step-by-step updates during protocol registration. Hardened heartbeat and reconnect logic.
+
+**Key Outcomes**:
+- SSE heartbeat hardening
+- Reconnect logic for dropped connections
+- Reliable step-by-step registration updates
+
+---
+
+### 2026-02-05: dashboard-facelift
+**Reason**: Completed and fully implemented
+**Archived**: 2026-02-05
+**Status**: Modern design system applied to dashboard
+
+**Summary**: Transformed dashboard UI with modern design system (Space Grotesk typography, Material Symbols icons, custom color palette), interactive Recharts, sticky header, and new backend endpoints for metrics/activity streams.
+
+**Key Outcomes**:
+- Space Grotesk typography + Material Symbols icons
+- Custom color palette and design tokens
+- Interactive Recharts visualizations
+- Sticky header + responsive layout
+- New backend metrics/activity endpoints
+
+---
+
+### 2026-02-05: dashboard-scans-page-facelift
+**Reason**: Completed and fully implemented
+**Archived**: 2026-02-05
+**Status**: Scans page modernized
+
+**Summary**: Modernized scans dashboard with vertical timeline, live terminal output with syntax highlighting, vulnerability detection charts, and real-time findings list matching the new design system.
+
+**Key Outcomes**:
+- Vertical timeline for scan progress
+- Live terminal output with syntax highlighting
+- Vulnerability detection charts
+- Design system consistency with dashboard facelift
+
+---
+
+### 2026-02-05: erc8004-agent-scoring
+**Reason**: Completed and fully implemented
+**Archived**: 2026-02-05
+**Status**: Agent identity and reputation contracts deployed
+
+**Summary**: Implemented ERC-721 agent identity NFTs (AgentIdentityRegistry) and AgentReputationRegistry for transparent on-chain reputation scoring of researcher agents based on validation confirmation rates.
+
+**Key Outcomes**:
+- AgentIdentityRegistry (ERC-721 soulbound NFTs)
+- AgentReputationRegistry (on-chain scoring)
+- Reputation based on validation confirmation rates
+- Contracts deployed and verified on Base Sepolia
+
+---
+
+### 2026-02-05: login-page
+**Reason**: Completed and fully implemented
+**Archived**: 2026-02-05
+**Status**: Login page and route protection operational
+
+**Summary**: Added dedicated login page with MetaMask wallet connection, route protection for all dashboard features, proper Wagmi provider configuration, and returnUrl redirect after authentication.
+
+**Key Outcomes**:
+- Dedicated login page component
+- MetaMask wallet connection flow
+- Route protection for authenticated pages
+- returnUrl redirect after login
+
+---
+
+### 2026-02-05: manual-payment-onchain-execution-fix
+**Reason**: Completed and fully implemented
+**Archived**: 2026-02-05
+**Status**: On-chain payment execution fixed
+
+**Summary**: Fixed manual payment proposals by correcting Prisma enum (VALIDATED → ACKNOWLEDGED) and queuing payments for on-chain USDC execution via the payment worker on Base Sepolia.
+
+**Key Outcomes**:
+- Prisma enum corrected (VALIDATED → ACKNOWLEDGED)
+- Payments queued for on-chain execution
+- USDC transfers via BountyPool on Base Sepolia
+
+---
+
+### 2026-02-05: protocols-facelift
+**Reason**: Completed and fully implemented
+**Archived**: 2026-02-05
+**Status**: Protocols page redesigned
+
+**Summary**: Redesigned Protocols page with statistics overview cards, enhanced search/filter chips, modern protocol cards with glow effects, and consistent design matching the dashboard facelift.
+
+**Key Outcomes**:
+- Card-based grid layout
+- Statistics overview cards
+- Search and filter chip UI
+- Design system consistency
+
+---
+
+### 2026-02-05: x402-payment-gating
+**Reason**: Completed and fully implemented
+**Archived**: 2026-02-05
+**Status**: x.402 payment gating operational
+
+**Summary**: Implemented x.402 payment protocol with 1 USDC protocol registration fee and 0.5 USDC researcher submission escrow via PlatformEscrow contract to create sustainable revenue and reduce spam.
+
+**Key Outcomes**:
+- x.402 HTTP payment middleware
+- 1 USDC protocol registration fee
+- 0.5 USDC researcher submission escrow
+- PlatformEscrow contract deployed on Base Sepolia
+
+---
+
+### 2026-02-07: fix-siwe-auth-server-verification
+**Reason**: Completed and fully implemented
+**Archived**: 2026-02-16
+**Status**: Server-side SIWE verification operational
+
+**Summary**: Implemented server-side SIWE (Sign-In with Ethereum) verification using ethers.js `verifyMessage`, replacing client-only wallet detection with proper backend signature verification.
+
+**Key Outcomes**:
+- Server-side SIWE verification with ethers.js
+- Backend auth middleware validates wallet signatures
+- Frontend auth flow submits signatures to backend
+- Client-only trust model eliminated
+
+---
+
+### 2026-02-07: manual-e2e-testing-workflow
+**Reason**: Completed and fully implemented
+**Archived**: 2026-02-16
+**Status**: Manual E2E testing spec created as base specification
+
+**Summary**: Created formal OpenSpec specification for the 60-90 minute Manual End-to-End Testing Workflow, consolidating Phase 4 testing procedures into a living, discoverable spec at `openspec/specs/manual-e2e-testing.md`.
+
+**Key Outcomes**:
+- Base spec created at `openspec/specs/manual-e2e-testing.md`
+- 60-90 minute pre-demonstration testing procedure
+- Prerequisites, service startup, agent registration, scanning, validation, payment flows
+- Referenced from `openspec/specs/testing.md`
+
+---
+
+### 2026-02-08: eip7702-smart-account-batching
+**Reason**: Completed and fully implemented
+**Archived**: 2026-02-16
+**Status**: 1-click EIP-7702 payment flow operational
+
+**Summary**: Implemented EIP-7702 smart account transaction batching for x.402 payment flow. The `useSmartAccountBatching` hook enables 1-click atomic approve+transfer for EIP-7702 wallets with graceful fallback to 2-step flow.
+
+**Key Outcomes**:
+- `useSmartAccountBatching` hook (wagmi `useSendCalls`/`useCapabilities`)
+- PaymentRequiredModal 1-click approve+transfer
+- Graceful fallback for non-EIP-7702 wallets
+- Zero new dependencies (wagmi ERC-5792 hooks)
+
+---
+
+### 2026-02-09: validator-realtime-events
+**Reason**: Completed and fully implemented
+**Archived**: 2026-02-09
+**Status**: Validator SSE streaming operational
+
+**Summary**: Added real-time SSE event streaming for validator agents, mirroring the researcher agent pattern with progress timelines, terminal logs, and step-by-step visibility into the validation workflow.
+
+**Key Outcomes**:
+- SSE endpoint for validator progress
+- Progress timeline visualization
+- Terminal log streaming
+- Consistent with researcher agent SSE pattern
+
+---
+
 ## Retrieving Archived Changes
 
 If you need to reference an archived change:

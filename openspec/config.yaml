@@ -56,13 +56,16 @@ context: |
   ## Core Contracts (Base Sepolia)
   - ProtocolRegistry: Register GitHub repos + bounty terms
   - ValidationRegistry: ERC-8004 validation states
-  - BountyPool: USDC escrow & x402 payments
-  - OpsTreasury: Gas management for validator agents
+  - BountyPool: USDC escrow & severity-based payments
+  - AgentIdentityRegistry: Soulbound NFT agent registration
+  - AgentReputationRegistry: On-chain reputation scoring
+  - PlatformEscrow: USDC escrow for submission fees
 
   ## Agent Architecture (MCP-Powered)
   - **Protocol Agent**: Registers protocols, sets bounty terms, funds pools
   - **Researcher Agent**: Clones repos, compiles, deploys fresh instances, scans for vulns
   - **Validator Agent**: Spawns sandboxes, executes exploits, updates registry
+  - **Payment Agent**: Processes USDC bounty payments, severity-based payouts
   - **Swarm Orchestrator**: Task delegation, consensus synthesis, self-healing
 
   ## Key Workflows
@@ -80,16 +83,16 @@ context: |
   - ReentrancyGuard + AccessControl on all contracts
 
   ## Documentation References
-  - See project/Architecture.md for system diagrams
-  - See project/DatabaseSchema.md for Prisma schema
-  - See project/SmartContracts.md for Solidity interfaces
-  - See project/APIRoutes.md for REST/WebSocket endpoints
-  - See project/Workflows.md for detailed flow diagrams
-  - See project/Security.md for hardening strategies
+  - See docs/ARCHITECTURE.md for system diagrams
+  - See docs/DATABASE_SCHEMA.md for Prisma schema
+  - See docs/SMART_CONTRACTS.md for Solidity interfaces
+  - See docs/API_ROUTES.md for REST/WebSocket endpoints
+  - See docs/WORKFLOWS.md for detailed flow diagrams
+  - See docs/SECURITY.md for hardening strategies
 
 rules:
   proposal:
-    - Reference relevant project/*.md documentation files
+    - Reference relevant docs/*.md documentation files
     - Include affected components (Frontend/Backend/Contracts/Agents)
     - Specify which chain(s) the change affects (Anvil/Sepolia/Both)
     - Include a "Security Considerations" section for any contract or payment changes
@@ -99,7 +102,7 @@ rules:
     - Tasks should be atomic and completable in a single session
     - Each task must specify the target layer (Frontend/Backend/Contracts/Agents)
     - Include file paths for files to be created or modified
-    - Reference the specific project/*.md doc that defines requirements
+    - Reference the specific docs/*.md doc that defines requirements
     - For contract tasks, specify if tests (*.t.sol) are required
     - For API tasks, include expected request/response schemas
 

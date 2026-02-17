@@ -5,8 +5,8 @@
 End-to-end workflows from protocol registration through bounty payment.
 
 ## Source Documentation
-- **Primary**: [project/Workflows.md](../../project/Workflows.md)
-- **Demonstration**: [project/FirstFlightDemonstration.md](../../project/FirstFlightDemonstration.md)
+- **Primary**: [docs/WORKFLOWS.md](../../docs/WORKFLOWS.md)
+- **Demonstration**: [docs/DEMONSTRATION.md](../../docs/DEMONSTRATION.md)
 
 ## Core Workflows
 
