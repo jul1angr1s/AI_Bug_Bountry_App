@@ -4,6 +4,7 @@ import { BountyPoolClient, BountySeverity } from '../blockchain/contracts/Bounty
 import { ValidationRegistryClient } from '../blockchain/contracts/ValidationRegistryClient.js';
 import USDCClient from '../blockchain/contracts/USDCClient.js';
 import { NotFoundError, ValidationError } from '../errors/CustomError.js';
+import { fromUSDCMicro, sumMoney, toMoneyNumber, toUSDCMicro } from '../lib/money.js';
 import type { PaymentStatus, Severity } from '@prisma/client';
 import type {
   PaymentListQuery,
@@ -345,7 +346,7 @@ export async function processPayment(paymentId: string): Promise<PaymentWithDeta
     await prisma.fundingEvent.create({
       data: {
         protocolId: protocol.id,
-        amount: payment.amount,
+        amount: toMoneyNumber(payment.amount),
         txHash: result.txHash,
         status: 'CONFIRMED',
         changeType: 'PAYMENT_RELEASED',
@@ -361,7 +362,7 @@ export async function processPayment(paymentId: string): Promise<PaymentWithDeta
         txHash: result.txHash,
         metadata: {
           paymentId,
-          amount: payment.amount,
+          amount: toMoneyNumber(payment.amount),
           researcherAddress: payment.researcherAddress,
           bountyId: result.bountyId,
         },
@@ -515,9 +516,9 @@ export async function getPaymentsByResearcher(
   });
 
   // Calculate total earnings (only COMPLETED payments)
-  const totalEarnings = payments
-    .filter((p) => p.status === 'COMPLETED')
-    .reduce((sum, p) => sum + p.amount, 0);
+  const totalEarnings = sumMoney(
+    payments.filter((p) => p.status === 'COMPLETED').map((p) => p.amount)
+  );
 
   // Count payments by severity
   const paymentCountBySeverity = {
@@ -587,9 +588,10 @@ export async function getPaymentStats(
   // Calculate basic statistics
   const totalPayments = payments.length;
   const completedPayments = payments.filter((p) => p.status === 'COMPLETED');
-  const totalAmountPaid = completedPayments.reduce((sum, p) => sum + p.amount, 0);
-  const averagePaymentAmount =
-    completedPayments.length > 0 ? totalAmountPaid / completedPayments.length : 0;
+  const totalAmountPaid = sumMoney(completedPayments.map((p) => p.amount));
+  const averagePaymentAmount = completedPayments.length > 0
+    ? fromUSDCMicro(toUSDCMicro(totalAmountPaid) / BigInt(completedPayments.length))
+    : 0;
 
   // Count by status
   const paymentsByStatus = {
@@ -626,7 +628,7 @@ export async function getPaymentStats(
         const current = timeSeriesMap.get(dateKey);
         if (current) {
           current.count++;
-          current.amount += payment.amount;
+          current.amount = sumMoney([current.amount, payment.amount]);
         }
       }
     });
@@ -675,7 +677,7 @@ async function formatPaymentWithDetails(
   return {
     id: payment.id,
     vulnerabilityId: payment.vulnerabilityId,
-    amount: payment.amount,
+    amount: toMoneyNumber(payment.amount),
     currency: payment.currency,
     status: payment.status,
     txHash: payment.txHash,
@@ -905,7 +907,7 @@ export async function getPaymentList(
       payments: payments.map((p) => ({
         id: p.id,
         vulnerabilityId: p.vulnerabilityId,
-        amount: p.amount,
+        amount: toMoneyNumber(p.amount),
         currency: p.currency,
         status: p.status,
         txHash: p.txHash,
@@ -1012,7 +1014,7 @@ export async function getResearcherEarnings(
       orderBy: { paidAt: 'desc' },
     });
 
-    const totalEarnings = payments.reduce((sum, p) => sum + p.amount, 0);
+    const totalEarnings = sumMoney(payments.map((p) => p.amount));
 
     const paymentsBySeverity = {
       CRITICAL: 0,
@@ -1038,7 +1040,7 @@ export async function getResearcherEarnings(
         paymentsBySeverity,
         payments: payments.map((p) => ({
           id: p.id,
-          amount: p.amount,
+          amount: toMoneyNumber(p.amount),
           currency: p.currency,
           txHash: p.txHash,
           paidAt: p.paidAt?.toISOString() || null,
@@ -1106,10 +1108,12 @@ export async function getEarningsLeaderboard(
 
     const leaderboard = leaderboardData.map((entry) => ({
       researcherAddress: entry.researcherAddress,
-      totalEarnings: entry._sum.amount || 0,
+      totalEarnings: toMoneyNumber(entry._sum.amount || 0),
       paymentCount: entry._count.id,
       averagePaymentAmount:
-        entry._count.id > 0 ? (entry._sum.amount || 0) / entry._count.id : 0,
+        entry._count.id > 0
+          ? fromUSDCMicro(toUSDCMicro(toMoneyNumber(entry._sum.amount || 0)) / BigInt(entry._count.id))
+          : 0,
     }));
 
     return {
@@ -1178,12 +1182,12 @@ export async function getPoolStatus(protocolId: string): Promise<PoolStatusResul
       const bountyClient = new BountyPoolClient();
       // For now, use database balance since we need protocolId for on-chain query
       // See GitHub Issue #104
-      availableBalance = protocol.availableBounty.toString();
-      availableBalanceFormatted = protocol.availableBounty.toString();
+      availableBalance = toMoneyNumber(protocol.availableBounty).toString();
+      availableBalanceFormatted = toMoneyNumber(protocol.availableBounty).toString();
     } catch (error: any) {
       log.warn({ err: error.message }, 'Failed to get on-chain balance');
-      availableBalance = protocol.availableBounty.toString();
-      availableBalanceFormatted = protocol.availableBounty.toString();
+      availableBalance = toMoneyNumber(protocol.availableBounty).toString();
+      availableBalanceFormatted = toMoneyNumber(protocol.availableBounty).toString();
     }
 
     const pendingPayments = await prisma.payment.aggregate({
@@ -1195,9 +1199,11 @@ export async function getPoolStatus(protocolId: string): Promise<PoolStatusResul
       _count: { id: true },
     });
 
-    const pendingPaymentsTotal = pendingPayments._sum.amount || 0;
+    const pendingPaymentsTotal = toMoneyNumber(pendingPayments._sum.amount || 0);
     const pendingPaymentsCount = pendingPayments._count.id;
-    const remainingBalance = protocol.availableBounty - pendingPaymentsTotal;
+    const remainingBalance = fromUSDCMicro(
+      toUSDCMicro(toMoneyNumber(protocol.availableBounty)) - toUSDCMicro(pendingPaymentsTotal)
+    );
 
     const [fundingEvents, recentPayments] = await Promise.all([
       prisma.fundingEvent.findMany({
@@ -1218,13 +1224,13 @@ export async function getPoolStatus(protocolId: string): Promise<PoolStatusResul
     const recentTransactions = [
       ...fundingEvents.map((fe) => ({
         type: 'DEPOSIT',
-        amount: fe.amount,
+        amount: toMoneyNumber(fe.amount),
         txHash: fe.txHash,
         timestamp: fe.createdAt.toISOString(),
       })),
       ...recentPayments.map((p) => ({
         type: 'PAYMENT',
-        amount: p.amount,
+        amount: toMoneyNumber(p.amount),
         txHash: p.txHash || '',
         timestamp: p.paidAt?.toISOString() || '',
       })),
@@ -1238,8 +1244,8 @@ export async function getPoolStatus(protocolId: string): Promise<PoolStatusResul
         protocolId,
         availableBalance,
         availableBalanceFormatted,
-        totalDeposited: protocol.totalBountyPool,
-        totalPaid: protocol.paidBounty,
+        totalDeposited: toMoneyNumber(protocol.totalBountyPool),
+        totalPaid: toMoneyNumber(protocol.paidBounty),
         remainingBalance,
         pendingPaymentsCount,
         pendingPaymentsTotal,
@@ -1299,8 +1305,8 @@ export async function proposeManualPayment(data: {
     const amount = severityMap[data.severity];
 
     // Check if protocol has sufficient balance
-    const availableBounty = protocol.availableBounty || protocol.totalBountyPool;
-    if (availableBounty < amount) {
+    const availableBounty = toMoneyNumber(protocol.availableBounty || protocol.totalBountyPool);
+    if (toUSDCMicro(availableBounty) < toUSDCMicro(amount)) {
       return {
         success: false,
         error: {

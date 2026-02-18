@@ -131,11 +131,13 @@ frontend/src/
 
 ```
 backend/src/
-├── server.ts           # Express server entry point
+├── server.ts           # Runtime bootstrap (API and/or workers)
 ├── routes/             # API route handlers
 │   ├── protocol.routes.ts
 │   ├── scans.ts
 │   ├── payment.routes.ts
+│   ├── payment/        # Decomposed payment subrouters
+│   ├── agent-identity/ # Decomposed identity subrouters
 │   └── health.ts
 ├── agents/             # AI agent workers
 │   ├── protocol/       # Protocol Agent
@@ -160,10 +162,23 @@ backend/src/
 │   ├── auth.ts
 │   ├── validation.ts
 │   └── rate-limit.ts
+├── startup/            # Runtime mode and startup orchestration
+│   ├── runtime-mode.ts
+│   └── background-runtime.ts
 └── lib/                # Utilities
     ├── prisma.ts
     └── redis.ts
 ```
+
+### Runtime Modes
+
+The backend now supports explicit runtime separation with `APP_RUNTIME_MODE`:
+
+- `all` (default): API + background workers/listeners.
+- `api`: API only (no queue workers or blockchain listeners).
+- `worker`: background workers/listeners only (no HTTP server bind).
+
+This allows independent scaling and fault isolation between request serving and asynchronous processing.
 
 ---
 

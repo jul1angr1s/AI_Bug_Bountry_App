@@ -810,6 +810,18 @@ describe('PaymentService', () => {
       expect(Array.isArray(result.timeSeries)).toBe(true);
       expect(result.timeSeries!.length).toBeGreaterThanOrEqual(1);
     });
+
+    it('avoids floating-point drift when summing completed amounts', async () => {
+      mockPrisma.payment.findMany.mockResolvedValue([
+        { amount: 0.1, status: 'COMPLETED', paidAt: new Date('2024-01-01T00:00:00Z') },
+        { amount: 0.2, status: 'COMPLETED', paidAt: new Date('2024-01-01T00:00:00Z') },
+      ]);
+
+      const result = await getPaymentStats();
+
+      expect(result.totalAmountPaid).toBe(0.3);
+      expect(result.averagePaymentAmount).toBe(0.15);
+    });
   });
 
   // ===========================================================================
@@ -1172,6 +1184,46 @@ describe('PaymentService', () => {
       expect(result.data!.paymentsBySeverity.MEDIUM).toBe(0);
       expect(result.data!.paymentsBySeverity.LOW).toBe(0);
       expect(result.data!.paymentsBySeverity.INFO).toBe(0);
+    });
+
+    it('preserves 6-decimal precision in cumulative earnings', async () => {
+      mockPrisma.payment.findMany.mockResolvedValue([
+        {
+          id: 'pay-001',
+          amount: 0.1,
+          currency: 'USDC',
+          status: 'COMPLETED',
+          txHash: '0xtx1',
+          paidAt: new Date(),
+          vulnerability: {
+            id: 'vuln-001',
+            severity: 'LOW',
+            status: 'ACKNOWLEDGED',
+            vulnerabilityHash: '0xhash1',
+            protocolId: 'proto-001',
+            discoveredAt: new Date(),
+          },
+        },
+        {
+          id: 'pay-002',
+          amount: 0.2,
+          currency: 'USDC',
+          status: 'COMPLETED',
+          txHash: '0xtx2',
+          paidAt: new Date(),
+          vulnerability: {
+            id: 'vuln-002',
+            severity: 'LOW',
+            status: 'ACKNOWLEDGED',
+            vulnerabilityHash: '0xhash2',
+            protocolId: 'proto-001',
+            discoveredAt: new Date(),
+          },
+        },
+      ]);
+
+      const result = await getResearcherEarnings('0xresearcher', {});
+      expect(result.data!.totalEarnings).toBe(0.3);
     });
   });
 

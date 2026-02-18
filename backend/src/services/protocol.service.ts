@@ -3,6 +3,7 @@ import { getPrismaClient } from '../lib/prisma.js';
 import type { ProtocolRegistrationInput, ProtocolFundingInput } from '../schemas/protocol.schema.js';
 import { invalidateCache, invalidateCachePattern, CACHE_KEYS } from '../lib/cache.js';
 import { createLogger } from '../lib/logger.js';
+import { toMoneyNumber, toUSDCMicro } from '../lib/money.js';
 
 const log = createLogger('ProtocolService');
 const prisma = getPrismaClient();
@@ -208,7 +209,7 @@ export async function fundProtocol(
       success: true,
       funding: {
         id: funding.id,
-        amount: funding.amount,
+        amount: toMoneyNumber(funding.amount),
         txHash: funding.txHash,
         status: funding.status,
       },
@@ -385,10 +386,12 @@ export async function getProtocolById(
     const totalFindings = protocol.scans.reduce((sum, scan) => sum + scan.findings.length, 0);
 
     // Determine if scan can be requested based on funding state
+    const totalBountyPool = toMoneyNumber(protocol.totalBountyPool);
+    const minimumBountyRequired = toMoneyNumber(protocol.minimumBountyRequired);
     const canRequestScan =
       protocol.status === 'ACTIVE' &&
       protocol.fundingState === 'FUNDED' &&
-      protocol.totalBountyPool >= protocol.minimumBountyRequired;
+      toUSDCMicro(totalBountyPool) >= toUSDCMicro(minimumBountyRequired);
 
     const overview: ProtocolOverview = {
       id: protocol.id,
@@ -401,19 +404,19 @@ export async function getProtocolById(
       failureReason: protocol.failureReason,
       ownerAddress: protocol.ownerAddress,
       bountyTerms: protocol.bountyTerms,
-      totalBountyPool: protocol.totalBountyPool,
-      availableBounty: protocol.availableBounty,
-      paidBounty: protocol.paidBounty,
+      totalBountyPool,
+      availableBounty: toMoneyNumber(protocol.availableBounty),
+      paidBounty: toMoneyNumber(protocol.paidBounty),
       riskScore: protocol.riskScore,
       createdAt: protocol.createdAt.toISOString(),
       updatedAt: protocol.updatedAt.toISOString(),
       // Funding Gate fields
       onChainProtocolId: protocol.onChainProtocolId,
-      bountyPoolAmount: protocol.bountyPoolAmount,
+      bountyPoolAmount: protocol.bountyPoolAmount ? toMoneyNumber(protocol.bountyPoolAmount) : null,
       fundingState: protocol.fundingState,
       fundingTxHash: protocol.fundingTxHash,
       fundingVerifiedAt: protocol.fundingVerifiedAt?.toISOString() || null,
-      minimumBountyRequired: protocol.minimumBountyRequired,
+      minimumBountyRequired,
       canRequestScan,
       agentAssociations: (protocol.agentAssociations || []).map((a) => ({
         id: a.id,

@@ -115,19 +115,19 @@ model Protocol {
   registrationTxHash String?
   failureReason      String?
   fundedAt           DateTime?
-  totalBountyPool    Float     @default(0)
-  availableBounty    Float     @default(0)
-  paidBounty         Float     @default(0)
+  totalBountyPool    Decimal   @default(0) @db.Decimal(20, 6)
+  availableBounty    Decimal   @default(0) @db.Decimal(20, 6)
+  paidBounty         Decimal   @default(0) @db.Decimal(20, 6)
 
   // On-chain fields (Phase 3B)
   onChainProtocolId String? // bytes32 from ProtocolRegistry contract
 
   // Funding Gate fields (Protocol → Funding → Scanning flow)
-  bountyPoolAmount      Float?    // Requested bounty pool amount in USDC
+  bountyPoolAmount      Decimal?  @db.Decimal(20, 6) // Requested bounty pool amount in USDC
   fundingState          String?   // AWAITING_FUNDING | FUNDED | UNDERFUNDED
   fundingTxHash         String?   // Deposit transaction hash
   fundingVerifiedAt     DateTime? // On-chain verification timestamp
-  minimumBountyRequired Float     @default(25) // Minimum USDC for prototype
+  minimumBountyRequired Decimal   @default(25) @db.Decimal(20, 6) // Minimum USDC for prototype
 
   parentProtocol   Protocol?  @relation("ProtocolVersions", fields: [parentProtocolId], references: [id], onDelete: SetNull)
   childVersions    Protocol[] @relation("ProtocolVersions")
@@ -166,7 +166,7 @@ model Vulnerability {
   severity          Severity
   status            VulnerabilityStatus
   discoveredAt      DateTime            @default(now())
-  bounty            Float?
+  bounty            Decimal? @db.Decimal(20, 6)
   proof             String?
 
   protocol Protocol  @relation(fields: [protocolId], references: [id], onDelete: Cascade)
@@ -356,7 +356,7 @@ model AgentRun {
 model Payment {
   id              String        @id @default(uuid())
   vulnerabilityId String
-  amount          Float
+  amount          Decimal     @db.Decimal(20, 6)
   currency        String
   txHash          String?
   status          PaymentStatus @default(PENDING)
@@ -403,7 +403,7 @@ model AuditLog {
 model FundingEvent {
   id          String    @id @default(uuid())
   protocolId  String
-  amount      Float
+  amount      Decimal   @db.Decimal(20, 6)
   txHash      String
   status      String // PENDING, CONFIRMED, FAILED
   changeType  String // DEPOSIT, PAYMENT_RELEASED, RESERVATION
@@ -422,7 +422,7 @@ model PaymentReconciliation {
   paymentId       String? // Nullable for orphaned payments
   onChainBountyId String // validationId from event
   txHash          String
-  amount          Float
+  amount          Decimal   @db.Decimal(20, 6)
   status          String // ORPHANED, MISSING_PAYMENT, UNCONFIRMED_PAYMENT, AMOUNT_MISMATCH, DISCREPANCY, RESOLVED
   discoveredAt    DateTime  @default(now())
   resolvedAt      DateTime?

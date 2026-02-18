@@ -18,16 +18,9 @@ import { correlationStorage, createLogger } from './lib/logger.js';
 import { createSocketServer } from './websocket/server.js';
 import { registerSocketHandlers } from './websocket/handlers.js';
 import { getPrismaClient } from './lib/prisma.js';
-import { startValidatorAgentLLM, stopValidatorAgentLLM } from './agents/validator/index.js';
-import { startValidationListener, stopValidationListener } from './blockchain/listeners/validation-listener.js';
-import { startBountyListener, stopBountyListener } from './blockchain/listeners/bounty-listener.js';
-import { getReconciliationService } from './services/reconciliation.service.js';
-import { startPaymentWorker, stopPaymentWorker } from './workers/payment.worker.js';
-import { startProtocolWorker, stopProtocolWorker } from './queues/protocol.queue.js';
-import { startResearcherAgent, stopResearcherAgent } from './agents/researcher/index.js';
 import { setupProcessErrorHandlers } from './lib/process-error-handler.js';
-import { bootstrapDefaultAgents } from './startup/agent-bootstrap.js';
-import type { Worker } from 'bullmq';
+import { resolveRuntimeMode, shouldStartApiServer, shouldStartBackgroundWorkers } from './startup/runtime-mode.js';
+import { startBackgroundRuntime, stopBackgroundRuntime, type BackgroundRuntime } from './startup/background-runtime.js';
 
 const log = createLogger('Server');
 
@@ -102,76 +95,25 @@ const server = http.createServer(app);
 const io = createSocketServer(server);
 registerSocketHandlers(io);
 
-// Store worker instance for graceful shutdown
-let paymentWorkerInstance: Worker | null = null;
+const runtimeMode = resolveRuntimeMode();
+let backgroundRuntime: BackgroundRuntime | null = null;
 
-server.listen(config.PORT, async () => {
-  log.info({ port: config.PORT, env: config.NODE_ENV }, 'Backend listening');
-
-  // Ensure baseline agent records exist before workers begin consuming queue jobs
-  try {
-    await bootstrapDefaultAgents();
-  } catch (error) {
-    log.error({ err: error }, 'Failed to bootstrap default agents');
+async function bootstrapRuntime(): Promise<void> {
+  if (shouldStartBackgroundWorkers(runtimeMode)) {
+    backgroundRuntime = await startBackgroundRuntime();
   }
 
-  // Start researcher agent worker as early as possible for scan availability
-  try {
-    await startResearcherAgent();
-    log.info({ queue: 'scan-jobs', concurrency: 2 }, 'Researcher agent worker started successfully');
-  } catch (error) {
-    log.error({ err: error }, 'Failed to start researcher agent worker');
+  if (shouldStartApiServer(runtimeMode)) {
+    server.listen(config.PORT, () => {
+      log.info({ port: config.PORT, env: config.NODE_ENV, runtimeMode }, 'Backend listening');
+    });
+    return;
   }
 
-  // Start Validator Agent (LLM-based for Phase 2)
-  try {
-    await startValidatorAgentLLM();
-    log.info('Validator Agent (LLM) started successfully');
-  } catch (error) {
-    log.error({ err: error }, 'Failed to start Validator Agent (LLM)');
-  }
+  log.info({ runtimeMode }, 'API server disabled for this runtime mode');
+}
 
-  // Start ValidationRecorded event listener
-  try {
-    await startValidationListener();
-    log.info('ValidationRecorded event listener started successfully');
-  } catch (error) {
-    log.error({ err: error }, 'Failed to start ValidationRecorded listener');
-  }
-
-  // Start BountyReleased event listener
-  try {
-    await startBountyListener();
-    log.info('BountyReleased event listener started successfully');
-  } catch (error) {
-    log.error({ err: error }, 'Failed to start BountyReleased listener');
-  }
-
-  // Start protocol registration worker
-  try {
-    startProtocolWorker();
-    log.info({ queue: 'protocol-registration', concurrency: 2 }, 'Protocol registration worker started successfully');
-  } catch (error) {
-    log.error({ err: error }, 'Failed to start protocol worker');
-  }
-
-  // Start payment processing worker
-  try {
-    paymentWorkerInstance = startPaymentWorker();
-    log.info('Payment processing worker started successfully');
-  } catch (error) {
-    log.error({ err: error }, 'Failed to start payment worker');
-  }
-
-  // Start reconciliation service
-  try {
-    const reconciliationService = getReconciliationService();
-    await reconciliationService.initializePeriodicReconciliation();
-    log.info({ intervalMin: 10 }, 'Reconciliation service started successfully');
-  } catch (error) {
-    log.error({ err: error }, 'Failed to start reconciliation service');
-  }
-});
+void bootstrapRuntime();
 
 const prisma = getPrismaClient();
 
@@ -183,63 +125,20 @@ async function shutdown(signal: string): Promise<void> {
     process.exit(1);
   }, 10_000);
 
-  // Stop services in order
-  try {
-    await stopValidatorAgentLLM();
-    log.info('Validator Agent (LLM) stopped');
-  } catch (error) {
-    log.error({ err: error }, 'Error stopping Validator Agent (LLM)');
-  }
+  await stopBackgroundRuntime(backgroundRuntime);
 
-  try {
-    // Stop ValidationRecorded event listener
-    await stopValidationListener();
-    log.info('ValidationRecorded event listener stopped');
-  } catch (error) {
-    log.error({ err: error }, 'Error stopping ValidationRecorded listener');
-  }
-
-  try {
-    // Stop BountyReleased event listener
-    await stopBountyListener();
-    log.info('BountyReleased event listener stopped');
-  } catch (error) {
-    log.error({ err: error }, 'Error stopping BountyReleased listener');
-  }
-
-  try {
-    // Stop protocol worker
-    await stopProtocolWorker();
-    log.info('Protocol registration worker stopped');
-  } catch (error) {
-    log.error({ err: error }, 'Error stopping protocol worker');
-  }
-
-  try {
-    // Stop researcher agent worker
-    await stopResearcherAgent();
-    log.info('Researcher agent worker stopped');
-  } catch (error) {
-    log.error({ err: error }, 'Error stopping researcher agent worker');
-  }
-
-  try {
-    // Stop payment worker
-    if (paymentWorkerInstance) {
-      await stopPaymentWorker(paymentWorkerInstance);
-      log.info('Payment processing worker stopped');
-    }
-  } catch (error) {
-    log.error({ err: error }, 'Error stopping payment worker');
-  }
-
-  try {
-    // Stop reconciliation service
-    const reconciliationService = getReconciliationService();
-    await reconciliationService.close();
-    log.info('Reconciliation service stopped');
-  } catch (error) {
-    log.error({ err: error }, 'Error stopping reconciliation service');
+  if (!shouldStartApiServer(runtimeMode)) {
+    prisma
+      .$disconnect()
+      .then(() => {
+        clearTimeout(timeout);
+        process.exit(0);
+      })
+      .catch(() => {
+        clearTimeout(timeout);
+        process.exit(1);
+      });
+    return;
   }
 
   server.close(() => {

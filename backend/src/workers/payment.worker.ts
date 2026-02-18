@@ -9,6 +9,7 @@ import { ValidationRegistryClient, ValidationOutcome } from '../blockchain/contr
 import { RESEARCHER_ADDRESS } from '../blockchain/config.js';
 import { emitPaymentReleased, emitPaymentFailed } from '../websocket/events.js';
 import { usdcConfig } from '../blockchain/config.js';
+import { toMoneyNumber, toUSDCMicro, isMoneyEqual } from '../lib/money.js';
 
 const log = createLogger('PaymentWorker');
 
@@ -184,7 +185,8 @@ async function processPayment(job: Job<PaymentJobData>): Promise<void> {
       select: { onChainProtocolId: true },
     });
 
-    log.debug({ amount: payment.amount, currency: payment.currency, severity: payment.vulnerability.severity, mappedSeverity: BountySeverity[severity] }, 'Payment details');
+    const paymentAmount = toMoneyNumber(payment.amount);
+    log.debug({ amount: paymentAmount, currency: payment.currency, severity: payment.vulnerability.severity, mappedSeverity: BountySeverity[severity] }, 'Payment details');
 
     // Step 6: Execute payment - either on-chain or demo mode
     let releaseResult: { txHash: string; blockNumber: number; amount: bigint; bountyId: string } | null = null;
@@ -202,10 +204,10 @@ async function processPayment(job: Job<PaymentJobData>): Promise<void> {
         log.debug({ poolBalance }, 'Protocol pool balance (USDC)');
 
         // Only use real payment if pool has sufficient funds (at least the payment amount)
-        if (poolBalance >= payment.amount) {
+        if (toUSDCMicro(poolBalance) >= toUSDCMicro(paymentAmount)) {
           useRealPayment = true;
         } else {
-          log.debug({ poolBalance, paymentAmount: payment.amount }, 'Pool balance < payment amount, falling back to demo mode');
+          log.debug({ poolBalance, paymentAmount }, 'Pool balance < payment amount, falling back to demo mode');
         }
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
@@ -217,7 +219,7 @@ async function processPayment(job: Job<PaymentJobData>): Promise<void> {
       // DEMO MODE: Protocol not registered on-chain or pool has insufficient funds
       const reason = !onChainProtocolId
         ? 'Protocol not registered on-chain'
-        : `Pool balance (${poolBalance} USDC) insufficient for payment (${payment.amount} USDC)`;
+        : `Pool balance (${poolBalance} USDC) insufficient for payment (${paymentAmount} USDC)`;
       log.info({ reason }, 'DEMO MODE: simulating payment...');
 
       const demoTxHash = `demo_tx_${Date.now()}_${paymentId.substring(0, 8)}`;
@@ -226,11 +228,11 @@ async function processPayment(job: Job<PaymentJobData>): Promise<void> {
       releaseResult = {
         txHash: demoTxHash,
         blockNumber: 0,
-        amount: BigInt(Math.floor(payment.amount * 10 ** usdcConfig.decimals)),
+        amount: BigInt(Math.floor(paymentAmount * 10 ** usdcConfig.decimals)),
         bountyId: demoBountyId,
       };
 
-      log.info({ demoTxHash, amount: payment.amount }, 'DEMO: Payment simulated successfully');
+      log.info({ demoTxHash, amount: paymentAmount }, 'DEMO: Payment simulated successfully');
     } else {
       // PRODUCTION MODE: Execute real on-chain payment
       log.info({ onChainProtocolId, poolBalance }, 'PRODUCTION MODE: Executing real on-chain payment');
@@ -316,8 +318,8 @@ async function processPayment(job: Job<PaymentJobData>): Promise<void> {
     });
 
     log.debug('Payment record updated to COMPLETED');
-    if (actualAmount !== payment.amount) {
-      log.info({ previousAmount: payment.amount, actualAmount }, 'Reconciled payment amount (USDC)');
+    if (!isMoneyEqual(actualAmount, paymentAmount)) {
+      log.info({ previousAmount: paymentAmount, actualAmount }, 'Reconciled payment amount (USDC)');
     }
 
     // Step 8: Emit WebSocket event on success (Task 5.5)

@@ -9,11 +9,11 @@
 
 ## 2. Stream B - Architecture and Precision Hardening (Backend/Database)
 
-- [ ] 2.1 (Backend, TDD) Add decomposition safety tests for oversized route/client modules and payment flow invariants in `backend/src/routes/__tests__/` and `backend/src/services/__tests__/` per `docs/ARCHITECTURE.md`.
-- [ ] 2.2 (Backend) Decompose large route modules (`backend/src/routes/agent-identity.routes.ts`, `backend/src/routes/payment.routes.ts`) into domain-cohesive subrouters with preserved API contracts.
-- [ ] 2.3 (Backend) Separate worker startup control from API startup path in `backend/src/server.ts` and supporting startup modules; document runtime modes in `docs/ARCHITECTURE.md`.
-- [ ] 2.4 (Database/Backend, TDD) Add failing tests for monetary precision and aggregation drift in payment/reconciliation tests before schema changes.
-- [ ] 2.5 (Database/Backend) Replace Float-based monetary persistence in `backend/prisma/schema.prisma` and affected services with precision-safe representation; include migration and regression checks.
+- [x] 2.1 (Backend, TDD) Add decomposition safety tests for oversized route/client modules and payment flow invariants in `backend/src/routes/__tests__/` and `backend/src/services/__tests__/` per `docs/ARCHITECTURE.md`.
+- [x] 2.2 (Backend) Decompose large route modules (`backend/src/routes/agent-identity.routes.ts`, `backend/src/routes/payment.routes.ts`) into domain-cohesive subrouters with preserved API contracts.
+- [x] 2.3 (Backend) Separate worker startup control from API startup path in `backend/src/server.ts` and supporting startup modules; document runtime modes in `docs/ARCHITECTURE.md`.
+- [x] 2.4 (Database/Backend, TDD) Add failing tests for monetary precision and aggregation drift in payment/reconciliation tests before schema changes.
+- [x] 2.5 (Database/Backend) Replace Float-based monetary persistence in `backend/prisma/schema.prisma` and affected services with precision-safe representation; include migration and regression checks.
 
 ## 3. Stream C - Repository Professionalization and CI/Docs Parity (Repo-wide)
 
@@ -32,5 +32,5 @@
 
 - [ ] 5.1 (Railway) For auth/session and runtime-affecting changes, run Railway CLI validation (`railway status`, `railway logs`, targeted health/API checks) and capture evidence.
 - [ ] 5.2 (Railway/API) Validate impacted request/response schemas against deployed behavior for critical endpoints (auth, scan, payment) and update `docs/API_ROUTES.md`.
-- [ ] 5.3 (OpenSpec) After each implemented stream, update this change’s spec/task checkboxes and ensure `openspec status --change repository-security-architecture-hardening` remains consistent.
+- [x] 5.3 (OpenSpec) After each implemented stream, update this change’s spec/task checkboxes and ensure `openspec status --change repository-security-architecture-hardening` remains consistent.
 - [ ] 5.4 (Release gate) Mark change ready for apply only after tests pass, Railway validations pass, and all capability deltas are satisfied with traceable evidence.
