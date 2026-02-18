@@ -33,7 +33,7 @@
 - [x] 5.1 (Railway) For auth/session and runtime-affecting changes, run Railway CLI validation (`railway status`, `railway logs`, targeted health/API checks) and capture evidence.
 - [x] 5.2 (Railway/API) Validate impacted request/response schemas against deployed behavior for critical endpoints (auth, scan, payment) and update `docs/API_ROUTES.md`.
 - [x] 5.3 (OpenSpec) After each implemented stream, update this change’s spec/task checkboxes and ensure `openspec status --change repository-security-architecture-hardening` remains consistent.
-- [ ] 5.4 (Release gate) Mark change ready for apply only after tests pass, Railway validations pass, and all capability deltas are satisfied with traceable evidence.
+- [x] 5.4 (Release gate) Mark change ready for apply only after tests pass, Railway validations pass, and all capability deltas are satisfied with traceable evidence.
 
 ## Evidence Log (February 17-18, 2026)
 
@@ -72,3 +72,18 @@
   - scan CSRF/auth gating
   - payment auth gating
   - health response shape (`status: "ok"`, service keys).
+
+### Release Gate Closure (5.4)
+- Test evidence (affected suites):
+  - `cd backend && npm run test src/routes/__tests__/route-decomposition.test.ts` -> pass (2 tests).
+  - `cd backend && npm run test src/startup/__tests__/runtime-mode.test.ts` -> pass (3 tests).
+  - `cd backend && npm run test src/services/__tests__/payment.service.test.ts` -> pass (57 tests).
+  - `cd backend && npm run test:docs-parity` -> pass.
+  - `cd backend && npm run check:docs-parity` -> pass.
+- Railway validation evidence:
+  - latest production deployment success recorded, service healthy, and targeted auth/scan/payment gate responses verified.
+- Capability delta closure:
+  - `security`: SIWE semantic validation + CSRF/SSE hardening implemented and validated.
+  - `architecture`: route decomposition + runtime mode split merged and regression-tested.
+  - `payments/reconciliation precision`: Decimal-safe handling merged and deployed validation confirmed.
+  - `development-standards` + `repo-professionalization-governance` + `pr-guidelines`: docs/CI parity and worktree/evidence governance implemented with traceable task evidence.
