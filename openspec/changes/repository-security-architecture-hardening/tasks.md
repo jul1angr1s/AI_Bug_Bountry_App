@@ -24,13 +24,51 @@
 
 ## 4. Worktree, Background Agent, and Integration Orchestration
 
-- [ ] 4.1 (Process) Create isolated worktrees for Stream A, B, and C from `main`, with explicit owners and file-scope boundaries documented in change notes.
-- [ ] 4.2 (Process) Run stream work in parallel using background agents for bounded tasks (tests/docs/parity checks), with integration owner resolving merges in a dedicated integration worktree.
-- [ ] 4.3 (Integration) Merge streams into integration worktree, run full affected suites (`backend`, `frontend`, `e2e` as applicable), and record evidence links in this task file.
+- [x] 4.1 (Process) Create isolated worktrees for Stream A, B, and C from `main`, with explicit owners and file-scope boundaries documented in change notes.
+- [x] 4.2 (Process) Run stream work in parallel using background agents for bounded tasks (tests/docs/parity checks), with integration owner resolving merges in a dedicated integration worktree.
+- [x] 4.3 (Integration) Merge streams into integration worktree, run full affected suites (`backend`, `frontend`, `e2e` as applicable), and record evidence links in this task file.
 
 ## 5. Railway Validation Gates and Final Spec Sync
 
-- [ ] 5.1 (Railway) For auth/session and runtime-affecting changes, run Railway CLI validation (`railway status`, `railway logs`, targeted health/API checks) and capture evidence.
-- [ ] 5.2 (Railway/API) Validate impacted request/response schemas against deployed behavior for critical endpoints (auth, scan, payment) and update `docs/API_ROUTES.md`.
+- [x] 5.1 (Railway) For auth/session and runtime-affecting changes, run Railway CLI validation (`railway status`, `railway logs`, targeted health/API checks) and capture evidence.
+- [x] 5.2 (Railway/API) Validate impacted request/response schemas against deployed behavior for critical endpoints (auth, scan, payment) and update `docs/API_ROUTES.md`.
 - [x] 5.3 (OpenSpec) After each implemented stream, update this change’s spec/task checkboxes and ensure `openspec status --change repository-security-architecture-hardening` remains consistent.
 - [ ] 5.4 (Release gate) Mark change ready for apply only after tests pass, Railway validations pass, and all capability deltas are satisfied with traceable evidence.
+
+## Evidence Log (February 17-18, 2026)
+
+### Stream Worktrees and Ownership (4.1)
+- Stream A owner: Codex, branch `feature/hardening-stream-a`, scope: auth/session/csrf/sse (`backend/src/routes/auth.routes.ts`, `backend/src/middleware/*`, `frontend/src/lib/*`), commit `fcc380a`.
+- Stream B owner: Codex, branch `feature/hardening-stream-b`, scope: architecture split + monetary precision (`backend/src/routes/payment*`, `backend/src/routes/agent-identity*`, `backend/prisma/schema.prisma`, payment/reconciliation services), commit `9b369d3`, follow-up precision hotfix `8bd5b26`.
+- Stream C owner: Codex, branch `feature/hardening-stream-c`, scope: docs/ci/process parity (`README.md`, `CONTRIBUTING.md`, `docs/*.md`, `.github/workflows/pr-validation.yml`, `scripts/docs-command-parity.mjs`), commit `d7f5949`.
+- Integration owner: Codex, clean integration worktree `/tmp/wt-stream-c-integration`, merged result commit `95b5aaf` pushed to `origin/main`.
+
+### Parallel/Background Execution Evidence (4.2)
+- Used parallel bounded execution for stream tasks (test checks, docs parity scans, workflow/doc inspections, Railway/API validation batches) via concurrent tool runs.
+- Integration handoff applied through dedicated clean worktree and controlled cherry-pick/push sequence (`d7f5949` -> `95b5aaf`).
+
+### Integration and Suite Evidence (4.3)
+- Integration merge: Stream C commit cherry-picked in clean worktree and pushed to `main` with no conflicts (`95b5aaf`).
+- Docs parity suite:
+  - `cd backend && npm run test:docs-parity` -> pass
+  - `cd backend && npm run check:docs-parity` -> pass
+- Stream B deployment/build evidence:
+  - Railway deployment `def6bdfb-f03a-4597-8a65-14c25e52c265` succeeded after Decimal normalization hotfix (`8bd5b26`).
+
+### Railway Validation Gate Evidence (5.1)
+- Railway CLI context:
+  - `railway status` -> project `angelic-radiance`, environment `production`, service `Backend`.
+  - `railway deployment list` -> latest success `4ef80ef2-9a63-42c6-ab52-31f589a664d3` (2026-02-17 20:56:18 -05:00).
+  - `railway logs --lines 120` -> startup preflight passed, migrations up-to-date, backend listening on port 3000.
+- Targeted live checks (`https://backend-production-e667.up.railway.app`):
+  - `GET /api/v1/health` -> `200` with `{"status":"ok","services":{"database":"ok","redis":"ok","eventListener":"ok"}}`.
+  - `GET /api/v1/payments` unauthenticated -> `401 UnauthorizedError`.
+  - `POST /api/v1/auth/siwe` invalid semantic payload -> `401 Invalid SIWE message`.
+  - `POST /api/v1/scans` without CSRF -> `403 CSRF_MISSING`.
+
+### API Schema Validation Sync (5.2)
+- Updated `docs/API_ROUTES.md` to match deployed behavior for:
+  - auth (`/auth/siwe`, `/auth/session-cookie`) failure modes and status codes
+  - scan CSRF/auth gating
+  - payment auth gating
+  - health response shape (`status: "ok"`, service keys).

@@ -91,6 +91,12 @@ POST /api/v1/auth/siwe
   - optional `expirationTime` must not be expired
 - Requests that fail SIWE semantic validation return:
   - `401 {"error":"Invalid SIWE message"}`
+- Invalid/missing request fields return:
+  - `400 {"error":"Invalid request body","details":[...]}`
+
+**Production validation snapshot (February 18, 2026)**
+- `POST /api/v1/auth/siwe` with malformed semantic payload returned `401 {"error":"Invalid SIWE message"}`.
+- `POST /api/v1/auth/session-cookie` without bearer token returned `401 {"error":"Missing bearer token"}`.
 
 ### Session Cookie
 
@@ -110,18 +116,12 @@ GET /api/v1/health
 **Response**
 ```json
 {
-  "status": "healthy",
-  "version": "1.0.0",
-  "timestamp": "2024-01-28T10:00:00Z",
+  "status": "ok",
+  "timestamp": "2026-02-18T01:59:55.521Z",
   "services": {
-    "database": "connected",
-    "redis": "connected",
-    "blockchain": "connected",
-    "agents": {
-      "protocol": "online",
-      "researcher": "online",
-      "validator": "online"
-    }
+    "database": "ok",
+    "redis": "ok",
+    "eventListener": "ok"
   }
 }
 ```
@@ -422,6 +422,10 @@ Authorization: Bearer {jwt}
 }
 ```
 
+**Security gate behavior (February 18, 2026)**
+- `POST /api/v1/scans` without CSRF token returned `403 {"error":{"code":"CSRF_MISSING","message":"CSRF token required"}}`.
+- `GET /api/v1/scans` without auth returned `401 {"error":{"code":"UnauthorizedError","message":"Authentication required. Please log in and try again."}}`.
+
 ### Get Scan Status
 
 ```http
@@ -628,6 +632,9 @@ Authorization: Bearer {jwt}
   "totalAmount": "45000.00"
 }
 ```
+
+**Auth gate behavior (February 18, 2026)**
+- `GET /api/v1/payments` without auth returned `401 {"error":{"code":"UnauthorizedError","message":"Authentication required. Please log in and try again."}}`.
 
 ### Get Payment Details
 
