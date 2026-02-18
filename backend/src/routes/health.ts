@@ -20,8 +20,18 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T
  */
 function requireAdminKey(req: import('express').Request, res: import('express').Response, next: import('express').NextFunction) {
   const adminKey = process.env.ADMIN_API_KEY;
+  const nodeEnv = process.env.NODE_ENV || 'development';
+  const isLocalDev = nodeEnv === 'development';
+
+  // Fail closed for non-development environments.
+  // Staging/production must always set ADMIN_API_KEY.
   if (!adminKey) {
-    return next(); // No key configured — allow access (dev mode)
+    if (isLocalDev) {
+      return next();
+    }
+    return res.status(503).json({
+      error: 'Admin endpoint unavailable: missing ADMIN_API_KEY configuration',
+    });
   }
   const provided = req.headers['x-admin-key'];
   if (provided !== adminKey) {
@@ -35,9 +45,11 @@ function requireAdminKey(req: import('express').Request, res: import('express').
  */
 router.get('/health', async (_req, res) => {
   const prisma = getPrismaClient();
+  const runtimeMode = process.env.APP_RUNTIME_MODE ?? 'all';
+  const shouldCheckEventListener = runtimeMode !== 'api';
   let database = 'ok';
   let redis = 'ok';
-  let eventListener = 'ok';
+  let eventListener = shouldCheckEventListener ? 'ok' : 'skipped';
   let status = 'ok';
   const checkTimeoutMs = 3000;
 
@@ -65,19 +77,21 @@ router.get('/health', async (_req, res) => {
     status = 'degraded';
   }
 
-  // Check Event Listener Service
-  try {
-    const eventListenerService = getEventListenerService();
-    const isHealthy = await withTimeout(eventListenerService.healthCheck(), checkTimeoutMs);
-    const stats = eventListenerService.getStats();
+  // Check Event Listener Service only when listeners are expected in this runtime.
+  if (shouldCheckEventListener) {
+    try {
+      const eventListenerService = getEventListenerService();
+      const isHealthy = await withTimeout(eventListenerService.healthCheck(), checkTimeoutMs);
+      const stats = eventListenerService.getStats();
 
-    if (!isHealthy || !stats.isConnected) {
-      eventListener = 'disconnected';
+      if (!isHealthy || !stats.isConnected) {
+        eventListener = 'disconnected';
+        status = 'degraded';
+      }
+    } catch (error) {
+      eventListener = 'error';
       status = 'degraded';
     }
-  } catch (error) {
-    eventListener = 'error';
-    status = 'degraded';
   }
 
   const payload = {
@@ -90,7 +104,8 @@ router.get('/health', async (_req, res) => {
     },
   };
 
-  res.status(status === 'ok' ? 200 : 503).json(payload);
+  const coreServicesHealthy = database === 'ok' && redis === 'ok';
+  res.status(coreServicesHealthy ? 200 : 503).json(payload);
 });
 
 /**
