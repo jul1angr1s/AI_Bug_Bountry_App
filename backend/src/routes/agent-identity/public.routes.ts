@@ -97,7 +97,14 @@ function generateUnregisteredSvg(tokenId: number) {
 </svg>`;
 }
 
-router.get('/metadata/:tokenId', async (req: Request, res: Response) => {
+// NFT metadata must be publicly accessible to any indexer (BaseScan, OpenSea, wallets).
+// Override restrictive security headers set by helmet/cors middleware.
+router.get('/metadata/:tokenId', (_req: Request, res: Response, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.removeHeader('Access-Control-Allow-Credentials');
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  next();
+}, async (req: Request, res: Response) => {
   try {
     const tokenId = parseInt(req.params.tokenId, 10);
     if (Number.isNaN(tokenId) || tokenId < 0) {
