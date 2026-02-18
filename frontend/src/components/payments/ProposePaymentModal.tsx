@@ -138,14 +138,14 @@ export function ProposePaymentModal({ isOpen, onClose, onSubmit }: ProposePaymen
         }
       }}
     >
-      <div className="bg-card-dark w-full max-w-lg rounded-2xl border border-accent-gold/30 shadow-2xl relative overflow-hidden flex flex-col">
+      <div className="bg-navy-800 w-full max-w-lg rounded-2xl border border-navy-700 shadow-2xl relative overflow-hidden flex flex-col">
         {/* Top gradient line */}
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-accent-gold to-transparent opacity-50"></div>
 
         {/* Close button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-slate-400 hover:text-white cursor-pointer z-10 p-2 hover:bg-white/5 rounded-full transition-colors"
+          className="absolute top-4 right-4 text-gray-400 hover:text-white cursor-pointer z-10 p-2 hover:bg-navy-700/60 rounded-full transition-colors"
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -163,7 +163,7 @@ export function ProposePaymentModal({ isOpen, onClose, onSubmit }: ProposePaymen
             </div>
             <div>
               <h3 className="text-xl font-bold text-white">Propose Manual Payment</h3>
-              <p className="text-slate-400 text-sm">Override protocol for special release</p>
+              <p className="text-gray-400 text-sm">Override protocol for special release</p>
             </div>
           </div>
 
@@ -171,11 +171,11 @@ export function ProposePaymentModal({ isOpen, onClose, onSubmit }: ProposePaymen
           <form onSubmit={handleSubmit} className="flex flex-col gap-5">
             {/* Protocol Selector */}
             <div className="flex flex-col gap-2">
-              <label className="text-xs uppercase font-semibold text-slate-400 tracking-wider">
+              <label className="text-xs uppercase font-semibold text-gray-400 tracking-wider">
                 Protocol ID
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 z-10">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 z-10">
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
                   </svg>
@@ -184,7 +184,7 @@ export function ProposePaymentModal({ isOpen, onClose, onSubmit }: ProposePaymen
                   value={formData.protocolId}
                   onChange={(e) => setFormData({ ...formData, protocolId: e.target.value })}
                   disabled={protocolsLoading}
-                  className="w-full bg-background-dark border border-slate-700 rounded-lg pl-10 pr-10 py-3 text-white focus:border-accent-gold focus:ring-1 focus:ring-accent-gold outline-none transition-all appearance-none cursor-pointer text-sm disabled:opacity-50"
+                  className="w-full bg-navy-900/60 border border-navy-700 rounded-lg pl-10 pr-10 py-3 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all appearance-none cursor-pointer text-sm disabled:opacity-50"
                 >
                   <option value="">
                     {protocolsLoading ? 'Loading protocols...' : 'Select a protocol'}
@@ -195,7 +195,7 @@ export function ProposePaymentModal({ isOpen, onClose, onSubmit }: ProposePaymen
                     </option>
                   ))}
                 </select>
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none">
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
@@ -208,11 +208,11 @@ export function ProposePaymentModal({ isOpen, onClose, onSubmit }: ProposePaymen
 
             {/* Recipient Address */}
             <div className="flex flex-col gap-2">
-              <label className="text-xs uppercase font-semibold text-slate-400 tracking-wider">
+              <label className="text-xs uppercase font-semibold text-gray-400 tracking-wider">
                 Recipient Address
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 z-10">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 z-10">
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                   </svg>
@@ -221,7 +221,7 @@ export function ProposePaymentModal({ isOpen, onClose, onSubmit }: ProposePaymen
                   value={formData.recipientAddress}
                   onChange={(e) => setFormData({ ...formData, recipientAddress: e.target.value })}
                   disabled={agentsLoading}
-                  className="w-full bg-background-dark border border-slate-700 rounded-lg pl-10 pr-10 py-3 text-white focus:border-accent-gold focus:ring-1 focus:ring-accent-gold outline-none transition-all appearance-none cursor-pointer text-sm disabled:opacity-50"
+                  className="w-full bg-navy-900/60 border border-navy-700 rounded-lg pl-10 pr-10 py-3 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all appearance-none cursor-pointer text-sm disabled:opacity-50"
                 >
                   <option value="">
                     {agentsLoading ? 'Loading agents...' : activeAgents.length === 0 ? 'No active agents found' : 'Select an agent'}
@@ -232,7 +232,7 @@ export function ProposePaymentModal({ isOpen, onClose, onSubmit }: ProposePaymen
                     </option>
                   ))}
                 </select>
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none">
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
@@ -245,11 +245,11 @@ export function ProposePaymentModal({ isOpen, onClose, onSubmit }: ProposePaymen
 
             {/* Severity */}
             <div className="flex flex-col gap-2">
-              <label className="text-xs uppercase font-semibold text-slate-400 tracking-wider">
+              <label className="text-xs uppercase font-semibold text-gray-400 tracking-wider">
                 Severity Level
               </label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 z-10">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 z-10">
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
@@ -257,14 +257,14 @@ export function ProposePaymentModal({ isOpen, onClose, onSubmit }: ProposePaymen
                 <select
                   value={formData.severity}
                   onChange={(e) => setFormData({ ...formData, severity: e.target.value as any })}
-                  className="w-full bg-background-dark border border-slate-700 rounded-lg pl-10 pr-10 py-3 text-white focus:border-accent-gold focus:ring-1 focus:ring-accent-gold outline-none transition-all appearance-none cursor-pointer text-sm"
+                  className="w-full bg-navy-900/60 border border-navy-700 rounded-lg pl-10 pr-10 py-3 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all appearance-none cursor-pointer text-sm"
                 >
                   <option value="CRITICAL">Critical ({getSeverityAmount('CRITICAL')})</option>
                   <option value="HIGH">High ({getSeverityAmount('HIGH')})</option>
                   <option value="MEDIUM">Medium ({getSeverityAmount('MEDIUM')})</option>
                   <option value="LOW">Low ({getSeverityAmount('LOW')})</option>
                 </select>
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none">
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
@@ -274,13 +274,13 @@ export function ProposePaymentModal({ isOpen, onClose, onSubmit }: ProposePaymen
 
             {/* Justification */}
             <div className="flex flex-col gap-2">
-              <label className="text-xs uppercase font-semibold text-slate-400 tracking-wider">
+              <label className="text-xs uppercase font-semibold text-gray-400 tracking-wider">
                 Justification
               </label>
               <textarea
                 value={formData.justification}
                 onChange={(e) => setFormData({ ...formData, justification: e.target.value })}
-                className="w-full bg-background-dark border border-slate-700 rounded-lg p-3 text-white focus:border-accent-gold focus:ring-1 focus:ring-accent-gold outline-none transition-all placeholder:text-slate-600 resize-none text-sm"
+                className="w-full bg-navy-900/60 border border-navy-700 rounded-lg p-3 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all placeholder:text-gray-500 resize-none text-sm"
                 placeholder="Explain why this manual override is necessary..."
                 rows={3}
               />
@@ -288,7 +288,7 @@ export function ProposePaymentModal({ isOpen, onClose, onSubmit }: ProposePaymen
                 {errors.justification && (
                   <p className="text-red-400">{errors.justification}</p>
                 )}
-                <p className="text-slate-500 ml-auto">
+                <p className="text-gray-500 ml-auto">
                   {formData.justification.length}/500
                 </p>
               </div>
@@ -299,7 +299,7 @@ export function ProposePaymentModal({ isOpen, onClose, onSubmit }: ProposePaymen
               <button
                 type="button"
                 onClick={onClose}
-                className="flex-1 py-3 px-4 rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white text-center cursor-pointer font-medium transition-colors"
+                className="flex-1 py-3 px-4 rounded-lg border border-navy-700 text-gray-300 hover:bg-navy-700 hover:text-white text-center cursor-pointer font-medium transition-colors"
               >
                 Cancel
               </button>

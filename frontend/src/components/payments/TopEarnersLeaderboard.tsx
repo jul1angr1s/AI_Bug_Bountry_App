@@ -15,13 +15,13 @@ export function TopEarnersLeaderboard({
 }: TopEarnersLeaderboardProps) {
   if (isLoading) {
     return (
-      <div className="bg-white dark:bg-card-dark rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col h-full">
-        <div className="p-6 border-b border-slate-200 dark:border-slate-800">
-          <div className="h-6 bg-slate-200 dark:bg-slate-700 rounded w-2/3 animate-pulse"></div>
+      <div className="bg-navy-800 rounded-xl border border-navy-700 flex flex-col h-full">
+        <div className="p-6 border-b border-navy-700">
+          <div className="h-6 bg-navy-700 rounded w-2/3 animate-pulse"></div>
         </div>
         <div className="flex-1 overflow-y-auto p-4 space-y-2">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-16 bg-slate-200 dark:bg-slate-700 rounded animate-pulse"></div>
+            <div key={i} className="h-16 bg-navy-700 rounded animate-pulse"></div>
           ))}
         </div>
       </div>
@@ -53,7 +53,7 @@ export function TopEarnersLeaderboard({
       );
     } else {
       return (
-        <div className="flex items-center justify-center size-8 rounded-full text-slate-500 font-bold text-sm">
+        <div className="flex items-center justify-center size-8 rounded-full text-gray-400 font-bold text-sm">
           {rank}
         </div>
       );
@@ -73,16 +73,16 @@ export function TopEarnersLeaderboard({
   };
 
   return (
-    <div className="bg-white dark:bg-card-dark rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col h-full">
-      <div className="p-6 border-b border-slate-200 dark:border-slate-800">
-        <h3 className="text-lg font-bold text-slate-900 dark:text-white">Top Earners</h3>
-        <p className="text-slate-500 text-sm">Researchers by total earnings</p>
+    <div className="bg-navy-800 rounded-xl border border-navy-700 flex flex-col h-full">
+      <div className="p-6 border-b border-navy-700">
+        <h3 className="text-lg font-bold text-white">Top Earners</h3>
+        <p className="text-gray-400 text-sm">Researchers by total earnings</p>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-2">
         {leaderboard.length === 0 ? (
           <div className="text-center py-12">
-            <p className="text-slate-500">No researchers yet</p>
+            <p className="text-gray-400">No researchers yet</p>
           </div>
         ) : (
           leaderboard.slice(0, maxVisible).map((entry, index) => {
@@ -91,11 +91,11 @@ export function TopEarnersLeaderboard({
             return (
               <div
                 key={entry.researcherAddress}
-                className={`flex items-center justify-between p-3 rounded-lg ${
+                className={`flex items-center justify-between p-3 rounded-lg border ${
                   rank === 1
-                    ? 'bg-gradient-to-r from-amber-500/10 to-transparent border border-amber-500/20'
-                    : 'hover:bg-hover-dark/50 transition-colors'
-                }`}
+                    ? 'bg-gradient-to-r from-amber-500/10 to-transparent border-amber-500/30'
+                    : 'border-transparent hover:bg-navy-900/40'
+                } transition-colors`}
               >
                 <div className="flex items-center gap-3">
                   {getRankBadge(rank)}
@@ -106,7 +106,7 @@ export function TopEarnersLeaderboard({
                     <p className="font-bold text-white font-mono text-sm">
                       {truncateAddress(entry.researcherAddress)}
                     </p>
-                    <p className={`text-xs ${rank === 1 ? 'text-amber-400' : 'text-slate-400'}`}>
+                    <p className={`text-xs ${rank === 1 ? 'text-amber-400' : 'text-gray-400'}`}>
                       {rank === 1 ? 'Elite Hunter' : 'Researcher'}
                     </p>
                   </div>
@@ -120,7 +120,7 @@ export function TopEarnersLeaderboard({
                   >
                     ${entry.totalEarnings.toFixed(2)}
                   </p>
-                  <p className="text-xs text-slate-500">{entry.paymentCount} Bounties</p>
+                  <p className="text-xs text-gray-500">{entry.paymentCount} Bounties</p>
                 </div>
               </div>
             );
@@ -129,10 +129,10 @@ export function TopEarnersLeaderboard({
       </div>
 
       {onViewAll && leaderboard.length > maxVisible && (
-        <div className="p-4 border-t border-slate-800">
+        <div className="p-4 border-t border-navy-700">
           <button
             onClick={onViewAll}
-            className="w-full py-2 text-sm text-slate-400 hover:text-white transition-colors font-medium"
+            className="w-full py-2 text-sm text-gray-400 hover:text-white transition-colors font-medium"
           >
             View Full Leaderboard
           </button>

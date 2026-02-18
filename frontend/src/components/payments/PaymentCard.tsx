@@ -18,24 +18,26 @@ export default function PaymentCard({ payment }: PaymentCardProps) {
   const getStatusIcon = () => {
     switch (payment.status) {
       case 'COMPLETED':
-        return <CheckCircle className="w-5 h-5 text-green-500" />;
+        return <CheckCircle className="w-5 h-5 text-green-400" />;
       case 'FAILED':
-        return <XCircle className="w-5 h-5 text-red-500" />;
+        return <XCircle className="w-5 h-5 text-red-400" />;
+      case 'PROCESSING':
+        return <Clock className="w-5 h-5 text-blue-400" />;
       default:
-        return <Clock className="w-5 h-5 text-yellow-500" />;
+        return <Clock className="w-5 h-5 text-yellow-400" />;
     }
   };
 
   const getStatusColor = () => {
     switch (payment.status) {
       case 'COMPLETED':
-        return 'bg-green-100 text-green-800';
+        return 'bg-green-500/15 text-green-300 border border-green-500/30';
       case 'FAILED':
-        return 'bg-red-100 text-red-800';
+        return 'bg-red-500/15 text-red-300 border border-red-500/30';
       case 'PROCESSING':
-        return 'bg-blue-100 text-blue-800';
+        return 'bg-blue-500/15 text-blue-300 border border-blue-500/30';
       default:
-        return 'bg-yellow-100 text-yellow-800';
+        return 'bg-yellow-500/15 text-yellow-300 border border-yellow-500/30';
     }
   };
 
@@ -44,33 +46,35 @@ export default function PaymentCard({ payment }: PaymentCardProps) {
     : null;
 
   return (
-    <div className="bg-white rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow border border-gray-200">
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
+    <div className="bg-navy-800 rounded-xl p-6 border border-navy-700 hover:border-primary/50 hover:shadow-glow-blue transition-all">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3 mb-2">
             {getStatusIcon()}
-            <h3 className="font-semibold text-gray-900">{payment.protocolName}</h3>
+            <h3 className="font-semibold text-white truncate">{payment.protocolName}</h3>
           </div>
 
-          <div className="space-y-2 text-sm text-gray-600">
+          <div className="space-y-2 text-sm text-gray-400">
             <div className="flex items-center gap-2">
-              <span className="font-medium">Researcher:</span>
-              <span className="font-mono text-xs">{payment.researcherAddress.slice(0, 10)}...{payment.researcherAddress.slice(-8)}</span>
+              <span className="font-medium text-gray-300">Researcher:</span>
+              <span className="font-mono text-xs text-gray-400">
+                {payment.researcherAddress.slice(0, 10)}...{payment.researcherAddress.slice(-8)}
+              </span>
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="font-medium">Amount:</span>
-              <span className="font-bold text-lg text-green-600">${payment.amount} {payment.currency}</span>
+              <span className="font-medium text-gray-300">Amount:</span>
+              <span className="font-bold text-lg text-accent-gold">${payment.amount} {payment.currency}</span>
             </div>
 
             {payment.txHash && (
               <div className="flex items-center gap-2">
-                <span className="font-medium">TX:</span>
+                <span className="font-medium text-gray-300">TX:</span>
                 <a
                   href={basescanUrl!}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-purple-600 hover:text-purple-700 font-mono text-xs"
+                  className="flex items-center gap-1 text-primary hover:text-blue-300 font-mono text-xs"
                 >
                   {payment.txHash.slice(0, 10)}...{payment.txHash.slice(-8)}
                   <ExternalLink className="w-4 h-4" />
