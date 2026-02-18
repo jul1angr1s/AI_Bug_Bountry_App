@@ -7,8 +7,8 @@ import { createLogger } from '../../../lib/logger.js';
 
 const log = createLogger('AIDeepAnalysis');
 
-const AI_CALL_TIMEOUT_MS = Number(process.env.AI_ANALYSIS_CALL_TIMEOUT_MS || '30000');
-const AI_CALL_RETRIES = Math.max(0, Number(process.env.AI_ANALYSIS_CALL_RETRIES || '0'));
+const AI_CALL_TIMEOUT_MS = Number(process.env.AI_ANALYSIS_CALL_TIMEOUT_MS || '120000');
+const AI_CALL_RETRIES = Math.max(0, Number(process.env.AI_ANALYSIS_CALL_RETRIES || '1'));
 
 /**
  * Parameters for AI deep analysis step

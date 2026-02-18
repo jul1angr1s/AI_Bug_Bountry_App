@@ -311,7 +311,8 @@ Respond with ONLY valid JSON, no markdown or extra text.`;
         [{ role: 'user', content: 'Hello, respond with OK' }],
         0, // Temperature
         100, // Max tokens (small for health check)
-        false // Disable thinking for simple health check
+        false, // Disable thinking for simple health check
+        { requestTimeoutMs: 15000, maxRetries: 0 } // Fail fast for health checks
       );
       return response.content.toLowerCase().includes('ok');
     } catch (error) {
@@ -319,6 +320,25 @@ Respond with ONLY valid JSON, no markdown or extra text.`;
       return false;
     }
   }
+}
+
+/**
+ * Check if an error indicates the LLM API is unavailable (timeout, network, abort)
+ * vs a logical error (bad response, auth, etc.)
+ */
+export function isLLMUnavailableError(error: unknown): boolean {
+  const msg = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+  return (
+    msg.includes('aborted') ||
+    msg.includes('aborterror') ||
+    msg.includes('timeout') ||
+    msg.includes('fetch failed') ||
+    msg.includes('headers timeout') ||
+    msg.includes('econnrefused') ||
+    msg.includes('enotfound') ||
+    msg.includes('network') ||
+    msg.includes('exhausted retries')
+  );
 }
 
 // Singleton instance

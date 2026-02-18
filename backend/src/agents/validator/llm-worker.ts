@@ -1,6 +1,6 @@
 import { Worker, Job } from 'bullmq';
 import { getPrismaClient } from '../../lib/prisma.js';
-import { getKimiClient } from '../../lib/llm.js';
+import { getKimiClient, isLLMUnavailableError } from '../../lib/llm.js';
 import { getValidationService } from '../../services/validation.service.js';
 import { emitValidationProgress, emitValidationLog } from '../../websocket/events.js';
 import { decryptProof } from './steps/decrypt.js';
@@ -490,18 +490,24 @@ async function processValidationLLM(submission: ProofSubmissionMessage): Promise
     log.error({ err: error, errorMessage }, 'Validation failed');
 
     const isOnChainRequiredError = errorMessage.includes('VALIDATION_ONCHAIN_REQUIRED');
+    const isLLMDown = isLLMUnavailableError(error);
 
     // Update proof/finding status
     try {
+      // Keep proof in VALIDATING state when LLM is unavailable or on-chain failed
+      // so BullMQ retries can succeed later without permanent false rejection
+      const shouldKeepValidating = isOnChainRequiredError || isLLMDown;
+
       await prisma.proof.update({
         where: { id: submission.proofId },
         data: {
-          status: isOnChainRequiredError ? 'VALIDATING' : 'REJECTED',
+          status: shouldKeepValidating ? 'VALIDATING' : 'REJECTED',
         },
       });
 
-      // Update finding to REJECTED only for non-registry failures
-      if (!isOnChainRequiredError) {
+      // Only reject findings for actual validation logic failures,
+      // NOT for LLM unavailability (timeout/abort/network errors)
+      if (!shouldKeepValidating) {
         const decryptResult = await decryptProof(submission);
         if (decryptResult.success && decryptResult.proof) {
           await prisma.finding.update({
@@ -518,8 +524,12 @@ async function processValidationLLM(submission: ProofSubmissionMessage): Promise
       log.error({ err: dbError }, 'Failed to update database');
     }
 
-    await emitValidationProgress(submission.proofId, submission.protocolId, 'COMPLETE', 'FAILED', 'LLM', 0, `Validation failed: ${errorMessage}`);
-    await emitValidationLog(submission.proofId, submission.protocolId, 'ALERT', `[ALERT] Validation failed: ${errorMessage}`);
+    const statusMsg = isLLMDown
+      ? `LLM unavailable, will retry: ${errorMessage}`
+      : `Validation failed: ${errorMessage}`;
+
+    await emitValidationProgress(submission.proofId, submission.protocolId, 'COMPLETE', 'FAILED', 'LLM', 0, statusMsg);
+    await emitValidationLog(submission.proofId, submission.protocolId, isLLMDown ? 'WARN' : 'ALERT', `[${isLLMDown ? 'WARN' : 'ALERT'}] ${statusMsg}`);
 
     // Re-throw so BullMQ can retry if attempts remain
     throw error;
