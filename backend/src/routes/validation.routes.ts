@@ -56,14 +56,10 @@ router.get('/', async (req, res) => {
             },
           },
         },
-        // Keep unvalidated findings (validatedAt = null) at the bottom so
-        // freshly validated/rejected results are immediately visible.
-        orderBy: {
-          validatedAt: {
-            sort: 'desc',
-            nulls: 'last',
-          },
-        },
+        // Show newest findings first so pending vulnerabilities are immediately
+        // visible. Previously used validatedAt DESC NULLS LAST which hid
+        // unvalidated findings at the bottom.
+        orderBy: { createdAt: 'desc' },
         skip,
         take: limitNum,
       }),
