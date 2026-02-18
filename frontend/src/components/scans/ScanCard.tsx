@@ -1,5 +1,7 @@
 import { useNavigate } from 'react-router-dom';
-import { Zap, CheckCircle, XCircle, AlertCircle, Clock, Search } from 'lucide-react';
+import { GlowCard } from '../shared/GlowCard';
+import { MaterialIcon } from '../shared/MaterialIcon';
+import { PulseIndicator } from '../shared/PulseIndicator';
 import type { Scan } from '../../lib/api';
 
 interface ScanCardProps {
@@ -13,37 +15,50 @@ export default function ScanCard({ scan }: ScanCardProps) {
     navigate(`/scans/${scan.id}`);
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusMeta = (status: string) => {
     switch (status) {
       case 'QUEUED':
-        return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
+        return {
+          color: 'bg-yellow-500/15 text-yellow-300 border-yellow-500/30',
+          pulse: 'idle' as const,
+          icon: 'schedule',
+          label: 'Queued',
+        };
       case 'RUNNING':
-        return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+        return {
+          color: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30',
+          pulse: 'active' as const,
+          icon: 'motion_photos_on',
+          label: 'Running',
+        };
       case 'SUCCEEDED':
-        return 'bg-green-500/20 text-green-400 border-green-500/30';
+        return {
+          color: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+          pulse: 'active' as const,
+          icon: 'task_alt',
+          label: 'Succeeded',
+        };
       case 'FAILED':
-        return 'bg-red-500/20 text-red-400 border-red-500/30';
+        return {
+          color: 'bg-red-500/15 text-red-300 border-red-500/30',
+          pulse: 'error' as const,
+          icon: 'error',
+          label: 'Failed',
+        };
       case 'CANCELED':
-        return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+        return {
+          color: 'bg-gray-500/15 text-gray-300 border-gray-500/30',
+          pulse: 'idle' as const,
+          icon: 'block',
+          label: 'Canceled',
+        };
       default:
-        return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'QUEUED':
-        return <Clock className="w-4 h-4" />;
-      case 'RUNNING':
-        return <Zap className="w-4 h-4 animate-pulse" />;
-      case 'SUCCEEDED':
-        return <CheckCircle className="w-4 h-4" />;
-      case 'FAILED':
-        return <XCircle className="w-4 h-4" />;
-      case 'CANCELED':
-        return <AlertCircle className="w-4 h-4" />;
-      default:
-        return <Search className="w-4 h-4" />;
+        return {
+          color: 'bg-gray-500/15 text-gray-300 border-gray-500/30',
+          pulse: 'idle' as const,
+          icon: 'search',
+          label: status,
+        };
     }
   };
 
@@ -68,105 +83,97 @@ export default function ScanCard({ scan }: ScanCardProps) {
   };
 
   const getProgressPercentage = () => {
-    // Placeholder logic for progress - can be enhanced with more detailed step tracking
-    if (scan.state === 'QUEUED') return 10;
-    if (scan.state === 'RUNNING') return 50;
+    if (scan.state === 'QUEUED') return 12;
+    if (scan.state === 'RUNNING') return 55;
     if (scan.state === 'SUCCEEDED') return 100;
-    if (scan.state === 'FAILED') return 0;
-    if (scan.state === 'CANCELED') return 0;
     return 0;
   };
 
   const protocolName = scan.protocol?.contractName || 'Unknown Protocol';
+  const status = getStatusMeta(scan.state);
 
   return (
-    <div
+    <GlowCard
+      glowColor="cyan"
+      className="relative overflow-hidden cursor-pointer group hover:border-cyan-400/40"
       onClick={handleClick}
-      className="bg-[#1a1f2e] border border-gray-800 rounded-lg p-6 hover:border-blue-500/50 transition-all cursor-pointer group"
     >
-      {/* Header */}
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex-1">
-          <h3 className="text-lg font-semibold text-white group-hover:text-blue-400 transition-colors mb-1">
-            {protocolName}
-          </h3>
-          <div className="flex items-center gap-2 text-sm text-gray-400">
-            <Search className="w-4 h-4" />
-            <span className="truncate max-w-[300px]">
-              Scan ID: {scan.id.slice(0, 8)}...
-            </span>
-          </div>
-        </div>
-        <div className={`px-3 py-1 rounded-full text-xs font-medium border flex items-center gap-2 ${getStatusColor(scan.state)}`}>
-          {getStatusIcon(scan.state)}
-          {scan.state}
-        </div>
-      </div>
+      <MaterialIcon
+        name="radar"
+        className="absolute -right-5 -bottom-6 text-[120px] text-cyan-500/10 group-hover:text-cyan-400/20 transition-colors duration-300"
+      />
 
-      {/* Progress Bar (if running) */}
-      {scan.state === 'RUNNING' && (
-        <div className="mb-4">
-          <div className="flex items-center justify-between text-sm mb-2">
-            <span className="text-gray-400">Progress</span>
-            {scan.currentStep && (
-              <span className="text-blue-400 font-medium">{scan.currentStep}</span>
-            )}
+      <div className="relative z-10">
+        <div className="flex items-start justify-between mb-4 gap-3">
+          <div className="min-w-0">
+            <h3 className="text-lg font-heading font-semibold text-white group-hover:text-cyan-300 transition-colors truncate">
+              {protocolName}
+            </h3>
+            <div className="mt-1 inline-flex items-center gap-2 px-2 py-1 rounded-md border border-navy-700/70 bg-navy-900/50">
+              <MaterialIcon name="fingerprint" className="text-base text-gray-400" />
+              <span className="text-xs text-gray-400">{scan.id.slice(0, 10)}...</span>
+            </div>
           </div>
-          <div className="w-full bg-gray-800 rounded-full h-2 overflow-hidden">
-            <div
-              className="h-full bg-blue-500 transition-all duration-500 animate-pulse"
-              style={{ width: '50%' }}
-            />
+          <div className={`flex shrink-0 items-center gap-2 px-2.5 py-1 rounded text-xs font-medium border ${status.color}`}>
+            <PulseIndicator status={status.pulse} size="sm" />
+            <MaterialIcon name={status.icon} className="text-base" />
+            <span>{status.label}</span>
           </div>
         </div>
-      )}
 
-      {/* Current Step (if available) */}
-      {scan.currentStep && scan.state !== 'RUNNING' && (
-        <div className="mb-4">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-400">Last Step:</span>
-            <span className="text-sm text-gray-300">{scan.currentStep}</span>
+        {(scan.state === 'RUNNING' || scan.state === 'QUEUED') && (
+          <div className="mb-4">
+            <div className="flex items-center justify-between text-xs text-gray-400 mb-2">
+              <span>{scan.currentStep || 'Analyzing contracts'}</span>
+              <span className="text-cyan-300">{getProgressPercentage()}%</span>
+            </div>
+            <div className="h-2 bg-navy-900 rounded-full overflow-hidden border border-navy-700/60">
+              <div
+                className="h-full bg-gradient-to-r from-cyan-500 to-primary transition-all duration-500"
+                style={{ width: `${getProgressPercentage()}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {scan.currentStep && scan.state !== 'RUNNING' && scan.state !== 'QUEUED' && (
+          <div className="mb-4 rounded-lg border border-navy-700/60 bg-navy-900/45 px-3 py-2">
+            <div className="text-[11px] uppercase tracking-wide text-gray-500">Last Step</div>
+            <p className="text-sm text-gray-300 truncate mt-0.5">{scan.currentStep}</p>
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          <div className="rounded-lg border border-navy-700/60 bg-navy-900/45 px-3 py-2.5">
+            <div className="flex items-center gap-1.5 text-xs text-gray-500 mb-1">
+              <MaterialIcon name="crisis_alert" className="text-sm" />
+              <span>Findings</span>
+            </div>
+            <p className="text-xl font-semibold text-white">{scan.findingsCount}</p>
+          </div>
+          <div className="rounded-lg border border-navy-700/60 bg-navy-900/45 px-3 py-2.5">
+            <div className="flex items-center gap-1.5 text-xs text-gray-500 mb-1">
+              <MaterialIcon name="history" className="text-sm" />
+              <span>Started</span>
+            </div>
+            <p className="text-sm font-medium text-white">{formatDate(scan.startedAt)}</p>
           </div>
         </div>
-      )}
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 gap-4 mb-4">
-        <div className="text-center">
-          <div className="flex items-center justify-center gap-1 text-gray-400 mb-1">
-            <AlertCircle className="w-4 h-4" />
+        {scan.state === 'FAILED' && scan.errorMessage && (
+          <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2">
+            <p className="text-xs text-red-300 line-clamp-2">{scan.errorMessage}</p>
           </div>
-          <div className="text-xl font-bold text-white">{scan.findingsCount}</div>
-          <div className="text-xs text-gray-500">Findings</div>
-        </div>
-        <div className="text-center">
-          <div className="flex items-center justify-center gap-1 text-gray-400 mb-1">
-            <Clock className="w-4 h-4" />
-          </div>
-          <div className="text-sm font-medium text-white">{formatDate(scan.startedAt)}</div>
-          <div className="text-xs text-gray-500">Started</div>
-        </div>
-      </div>
+        )}
 
-      {/* Error Message (if failed) */}
-      {scan.state === 'FAILED' && scan.errorMessage && (
-        <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded">
-          <p className="text-xs text-red-400 line-clamp-2">{scan.errorMessage}</p>
-        </div>
-      )}
-
-      {/* Footer */}
-      <div className="pt-4 border-t border-gray-800">
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-gray-500">
-            {scan.retryCount > 0 && `Retries: ${scan.retryCount}`}
+        <div className="pt-3 border-t border-navy-700/60 flex items-center justify-between">
+          <span className="text-xs text-gray-500">{scan.retryCount > 0 ? `Retries: ${scan.retryCount}` : 'Stable run'}</span>
+          <span className="inline-flex items-center gap-1 text-sm font-medium text-cyan-300 group-hover:text-cyan-200">
+            View Details
+            <MaterialIcon name="arrow_forward" className="text-base" />
           </span>
-          <button className="text-sm text-blue-400 hover:text-blue-300 transition-colors font-medium group-hover:underline">
-            View Details →
-          </button>
         </div>
       </div>
-    </div>
+    </GlowCard>
   );
 }

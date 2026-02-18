@@ -4,12 +4,14 @@ interface GlowCardProps {
   children: React.ReactNode;
   glowColor?: 'cyan' | 'purple' | 'blue' | 'green';
   className?: string;
+  onClick?: React.MouseEventHandler<HTMLDivElement>;
 }
 
 export const GlowCard: React.FC<GlowCardProps> = ({
   children,
   glowColor = 'blue',
-  className = ''
+  className = '',
+  onClick,
 }) => {
   const glowClasses = {
     cyan: 'hover:shadow-glow-cyan',
@@ -20,6 +22,7 @@ export const GlowCard: React.FC<GlowCardProps> = ({
 
   return (
     <div
+      onClick={onClick}
       className={`
         bg-navy-800 border border-navy-700 rounded-lg p-6
         transition-all duration-300

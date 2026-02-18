@@ -166,13 +166,14 @@ export default function ModernProtocolCard({ protocol, onDelete }: ModernProtoco
   return (
     <GlowCard
       glowColor="purple"
-      className="relative cursor-pointer group hover:border-primary/50 transition-all duration-300"
+      className="relative overflow-hidden cursor-pointer group hover:border-primary/50 transition-all duration-300"
       onClick={handleClick}
     >
       {/* Background Icon */}
-      <div className="absolute top-4 right-4 opacity-5 group-hover:opacity-10 transition-opacity">
-        <MaterialIcon name="shield" className="text-8xl" />
-      </div>
+      <MaterialIcon
+        name="shield"
+        className="absolute -right-5 -bottom-6 text-[120px] text-purple-500/10 group-hover:text-purple-400/20 transition-colors duration-300"
+      />
 
       {/* Header with Avatar and Status Badge */}
       <div className="relative z-10 flex items-start justify-between mb-4">
@@ -205,9 +206,7 @@ export default function ModernProtocolCard({ protocol, onDelete }: ModernProtoco
 
         <div className="flex items-center gap-2">
           {/* Status Badge with Pulse */}
-          <div
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border ${statusConfig.color}`}
-          >
+          <div className={`flex items-center gap-2 px-2.5 py-1 rounded text-xs font-medium border ${statusConfig.color}`}>
             <PulseIndicator status={statusConfig.pulseStatus} size="sm" />
             <span>{statusConfig.label}</span>
           </div>
@@ -243,9 +242,9 @@ export default function ModernProtocolCard({ protocol, onDelete }: ModernProtoco
       </div>
 
       {/* Stats Grid */}
-      <div className="relative z-10 grid grid-cols-2 gap-4 mb-4">
+      <div className="relative z-10 grid grid-cols-2 gap-3 mb-4">
         {/* Security Score */}
-        <div className="bg-navy-900/50 rounded-lg p-3 border border-navy-700/50">
+        <div className="rounded-lg border border-navy-700/60 bg-navy-900/45 p-3">
           <div className="flex items-center gap-2 mb-2">
             <MaterialIcon name="security" className="text-lg text-gray-400" />
             <span className="text-xs text-gray-400">Security Score</span>
@@ -260,7 +259,7 @@ export default function ModernProtocolCard({ protocol, onDelete }: ModernProtoco
         </div>
 
         {/* Bounty Pool */}
-        <div className="bg-navy-900/50 rounded-lg p-3 border border-navy-700/50">
+        <div className="rounded-lg border border-navy-700/60 bg-navy-900/45 p-3">
           <div className="flex items-center gap-2 mb-2">
             <MaterialIcon name="emoji_events" className="text-lg text-gray-400" />
             <span className="text-xs text-gray-400">Bounty Pool</span>
@@ -278,7 +277,7 @@ export default function ModernProtocolCard({ protocol, onDelete }: ModernProtoco
             <span>Security Assessment</span>
             <span className={getSecurityScoreColor(securityScore)}>{securityScore}%</span>
           </div>
-          <div className="w-full bg-navy-900 rounded-full h-2 overflow-hidden border border-navy-700/50">
+          <div className="w-full bg-navy-900 rounded-full h-2 overflow-hidden border border-navy-700/60">
             <div
               className={`h-full transition-all duration-500 ${getProgressGradient(securityScore)}`}
               style={{ width: `${securityScore}%` }}
@@ -311,7 +310,7 @@ export default function ModernProtocolCard({ protocol, onDelete }: ModernProtoco
                   e.stopPropagation();
                   setShowProgressModal(true);
                 }}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-500/20 border border-blue-500/30 rounded-lg text-sm font-medium text-blue-400 hover:bg-blue-500/30 transition-all"
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-cyan-500/20 border border-cyan-500/30 rounded-lg text-sm font-medium text-cyan-300 hover:bg-cyan-500/25 transition-all"
               >
                 <MaterialIcon name="terminal" className="text-lg animate-pulse" />
                 <span>View Progress</span>
