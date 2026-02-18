@@ -1167,6 +1167,26 @@ export async function registerAgent(
   return result.data;
 }
 
+export async function syncAgentRegistration(
+  txHash: string,
+  walletAddress: string,
+  agentType: AgentIdentityType,
+): Promise<AgentIdentity> {
+  const headers = await getMutationHeaders();
+  const response = await fetch(`${API_BASE_URL}/api/v1/agent-identities/sync-registration`, {
+    method: 'POST',
+    headers,
+    credentials: 'include',
+    body: JSON.stringify({ txHash, walletAddress, agentType }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Sync failed: ${response.statusText}`);
+  }
+  const result = await response.json();
+  return result.data;
+}
+
 export async function fetchAgentReputation(agentId: string): Promise<AgentReputation> {
   const headers = await getAuthHeaders();
   const response = await fetch(`${API_BASE_URL}/api/v1/agent-identities/${agentId}/reputation`, { headers, credentials: 'include' });

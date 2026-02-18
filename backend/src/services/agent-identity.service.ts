@@ -171,6 +171,43 @@ export class AgentIdentityService {
     return agentIdentity;
   }
 
+  /**
+   * Sync an agent registration that was done on-chain by the user's wallet (selfRegister).
+   * Verifies the on-chain state, then creates or updates the DB record.
+   */
+  async syncFromOnChain(
+    walletAddress: string,
+    agentType: AgentIdentityType,
+    txHash: string
+  ) {
+    const wallet = walletAddress.toLowerCase();
+    const client = getRegistryClient();
+
+    const isOnChain = await client.isRegistered(walletAddress);
+    if (!isOnChain) {
+      return null; // Not registered on-chain (RPC lag or invalid)
+    }
+
+    const tokenId = await client.getAgentIdByWallet(walletAddress);
+
+    let agent = await prisma.agentIdentity.findUnique({ where: { walletAddress: wallet } });
+    if (!agent) {
+      agent = await this.createFullAgentRecord(wallet, agentType);
+    }
+
+    const updated = await prisma.agentIdentity.update({
+      where: { walletAddress: wallet },
+      data: {
+        agentNftId: BigInt(tokenId),
+        onChainTxHash: txHash,
+      },
+      include: { reputation: true, escrowBalance: true },
+    });
+
+    log.info({ wallet, tokenId, txHash }, 'Synced user-minted agent from on-chain');
+    return updated;
+  }
+
   async getAgentByWallet(walletAddress: string) {
     return prisma.agentIdentity.findUnique({
       where: { walletAddress: walletAddress.toLowerCase() },

@@ -6,6 +6,7 @@ import {
   normalizeWallet,
   prisma,
   RegisterAgentSchema,
+  SyncRegistrationSchema,
   serializeBigInts,
 } from './shared.js';
 
@@ -245,6 +246,45 @@ router.post('/register', async (req: Request, res: Response) => {
     res.status(400).json({
       success: false,
       error: error instanceof Error ? error.message : 'Registration failed',
+    });
+  }
+});
+
+router.post('/sync-registration', async (req: Request, res: Response) => {
+  try {
+    const { txHash, walletAddress, agentType } = SyncRegistrationSchema.parse(req.body);
+    const normalizedWallet = normalizeWallet(walletAddress);
+
+    // Idempotent: if already synced, return 200
+    const existing = await prisma.agentIdentity.findUnique({
+      where: { walletAddress: normalizedWallet },
+      include: { reputation: true, escrowBalance: true },
+    });
+    if (existing?.agentNftId) {
+      return res.status(200).json({
+        success: true,
+        data: serializeBigInts(existing),
+      });
+    }
+
+    const synced = await agentIdentityService.syncFromOnChain(walletAddress, agentType, txHash);
+    if (!synced) {
+      return res.status(404).json({
+        success: false,
+        error: 'Agent not found on-chain. The transaction may still be confirming.',
+        code: 'NOT_REGISTERED_ONCHAIN',
+      });
+    }
+
+    res.status(201).json({
+      success: true,
+      data: serializeBigInts(synced),
+    });
+  } catch (error) {
+    log.error({ err: error }, 'Sync registration error');
+    res.status(400).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Sync failed',
     });
   }
 });

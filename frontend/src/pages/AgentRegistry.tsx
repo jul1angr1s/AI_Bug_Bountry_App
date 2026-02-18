@@ -5,19 +5,16 @@ import { useAgentLeaderboard } from '../hooks/useReputation';
 import { AgentRegistryTable } from '../components/agents/AgentRegistryTable';
 import { RegisterAgentModal } from '../components/agents/RegisterAgentModal';
 import ReputationLeaderboard from '../components/agents/ReputationLeaderboard';
-import { registerAgent } from '../lib/api';
 import ContractBadge from '../components/shared/ContractBadge';
 import { getContractByName } from '../lib/contracts';
-import type { AgentIdentityType } from '../types/dashboard';
 
 export default function AgentRegistry() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { data: agents, isLoading, refetch } = useAgentIdentities();
   const { data: leaderboard, isLoading: leaderboardLoading } = useAgentLeaderboard();
 
-  const handleRegister = async (data: { walletAddress: string; agentType: AgentIdentityType; registerOnChain?: boolean }) => {
-    await registerAgent(data.walletAddress, data.agentType, data.registerOnChain);
-    await refetch();
+  const handleRegistrationComplete = () => {
+    refetch();
     setIsModalOpen(false);
   };
 
@@ -95,7 +92,7 @@ export default function AgentRegistry() {
       <RegisterAgentModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onSubmit={handleRegister}
+        onRegistrationComplete={handleRegistrationComplete}
       />
     </div>
   );

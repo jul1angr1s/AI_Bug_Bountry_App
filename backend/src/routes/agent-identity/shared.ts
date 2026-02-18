@@ -33,6 +33,12 @@ export const RegisterAgentSchema = z.object({
   registerOnChain: z.boolean().optional().default(false),
 });
 
+export const SyncRegistrationSchema = z.object({
+  txHash: z.string().regex(/^0x[a-fA-F0-9]{64}$/),
+  walletAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
+  agentType: z.enum(['RESEARCHER', 'VALIDATOR']),
+});
+
 export const DepositEscrowSchema = z.object({
   amount: z.string().regex(/^\d+$/),
   txHash: z.string().optional(),
