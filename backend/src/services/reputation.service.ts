@@ -145,6 +145,17 @@ export class ReputationService {
     findingId: string,
     feedbackType: FeedbackType
   ) {
+    // Always update DB first so reputation scores stay current even if
+    // the on-chain transaction fails (e.g. Alchemy free-tier rate limits).
+    const { feedback, reputation } = await this.recordFeedback(
+      researcherWallet,
+      validatorWallet,
+      validationId,
+      findingId,
+      feedbackType
+    );
+
+    // Attempt on-chain recording (non-blocking for DB reputation)
     const researcher = await prisma.agentIdentity.findUnique({
       where: { walletAddress: researcherWallet.toLowerCase() },
     });
@@ -154,39 +165,35 @@ export class ReputationService {
     });
 
     if (!researcher?.agentNftId || !validator?.agentNftId) {
-      throw new Error('Agents must be registered on-chain first');
+      log.warn('Agents not registered on-chain, skipping on-chain reputation recording');
+      return { feedback, reputation, txHash: null };
     }
 
     const client = getReputationClient();
 
-    // Corrected call: 4 params matching Solidity signature
-    // recordFeedback(researcherAgentId, validatorAgentId, validationId, feedbackType)
-    const result = await client.recordFeedback(
-      researcher.agentNftId.toString(),
-      validator.agentNftId.toString(),
-      validationId,
-      FEEDBACK_TYPE_MAP[feedbackType]
-    );
+    try {
+      const result = await client.recordFeedback(
+        researcher.agentNftId.toString(),
+        validator.agentNftId.toString(),
+        validationId,
+        FEEDBACK_TYPE_MAP[feedbackType]
+      );
 
-    // Record in database as well
-    const { feedback, reputation } = await this.recordFeedback(
-      researcherWallet,
-      validatorWallet,
-      validationId,
-      findingId,
-      feedbackType
-    );
+      // Update feedback record with on-chain IDs
+      await prisma.agentFeedback.update({
+        where: { id: feedback.id },
+        data: {
+          onChainFeedbackId: result.feedbackId,
+          txHash: result.txHash,
+        },
+      });
 
-    // Update with on-chain feedback ID and txHash
-    await prisma.agentFeedback.update({
-      where: { id: feedback.id },
-      data: {
-        onChainFeedbackId: result.feedbackId,
-        txHash: result.txHash,
-      },
-    });
-
-    return { feedback, reputation, txHash: result.txHash };
+      return { feedback, reputation, txHash: result.txHash };
+    } catch (onChainError) {
+      const errMsg = onChainError instanceof Error ? onChainError.message : String(onChainError);
+      log.warn({ err: errMsg }, 'On-chain reputation recording failed, DB updated successfully');
+      return { feedback, reputation, txHash: null };
+    }
   }
 
   calculateScore(confirmed: number, total: number): number {
@@ -288,6 +295,16 @@ export class ReputationService {
     findingId: string,
     feedbackType: FeedbackType
   ) {
+    // Always update DB first so reputation scores stay current even if
+    // the on-chain transaction fails (e.g. Alchemy free-tier rate limits).
+    const { feedback, reputation } = await this.recordValidatorFeedback(
+      researcherWallet,
+      validatorWallet,
+      validationId,
+      findingId,
+      feedbackType
+    );
+
     const researcher = await prisma.agentIdentity.findUnique({
       where: { walletAddress: researcherWallet.toLowerCase() },
     });
@@ -297,35 +314,34 @@ export class ReputationService {
     });
 
     if (!researcher?.agentNftId || !validator?.agentNftId) {
-      throw new Error('Agents must be registered on-chain first');
+      log.warn('Agents not registered on-chain, skipping on-chain validator reputation recording');
+      return { feedback, reputation, txHash: null };
     }
 
     const client = getReputationClient();
 
-    const result = await client.recordValidatorFeedback(
-      validator.agentNftId.toString(),
-      researcher.agentNftId.toString(),
-      validationId,
-      FEEDBACK_TYPE_MAP[feedbackType]
-    );
+    try {
+      const result = await client.recordValidatorFeedback(
+        validator.agentNftId.toString(),
+        researcher.agentNftId.toString(),
+        validationId,
+        FEEDBACK_TYPE_MAP[feedbackType]
+      );
 
-    const { feedback, reputation } = await this.recordValidatorFeedback(
-      researcherWallet,
-      validatorWallet,
-      validationId,
-      findingId,
-      feedbackType
-    );
+      await prisma.agentFeedback.update({
+        where: { id: feedback.id },
+        data: {
+          onChainFeedbackId: result.feedbackId,
+          txHash: result.txHash,
+        },
+      });
 
-    await prisma.agentFeedback.update({
-      where: { id: feedback.id },
-      data: {
-        onChainFeedbackId: result.feedbackId,
-        txHash: result.txHash,
-      },
-    });
-
-    return { feedback, reputation, txHash: result.txHash };
+      return { feedback, reputation, txHash: result.txHash };
+    } catch (onChainError) {
+      const errMsg = onChainError instanceof Error ? onChainError.message : String(onChainError);
+      log.warn({ err: errMsg }, 'On-chain validator reputation recording failed, DB updated successfully');
+      return { feedback, reputation, txHash: null };
+    }
   }
 
   async getValidatorReputation(agentIdentityId: string) {
