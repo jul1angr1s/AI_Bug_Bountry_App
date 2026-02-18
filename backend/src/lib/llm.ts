@@ -66,8 +66,8 @@ export class KimiLLMClient {
     enableThinking: boolean = true,
     options?: LLMRequestOptions
   ): Promise<LLMResponse> {
-    const requestTimeoutMs = options?.requestTimeoutMs ?? Number(process.env.KIMI_REQUEST_TIMEOUT_MS || '300000');
-    const maxRetries = options?.maxRetries ?? Math.max(0, Number(process.env.KIMI_MAX_RETRIES || '1'));
+    const requestTimeoutMs = options?.requestTimeoutMs ?? Number(process.env.KIMI_REQUEST_TIMEOUT_MS || '120000');
+    const maxRetries = options?.maxRetries ?? Math.max(0, Number(process.env.KIMI_MAX_RETRIES || '2'));
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       const controller = new AbortController();
