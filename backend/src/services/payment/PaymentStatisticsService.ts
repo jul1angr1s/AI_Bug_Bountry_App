@@ -12,6 +12,7 @@ import type {
   ResearcherEarningsResult,
   LeaderboardResult,
 } from './types.js';
+import { fromUSDCMicro, sumMoney, toMoneyNumber, toUSDCMicro } from '../../lib/money.js';
 
 /**
  * Payment statistics, researcher earnings, and leaderboard operations.
@@ -55,9 +56,10 @@ export class PaymentStatisticsService {
     // Calculate basic statistics
     const totalPayments = payments.length;
     const completedPayments = payments.filter((p) => p.status === 'COMPLETED');
-    const totalAmountPaid = completedPayments.reduce((sum, p) => sum + p.amount, 0);
-    const averagePaymentAmount =
-      completedPayments.length > 0 ? totalAmountPaid / completedPayments.length : 0;
+    const totalAmountPaid = sumMoney(completedPayments.map((p) => p.amount));
+    const averagePaymentAmount = completedPayments.length > 0
+      ? fromUSDCMicro(toUSDCMicro(totalAmountPaid) / BigInt(completedPayments.length))
+      : 0;
 
     // Count by status
     const paymentsByStatus = {
@@ -94,7 +96,7 @@ export class PaymentStatisticsService {
           const current = timeSeriesMap.get(dateKey);
           if (current) {
             current.count++;
-            current.amount += payment.amount;
+            current.amount = sumMoney([current.amount, payment.amount]);
           }
         }
       });
@@ -152,7 +154,7 @@ export class PaymentStatisticsService {
         orderBy: { paidAt: 'desc' },
       });
 
-      const totalEarnings = payments.reduce((sum, p) => sum + p.amount, 0);
+      const totalEarnings = sumMoney(payments.map((p) => p.amount));
 
       const paymentsBySeverity = {
         CRITICAL: 0,
@@ -178,7 +180,7 @@ export class PaymentStatisticsService {
           paymentsBySeverity,
           payments: payments.map((p) => ({
             id: p.id,
-            amount: p.amount,
+            amount: toMoneyNumber(p.amount),
             currency: p.currency,
             txHash: p.txHash,
             paidAt: p.paidAt?.toISOString() || null,
@@ -239,10 +241,12 @@ export class PaymentStatisticsService {
 
       const leaderboard = leaderboardData.map((entry) => ({
         researcherAddress: entry.researcherAddress,
-        totalEarnings: entry._sum.amount || 0,
+        totalEarnings: toMoneyNumber(entry._sum.amount || 0),
         paymentCount: entry._count.id,
         averagePaymentAmount:
-          entry._count.id > 0 ? (entry._sum.amount || 0) / entry._count.id : 0,
+          entry._count.id > 0
+            ? fromUSDCMicro(toUSDCMicro(toMoneyNumber(entry._sum.amount || 0)) / BigInt(entry._count.id))
+            : 0,
       }));
 
       return {

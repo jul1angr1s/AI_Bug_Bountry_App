@@ -8,6 +8,7 @@
 
 import { PrismaClient } from '@prisma/client';
 import { createLogger } from '../lib/logger.js';
+import { toMoneyNumber, toUSDCMicro } from '../lib/money.js';
 
 const log = createLogger('PaymentMode');
 
@@ -62,8 +63,8 @@ export async function getPaymentMode(
     }
 
     // Check pool balance
-    const poolBalance = protocol.totalBountyPool || 0;
-    if (poolBalance === 0) {
+    const poolBalance = toMoneyNumber(protocol.totalBountyPool || 0);
+    if (toUSDCMicro(poolBalance) === 0n) {
       return {
         mode: PaymentMode.DEMO,
         reason: 'Pool balance is 0 - demo mode fallback',

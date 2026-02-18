@@ -307,8 +307,9 @@ export async function processPayment(paymentId: string): Promise<PaymentWithDeta
       protocol.onChainProtocolId
     );
 
-    if (protocolBalance < payment.amount) {
-      throw new InsufficientFundsError(payment.amount, protocolBalance);
+    const paymentAmount = toMoneyNumber(payment.amount);
+    if (toUSDCMicro(protocolBalance) < toUSDCMicro(paymentAmount)) {
+      throw new InsufficientFundsError(paymentAmount, protocolBalance);
     }
 
     // Execute payment on blockchain

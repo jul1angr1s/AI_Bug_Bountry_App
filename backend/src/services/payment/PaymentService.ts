@@ -21,6 +21,7 @@ import {
   ValidationNotFoundError,
   InsufficientFundsError,
 } from './types.js';
+import { fromUSDCMicro, sumMoney, toMoneyNumber, toUSDCMicro } from '../../lib/money.js';
 
 /**
  * Map Prisma Severity enum to BountySeverity enum
@@ -215,8 +216,9 @@ export class PaymentService {
         protocol.onChainProtocolId,
       );
 
-      if (protocolBalance < payment.amount) {
-        throw new InsufficientFundsError(payment.amount, protocolBalance);
+      const paymentAmount = toMoneyNumber(payment.amount);
+      if (toUSDCMicro(protocolBalance) < toUSDCMicro(paymentAmount)) {
+        throw new InsufficientFundsError(paymentAmount, protocolBalance);
       }
 
       // Execute payment on blockchain
@@ -430,9 +432,9 @@ export class PaymentService {
     });
 
     // Calculate total earnings (only COMPLETED payments)
-    const totalEarnings = payments
-      .filter((p) => p.status === 'COMPLETED')
-      .reduce((sum, p) => sum + p.amount, 0);
+    const totalEarnings = sumMoney(
+      payments.filter((p) => p.status === 'COMPLETED').map((p) => p.amount)
+    );
 
     // Count payments by severity
     const paymentCountBySeverity = {
@@ -545,7 +547,7 @@ export class PaymentService {
         payments: payments.map((p) => ({
           id: p.id,
           vulnerabilityId: p.vulnerabilityId,
-          amount: p.amount,
+          amount: toMoneyNumber(p.amount),
           currency: p.currency,
           status: p.status,
           txHash: p.txHash,
@@ -602,7 +604,7 @@ export class PaymentService {
    * Helper to format payment with validation details.
    */
   private async formatPaymentWithDetails(
-    payment: { id: string; vulnerabilityId: string; amount: number; currency: string; status: PaymentStatus; txHash: string | null; onChainBountyId: string | null; researcherAddress: string; paidAt: Date | null; reconciled: boolean; reconciledAt: Date | null; failureReason: string | null; retryCount: number; queuedAt: Date | null; vulnerability: { id: string; vulnerabilityHash: string; severity: Severity; status: string; discoveredAt: Date; protocolId: string } },
+    payment: { id: string; vulnerabilityId: string; amount: number | Prisma.Decimal; currency: string; status: PaymentStatus; txHash: string | null; onChainBountyId: string | null; researcherAddress: string; paidAt: Date | null; reconciled: boolean; reconciledAt: Date | null; failureReason: string | null; retryCount: number; queuedAt: Date | null; vulnerability: { id: string; vulnerabilityHash: string; severity: Severity; status: string; discoveredAt: Date; protocolId: string } },
     validationId: string | null,
   ): Promise<PaymentWithDetails> {
     let validation: PaymentWithDetails['validation'] | undefined;
@@ -634,7 +636,7 @@ export class PaymentService {
     return {
       id: payment.id,
       vulnerabilityId: payment.vulnerabilityId,
-      amount: payment.amount,
+      amount: toMoneyNumber(payment.amount),
       currency: payment.currency,
       status: payment.status,
       txHash: payment.txHash,

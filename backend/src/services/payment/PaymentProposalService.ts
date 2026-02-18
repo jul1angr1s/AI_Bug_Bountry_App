@@ -4,6 +4,7 @@ import type { ILogger } from '../../di/interfaces/ILogger.js';
 import type { IBountyPoolClient } from '../../di/interfaces/IBlockchainClient.js';
 import type { PrismaClient } from '@prisma/client';
 import type { PoolStatusResult } from './types.js';
+import { fromUSDCMicro, toMoneyNumber, toUSDCMicro } from '../../lib/money.js';
 
 /**
  * Pool status inspection and manual payment proposal operations.
@@ -73,9 +74,11 @@ export class PaymentProposalService {
         _count: { id: true },
       });
 
-      const pendingPaymentsTotal = pendingPayments._sum.amount || 0;
+      const pendingPaymentsTotal = toMoneyNumber(pendingPayments._sum.amount || 0);
       const pendingPaymentsCount = pendingPayments._count.id;
-      const remainingBalance = protocol.availableBounty - pendingPaymentsTotal;
+      const remainingBalance = fromUSDCMicro(
+        toUSDCMicro(protocol.availableBounty) - toUSDCMicro(pendingPaymentsTotal)
+      );
 
       const [fundingEvents, recentPayments] = await Promise.all([
         this.prisma.fundingEvent.findMany({
@@ -96,13 +99,13 @@ export class PaymentProposalService {
       const recentTransactions = [
         ...fundingEvents.map((fe) => ({
           type: 'DEPOSIT',
-          amount: fe.amount,
+          amount: toMoneyNumber(fe.amount),
           txHash: fe.txHash,
           timestamp: fe.createdAt.toISOString(),
         })),
         ...recentPayments.map((p) => ({
           type: 'PAYMENT',
-          amount: p.amount,
+          amount: toMoneyNumber(p.amount),
           txHash: p.txHash || '',
           timestamp: p.paidAt?.toISOString() || '',
         })),
@@ -116,8 +119,8 @@ export class PaymentProposalService {
           protocolId,
           availableBalance,
           availableBalanceFormatted,
-          totalDeposited: protocol.totalBountyPool,
-          totalPaid: protocol.paidBounty,
+          totalDeposited: toMoneyNumber(protocol.totalBountyPool),
+          totalPaid: toMoneyNumber(protocol.paidBounty),
           remainingBalance,
           pendingPaymentsCount,
           pendingPaymentsTotal,
@@ -192,8 +195,8 @@ export class PaymentProposalService {
       const amount = severityMap[data.severity];
 
       // Check if protocol has sufficient balance
-      const availableBounty = protocol.availableBounty || protocol.totalBountyPool;
-      if (availableBounty < amount) {
+      const availableBounty = toMoneyNumber(protocol.availableBounty || protocol.totalBountyPool);
+      if (toUSDCMicro(availableBounty) < toUSDCMicro(amount)) {
         return {
           success: false,
           error: {

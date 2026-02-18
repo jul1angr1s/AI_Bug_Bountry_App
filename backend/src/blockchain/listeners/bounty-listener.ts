@@ -5,6 +5,7 @@ import { contractAddresses } from '../config.js';
 import BountyPoolABI from '../abis/BountyPool.json' with { type: 'json' };
 import type { PaymentStatus } from '@prisma/client';
 import { createLogger } from '../../lib/logger.js';
+import { toMoneyNumber, toUSDCMicro, fromUSDCMicro } from '../../lib/money.js';
 
 const log = createLogger('BountyListener');
 const prisma = getPrismaClient();
@@ -148,17 +149,20 @@ async function handleBountyReleasedEvent(event: EventLog): Promise<void> {
     }
 
     // Verify amount matches
-    const amountDifference = Math.abs(payment.amount - amountInUsdc);
+    const paymentAmount = toMoneyNumber(payment.amount);
+    const amountDifference = Math.abs(
+      fromUSDCMicro(toUSDCMicro(paymentAmount) - toUSDCMicro(amountInUsdc))
+    );
     const amountThreshold = 0.01; // Allow 1 cent tolerance for floating point precision
 
     if (amountDifference > amountThreshold) {
       // AMOUNT MISMATCH DETECTED
       hasDiscrepancy = true;
-      const amountNote = `Amount mismatch: Payment.amount=${payment.amount} USDC, Event.amount=${amountInUsdc} USDC (difference: ${amountDifference})`;
+      const amountNote = `Amount mismatch: Payment.amount=${paymentAmount} USDC, Event.amount=${amountInUsdc} USDC (difference: ${amountDifference})`;
       discrepancyNotes = discrepancyNotes ? `${discrepancyNotes}; ${amountNote}` : amountNote;
 
       log.error({
-        paymentAmount: payment.amount,
+        paymentAmount,
         eventAmount: amountInUsdc,
         difference: amountDifference,
         validationId,
@@ -167,7 +171,7 @@ async function handleBountyReleasedEvent(event: EventLog): Promise<void> {
       // Log error-level alert per OpenSpec requirement
       log.error({
         validationId,
-        expected: payment.amount,
+        expected: paymentAmount,
         actual: amountInUsdc,
       }, 'ALERT: Payment amount mismatch');
     }

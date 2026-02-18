@@ -8,6 +8,7 @@ import {
   emitProtocolScanRequested,
 } from '../websocket/events.js';
 import { createLogger } from '../lib/logger.js';
+import { toMoneyNumber, toUSDCMicro } from '../lib/money.js';
 
 const log = createLogger('FundingService');
 
@@ -72,7 +73,7 @@ export async function verifyProtocolFunding(
       success: false,
       fundingState: FUNDING_STATES.AWAITING_FUNDING,
       onChainBalance: 0,
-      requestedAmount: protocol.bountyPoolAmount || 0,
+      requestedAmount: toMoneyNumber(protocol.bountyPoolAmount || 0),
       message: 'Protocol not registered on-chain yet',
       canRequestScan: false,
     };
@@ -89,25 +90,25 @@ export async function verifyProtocolFunding(
       success: false,
       fundingState: protocol.fundingState as FundingState || FUNDING_STATES.AWAITING_FUNDING,
       onChainBalance: 0,
-      requestedAmount: protocol.bountyPoolAmount || 0,
+      requestedAmount: toMoneyNumber(protocol.bountyPoolAmount || 0),
       message: 'Failed to verify on-chain balance',
       canRequestScan: false,
     };
   }
 
-  const requestedAmount = protocol.bountyPoolAmount || protocol.minimumBountyRequired;
-  const minimumRequired = protocol.minimumBountyRequired;
+  const requestedAmount = toMoneyNumber(protocol.bountyPoolAmount || protocol.minimumBountyRequired);
+  const minimumRequired = toMoneyNumber(protocol.minimumBountyRequired);
 
   // Determine funding state based on on-chain balance
   let fundingState: FundingState;
   let message: string;
   let canRequestScan: boolean;
 
-  if (onChainBalance >= requestedAmount) {
+  if (toUSDCMicro(onChainBalance) >= toUSDCMicro(requestedAmount)) {
     fundingState = FUNDING_STATES.FUNDED;
     message = `Protocol funded with ${onChainBalance} USDC (requested: ${requestedAmount} USDC)`;
     canRequestScan = true;
-  } else if (onChainBalance >= minimumRequired && onChainBalance > 0) {
+  } else if (toUSDCMicro(onChainBalance) >= toUSDCMicro(minimumRequired) && onChainBalance > 0) {
     // Has some funding but less than requested - still allow scanning
     fundingState = FUNDING_STATES.FUNDED;
     message = `Protocol partially funded with ${onChainBalance} USDC (requested: ${requestedAmount} USDC)`;
@@ -128,8 +129,8 @@ export async function verifyProtocolFunding(
     data: {
       fundingState,
       fundingVerifiedAt: new Date(),
-      totalBountyPool: onChainBalance,
-      availableBounty: onChainBalance,
+      totalBountyPool: requestedAmount > 0 ? onChainBalance : 0,
+      availableBounty: requestedAmount > 0 ? onChainBalance : 0,
     },
   });
 
@@ -346,7 +347,7 @@ export async function recordFundingTransaction(
   await prisma.fundingEvent.create({
     data: {
       protocolId,
-      amount: 0, // Will be updated when verified
+      amount: 0,
       txHash,
       status: 'PENDING',
       changeType: 'DEPOSIT',
@@ -397,7 +398,7 @@ export async function getProtocolFundingStatus(
   }
 
   // Try to get current on-chain balance
-  let onChainBalance = protocol.totalBountyPool;
+  let onChainBalance = toMoneyNumber(protocol.totalBountyPool);
   if (protocol.onChainProtocolId) {
     try {
       const bountyPoolClient = new BountyPoolClient();
@@ -410,12 +411,12 @@ export async function getProtocolFundingStatus(
   const canRequestScan =
     protocol.fundingState === FUNDING_STATES.FUNDED &&
     protocol.status === 'ACTIVE' &&
-    onChainBalance >= protocol.minimumBountyRequired;
+    toUSDCMicro(onChainBalance) >= toUSDCMicro(protocol.minimumBountyRequired);
 
   return {
     fundingState: protocol.fundingState as FundingState | null,
-    bountyPoolAmount: protocol.bountyPoolAmount,
-    minimumBountyRequired: protocol.minimumBountyRequired,
+    bountyPoolAmount: protocol.bountyPoolAmount ? toMoneyNumber(protocol.bountyPoolAmount) : null,
+    minimumBountyRequired: toMoneyNumber(protocol.minimumBountyRequired),
     fundingTxHash: protocol.fundingTxHash,
     fundingVerifiedAt: protocol.fundingVerifiedAt,
     onChainBalance,

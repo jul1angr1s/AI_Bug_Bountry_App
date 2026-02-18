@@ -3,6 +3,7 @@ import { getPrismaClient } from '../lib/prisma.js';
 import { getCache, setCache, CACHE_KEYS, CACHE_TTL } from '../lib/cache.js';
 import type { AgentType, ProtocolStatus, Severity, VulnerabilityStatus } from '@prisma/client';
 import { createLogger } from '../lib/logger.js';
+import { toMoneyNumber, sumMoney, toUSDCMicro, fromUSDCMicro } from '../lib/money.js';
 
 const log = createLogger('DashboardService');
 
@@ -111,8 +112,8 @@ export async function getDashboardStats(protocolId?: string, userId?: string): P
     let scanCount = 0;
 
     for (const protocol of protocols) {
-      totalBountyPool += protocol.totalBountyPool || 0;
-      availableBounty += protocol.availableBounty || 0;
+      totalBountyPool = sumMoney([totalBountyPool, toMoneyNumber(protocol.totalBountyPool || 0)]);
+      availableBounty = sumMoney([availableBounty, toMoneyNumber(protocol.availableBounty || 0)]);
 
       // Count findings from scans instead of vulnerabilities table
       for (const scan of protocol.scans) {
@@ -154,9 +155,11 @@ export async function getDashboardStats(protocolId?: string, userId?: string): P
       orderBy: { paidAt: 'desc' },
     });
 
-    const totalPayments = payments.reduce((sum, p) => sum + p.amount, 0);
+    const totalPayments = sumMoney(payments.map((p) => p.amount));
     paidBounty = totalPayments;
-    availableBounty = totalBountyPool - paidBounty;
+    availableBounty = fromUSDCMicro(
+      toUSDCMicro(totalBountyPool) - toUSDCMicro(paidBounty)
+    );
 
     const stats: DashboardStats = {
       bountyPool: {

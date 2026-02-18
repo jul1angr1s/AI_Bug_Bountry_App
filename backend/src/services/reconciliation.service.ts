@@ -6,6 +6,7 @@ import BountyPoolClient from '../blockchain/contracts/BountyPoolClient.js';
 import { contractAddresses, provider, usdcConfig } from '../blockchain/config.js';
 import BountyPoolABI from '../blockchain/abis/BountyPool.json' with { type: 'json' };
 import { createLogger } from '../lib/logger.js';
+import { toMoneyNumber, toUSDCMicro, fromUSDCMicro } from '../lib/money.js';
 
 const log = createLogger('Reconciliation');
 
@@ -45,7 +46,7 @@ interface BountyReleasedEvent {
 interface PaymentRecord {
   id: string;
   vulnerabilityId: string;
-  amount: number; // USDC (float)
+  amount: number; // normalized USDC number
   currency: string;
   txHash: string | null;
   status: string;
@@ -170,7 +171,11 @@ export class ReconciliationService {
       log.debug({ paymentCount: payments.length }, 'Found completed payments in last 24 hours');
 
       // Step 3: Compare events vs database records
-      await this.compareEventsAndPayments(events, payments);
+      const normalizedPayments: PaymentRecord[] = payments.map((payment) => ({
+        ...payment,
+        amount: toMoneyNumber(payment.amount),
+      }));
+      await this.compareEventsAndPayments(events, normalizedPayments);
 
       const duration = Date.now() - startTime;
       log.info({ durationMs: duration }, 'Reconciliation completed');
@@ -377,7 +382,9 @@ export class ReconciliationService {
       // Auto-resolve: Payment missing txHash but event matches
       if (!payment.txHash) {
         const addressMatch = payment.researcherAddress.toLowerCase() === event.researcher.toLowerCase();
-        const amountMatch = Math.abs(payment.amount - amountUsdc) < 0.01; // Allow 0.01 USDC tolerance
+        const amountMatch = Math.abs(
+          fromUSDCMicro(toUSDCMicro(payment.amount) - toUSDCMicro(amountUsdc))
+        ) < 0.01;
 
         if (addressMatch && amountMatch) {
           // Update Payment with txHash and mark reconciled
@@ -396,7 +403,7 @@ export class ReconciliationService {
       }
 
       // Check for amount mismatch
-      if (Math.abs(payment.amount - amountUsdc) >= 0.01) {
+      if (Math.abs(fromUSDCMicro(toUSDCMicro(payment.amount) - toUSDCMicro(amountUsdc))) >= 0.01) {
         // Create AMOUNT_MISMATCH discrepancy
         const existing = await prisma.paymentReconciliation.findFirst({
           where: {
@@ -607,7 +614,10 @@ export class ReconciliationService {
         },
       });
 
-      return discrepancies;
+      return discrepancies.map((d) => ({
+        ...d,
+        amount: toMoneyNumber(d.amount),
+      }));
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       log.error({ err: msg }, 'Failed to get discrepancies');
