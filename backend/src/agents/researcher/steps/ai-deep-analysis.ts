@@ -7,6 +7,9 @@ import { createLogger } from '../../../lib/logger.js';
 
 const log = createLogger('AIDeepAnalysis');
 
+const AI_CALL_TIMEOUT_MS = Number(process.env.AI_ANALYSIS_CALL_TIMEOUT_MS || '30000');
+const AI_CALL_RETRIES = Math.max(0, Number(process.env.AI_ANALYSIS_CALL_RETRIES || '0'));
+
 /**
  * Parameters for AI deep analysis step
  *
@@ -309,7 +312,11 @@ Respond with ONLY the JSON object.`;
       ],
       0.3, // Low temperature for consistency
       2000, // Moderate token limit
-      false // Disable thinking mode for structured output
+      false, // Disable thinking mode for structured output
+      {
+        requestTimeoutMs: AI_CALL_TIMEOUT_MS,
+        maxRetries: AI_CALL_RETRIES,
+      }
     );
 
     // Parse JSON response - extract from code blocks or plain text
@@ -411,7 +418,11 @@ Respond with ONLY the JSON array.`;
       ],
       0.35, // Slightly higher temperature for discovery
       3000, // Keep response bounded to reduce API timeout risk
-      false // Disable thinking mode for structured output
+      false, // Disable thinking mode for structured output
+      {
+        requestTimeoutMs: AI_CALL_TIMEOUT_MS,
+        maxRetries: AI_CALL_RETRIES,
+      }
     );
 
     // Extract JSON array from response

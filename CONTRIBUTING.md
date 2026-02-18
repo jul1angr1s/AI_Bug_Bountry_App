@@ -112,6 +112,7 @@ Submodule dependencies:
 - Include a description of what changed and why
 - Ensure all tests pass
 - Update documentation if behavior changes
+- Follow `docs/PR_GUIDELINES.md` for worktree isolation and evidence requirements
 
 ### Required PR checks (main branch)
 

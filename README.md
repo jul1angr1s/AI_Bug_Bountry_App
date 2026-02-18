@@ -299,7 +299,7 @@ See [Testing Guide](docs/TESTING.md) for full documentation.
 
 - [**OpenSpec Archive**](openspec/changes/archive/) -- 16+ completed changes documented
 - [**Project Specs**](openspec/specs/) -- Agent, API, database, workflow specifications
-- [**PR Guidelines**](openspec/specs/pr-guidelines.md) -- 1,500-line PR size enforcement
+- [**PR Guidelines**](docs/PR_GUIDELINES.md) -- Worktree isolation, evidence, and required checks
 
 ---
 
@@ -309,7 +309,7 @@ See [Testing Guide](docs/TESTING.md) for full documentation.
 2. **Clone** your fork: `git clone https://github.com/YOUR_USERNAME/AI_Bug_Bountry_App.git`
 3. **Setup** the local environment (see [Quick Start](#quick-start))
 4. **Create a branch**: `git checkout -b feature/your-feature`
-5. **Submit a PR** following our [PR guidelines](openspec/specs/pr-guidelines.md)
+5. **Submit a PR** following our [PR guidelines](docs/PR_GUIDELINES.md)
 
 **Standards:** TypeScript strict mode, test coverage > 80%, PR size limit 1,500 lines, security review required for contract changes.
 

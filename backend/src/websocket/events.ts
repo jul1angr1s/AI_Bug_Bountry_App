@@ -1,6 +1,7 @@
 import type { Server } from 'socket.io';
 import { invalidateCache, invalidateCachePattern, CACHE_KEYS } from '../lib/cache.js';
 import { createLogger } from '../lib/logger.js';
+import { getPrismaClient } from '../lib/prisma.js';
 
 const log = createLogger('WebSocketEvents');
 
@@ -400,8 +401,6 @@ export async function emitScanProgress(
   progress?: number,
   message?: string
 ): Promise<void> {
-  if (!ioInstance) return;
-
   const event: ScanProgressEvent = {
     eventType: 'scan:progress',
     timestamp: new Date().toISOString(),
@@ -415,10 +414,26 @@ export async function emitScanProgress(
     },
   };
 
-  // Emit to protocol room and scans room
-  ioInstance.to(`protocol:${protocolId}`).emit('scan:progress', event);
-  ioInstance.to('scans').emit('scan:progress', event);
-  
+  // Persist latest progress so polling clients don't appear "stuck" on stale step labels.
+  try {
+    const prisma = getPrismaClient();
+    await prisma.scan.update({
+      where: { id: scanId },
+      data: {
+        currentStep: currentStep as any,
+        state: state as any,
+      },
+    });
+  } catch (error) {
+    log.warn({ err: error, scanId, currentStep, state }, 'Failed to persist scan progress snapshot');
+  }
+
+  // Emit to protocol room and scans room when Socket.IO is available.
+  if (ioInstance) {
+    ioInstance.to(`protocol:${protocolId}`).emit('scan:progress', event);
+    ioInstance.to('scans').emit('scan:progress', event);
+  }
+
   // Also publish to Redis for SSE subscribers
   const { getRedisClient } = await import('../lib/redis.js');
   const redis = await getRedisClient();

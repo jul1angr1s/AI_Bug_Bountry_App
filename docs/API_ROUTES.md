@@ -12,6 +12,26 @@ Content-Type: application/json
 Authentication: Bearer JWT or Wallet Signature
 ```
 
+### Authentication and Session Transport
+
+- `POST /api/v1/auth/siwe`
+  - Verifies signature ownership and SIWE semantics server-side (allowed domain, chain ID, nonce freshness, issued-at window, optional expiration).
+  - Returns short-lived access token + refresh token payload for authenticated session bootstrap.
+- `POST /api/v1/auth/session-cookie`
+  - Accepts `Authorization: Bearer <token>` and sets backend-domain `auth_token` HttpOnly cookie for SSE/EventSource transport.
+  - Returns `401 {"error":"Missing bearer token"}` when Authorization header is absent.
+- `DELETE /api/v1/auth/session-cookie`
+  - Clears backend-domain `auth_token` cookie.
+  - Returns `204 No Content` on success.
+- `GET /api/v1/auth/session-cookie`
+  - Not implemented (returns `404` in deployed production).
+
+### CSRF Rules
+
+- `GET /api/v1/csrf-token` issues/returns CSRF token for browser clients.
+- All mutation routes (`POST`, `PUT`, `PATCH`, `DELETE`) under protected API scopes require matching CSRF cookie + `x-csrf-token` header.
+- Missing or mismatched CSRF proof fails closed with HTTP `403`.
+
 ---
 
 ## Route Map
@@ -130,6 +150,7 @@ GET /api/v1/health
 
 ```http
 GET /api/v1/stats
+Authorization: Bearer {jwt}
 ```
 
 **Response**
@@ -203,6 +224,7 @@ GET /api/v1/leaderboard?limit=10&period=all
 
 ```http
 GET /api/v1/protocols
+Authorization: Bearer {jwt}
 ```
 
 **Query Parameters**
@@ -295,6 +317,7 @@ Authorization: Bearer {jwt}
 
 ```http
 GET /api/v1/protocols/:id
+Authorization: Bearer {jwt}
 ```
 
 **Response**
@@ -430,6 +453,7 @@ Authorization: Bearer {jwt}
 
 ```http
 GET /api/v1/scans/:id
+Authorization: Bearer {jwt}
 ```
 
 **Response**
@@ -454,6 +478,7 @@ GET /api/v1/scans/:id
 ```http
 GET /api/v1/scans/:id/progress
 Accept: text/event-stream
+Cookie: auth_token={session_jwt}
 ```
 
 **Response** (Server-Sent Events)
@@ -640,6 +665,7 @@ Authorization: Bearer {jwt}
 
 ```http
 GET /api/v1/payments/:id
+Authorization: Bearer {jwt}
 ```
 
 **Response**
@@ -823,6 +849,37 @@ socket.on('payment_released', (data: {
   // Handle payment notification
 });
 ```
+
+---
+
+## Railway Production Validation Snapshot (2026-02-18)
+
+Validated against `https://backend-production-e667.up.railway.app`:
+
+- `GET /api/v1/health` -> `200`
+  ```json
+  {"status":"ok","timestamp":"2026-02-18T03:29:50.292Z","services":{"database":"ok","redis":"ok","eventListener":"ok"}}
+  ```
+- `GET /api/v1/protocols` (no auth) -> `401`
+  ```json
+  {"error":{"code":"UnauthorizedError","message":"Authentication required. Please log in and try again.","requestId":"..."}}
+  ```
+- `GET /api/v1/scans` (no auth) -> `401`
+  ```json
+  {"error":{"code":"UnauthorizedError","message":"Authentication required. Please log in and try again.","requestId":"..."}}
+  ```
+- `GET /api/v1/payments` (no auth) -> `401`
+  ```json
+  {"error":{"code":"UnauthorizedError","message":"Authentication required. Please log in and try again.","requestId":"..."}}
+  ```
+- `POST /api/v1/auth/session-cookie` (no bearer token) -> `401`
+  ```json
+  {"error":"Missing bearer token"}
+  ```
+- `GET /api/v1/auth/session-cookie` -> `404`
+  ```json
+  {"error":{"code":"NotFoundError","message":"The requested resource was not found.","requestId":"..."}}
+  ```
 
 ---
 

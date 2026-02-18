@@ -173,6 +173,7 @@ import {
 } from '../payment.service.js';
 
 import { ValidationError } from '../../errors/CustomError.js';
+import { Prisma } from '@prisma/client';
 
 // =============================================================================
 // Test data factories
@@ -1311,6 +1312,38 @@ describe('PaymentService', () => {
 
       expect(result.success).toBe(false);
       expect(result.error!.code).toBe('LEADERBOARD_ERROR');
+    });
+  });
+
+  describe('precision invariants', () => {
+    it('converts Decimal aggregates to numbers in payment stats', async () => {
+      mockPrisma.payment.findMany.mockResolvedValue([
+        { amount: new Prisma.Decimal('1.25'), status: 'COMPLETED', paidAt: new Date('2024-01-01T00:00:00Z') },
+        { amount: new Prisma.Decimal('2.75'), status: 'COMPLETED', paidAt: new Date('2024-01-02T00:00:00Z') },
+      ]);
+
+      const result = await getPaymentStats({ groupBy: 'day', days: 3 });
+
+      expect(result.totalAmountPaid).toBe(4);
+      expect(result.averagePaymentAmount).toBe(2);
+      expect(typeof result.totalAmountPaid).toBe('number');
+    });
+
+    it('converts Decimal groupBy sums to numeric leaderboard values', async () => {
+      mockPrisma.payment.groupBy.mockResolvedValue([
+        {
+          researcherAddress: '0xabc',
+          _sum: { amount: new Prisma.Decimal('9.5') },
+          _count: { id: 2 },
+        },
+      ]);
+
+      const result = await getEarningsLeaderboard({});
+
+      expect(result.success).toBe(true);
+      expect(result.leaderboard?.[0]?.totalEarnings).toBe(9.5);
+      expect(result.leaderboard?.[0]?.averagePaymentAmount).toBe(4.75);
+      expect(typeof result.leaderboard?.[0]?.totalEarnings).toBe('number');
     });
   });
 

@@ -88,25 +88,27 @@ The `backend/railway.json` file is pre-configured:
 {
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
-    "builder": "NIXPACKS",
-    "buildCommand": "npm install && npx prisma generate && npm run build"
+    "builder": "DOCKERFILE",
+    "dockerfilePath": "Dockerfile"
   },
   "deploy": {
-    "startCommand": "npx prisma migrate deploy && node dist/server.js",
+    "startCommand": "sh -c \"npx prisma migrate deploy && node --max-old-space-size=512 dist/start.js\"",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 3
   },
   "healthcheck": {
     "path": "/api/v1/health",
-    "timeout": 100,
+    "timeout": 300,
     "interval": 30
   },
-  "regions": ["us-west1"]
+  "regions": [
+    "us-west1"
+  ]
 }
 ```
 
 This configuration:
-- Builds with Nixpacks (Node 20)
+- Builds using `backend/Dockerfile`
 - Runs Prisma migrations on startup
 - Health checks at `/api/v1/health`
 - Auto-restarts on failure (max 3 retries)

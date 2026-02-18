@@ -10,6 +10,7 @@ if (process.env.NODE_ENV !== 'production') {
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'staging', 'production', 'test']).default('development'),
+  APP_RUNTIME_MODE: z.enum(['all', 'api', 'worker']).default('all'),
   PORT: z.coerce.number().default(3000),
   DATABASE_URL: z.string().url(),
   SUPABASE_URL: z.string().url(),

@@ -54,6 +54,13 @@ class NoResearcherCapacityTimeoutError extends Error {
   }
 }
 
+class StepTimeoutError extends Error {
+  constructor(step: ScanStep, timeoutMs: number) {
+    super(`${step} timed out after ${timeoutMs}ms`);
+    this.name = 'STEP_TIMEOUT';
+  }
+}
+
 // Step timeouts (in milliseconds)
 const STEP_TIMEOUTS: Record<ScanStep, number> = {
   [ScanStep.CLONE]: 5 * 60 * 1000,           // 5 minutes
@@ -273,6 +280,24 @@ async function sleep(ms: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+async function runWithStepTimeout<T>(step: ScanStep, task: () => Promise<T>): Promise<T> {
+  const timeoutMs = STEP_TIMEOUTS[step];
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  try {
+    return await Promise.race([
+      task(),
+      new Promise<T>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new StepTimeoutError(step, timeoutMs)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
+
 // Execute the full scan pipeline
 async function executeScanPipeline(
   scanId: string,
@@ -480,12 +505,16 @@ async function executeScanPipeline(
         throw new Error('No cloned path available from previous step');
       }
 
-      const aiAnalysisResult = await executeAIDeepAnalysisStep({
-        clonedPath,
-        contractPath: protocol.contractPath,
-        contractName: protocol.contractName,
-        slitherFindings,
-      });
+      const aiAnalysisResult = await runWithStepTimeout(
+        ScanStep.AI_DEEP_ANALYSIS,
+        () =>
+          executeAIDeepAnalysisStep({
+            clonedPath,
+            contractPath: protocol.contractPath,
+            contractName: protocol.contractName,
+            slitherFindings,
+          })
+      );
 
       // Use AI-enhanced findings if successful
       if (aiAnalysisResult.aiEnhanced) {
@@ -537,8 +566,9 @@ async function executeScanPipeline(
     finalFindings = slitherFindings;
 
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    const aiErrorCode =
-      errorMessage.includes('AI_ANALYSIS_ENABLED=false')
+    const aiErrorCode = error instanceof StepTimeoutError
+      ? ScanErrorCodes.TIMEOUT
+      : errorMessage.includes('AI_ANALYSIS_ENABLED=false')
         ? ScanErrorCodes.AI_ANALYSIS_REQUIRED_DISABLED
         : ScanErrorCodes.AI_ANALYSIS_FAILED;
 
