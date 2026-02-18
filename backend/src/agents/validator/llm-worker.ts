@@ -23,6 +23,47 @@ let validatorLLMWorker: Worker<ProofSubmissionMessage> | null = null;
 
 const redisConnection = getRedisConnectionOptions();
 
+class ValidationStepTimeoutError extends Error {
+  constructor(
+    public readonly step: string,
+    public readonly timeoutMs: number
+  ) {
+    super(`Validation step ${step} timed out after ${timeoutMs}ms`);
+    this.name = 'ValidationStepTimeoutError';
+  }
+}
+
+const VALIDATION_STEP_TIMEOUTS_MS = {
+  DECRYPT_PROOF: Number(process.env.VALIDATOR_STEP_TIMEOUT_DECRYPT_MS || '30000'),
+  FETCH_DETAILS: Number(process.env.VALIDATOR_STEP_TIMEOUT_FETCH_MS || '30000'),
+  LLM_ANALYSIS: Number(process.env.VALIDATOR_STEP_TIMEOUT_LLM_MS || '660000'),
+  UPDATE_RESULT: Number(process.env.VALIDATOR_STEP_TIMEOUT_UPDATE_MS || '30000'),
+  RECORD_ONCHAIN: Number(process.env.VALIDATOR_STEP_TIMEOUT_ONCHAIN_MS || '180000'),
+  REPUTATION: Number(process.env.VALIDATOR_STEP_TIMEOUT_REPUTATION_MS || '60000'),
+} as const;
+
+async function runWithStepTimeout<T>(
+  step: keyof typeof VALIDATION_STEP_TIMEOUTS_MS,
+  task: () => Promise<T>
+): Promise<T> {
+  const timeoutMs = VALIDATION_STEP_TIMEOUTS_MS[step];
+
+  let timeoutHandle: NodeJS.Timeout | null = null;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutHandle = setTimeout(() => {
+      reject(new ValidationStepTimeoutError(step, timeoutMs));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([task(), timeoutPromise]);
+  } finally {
+    if (timeoutHandle) {
+      clearTimeout(timeoutHandle);
+    }
+  }
+}
+
 /**
  * Start Validator Agent with LLM-based Proof Analysis
  *
@@ -127,7 +168,7 @@ async function processValidationLLM(submission: ProofSubmissionMessage): Promise
     // =================
     // STEP 1: Decrypt and parse proof
     // =================
-    const decryptResult = await decryptProof(submission);
+    const decryptResult = await runWithStepTimeout('DECRYPT_PROOF', async () => decryptProof(submission));
 
     if (!decryptResult.success || !decryptResult.proof) {
       throw new Error(decryptResult.error || 'Proof decryption failed');
@@ -145,7 +186,7 @@ async function processValidationLLM(submission: ProofSubmissionMessage): Promise
     // =================
     // STEP 2: Fetch finding and protocol details
     // =================
-    const finding = await validationService.getFinding(proof.findingId);
+    const finding = await runWithStepTimeout('FETCH_DETAILS', async () => validationService.getFinding(proof.findingId));
 
     if (!finding || !finding.scan || !finding.scan.protocol) {
       throw new Error(`Finding ${proof.findingId} or associated protocol not found`);
@@ -216,12 +257,12 @@ async function processValidationLLM(submission: ProofSubmissionMessage): Promise
       ? `Reproduction Steps:\n${proof.exploitDetails.reproductionSteps?.join('\n') || 'N/A'}\n\nExpected Outcome: ${proof.exploitDetails.expectedOutcome || 'N/A'}\n\nActual Outcome: ${proof.exploitDetails.actualOutcome || 'N/A'}`
       : `Description: ${proof.description}\nLocation: ${proof.location?.filePath || 'unknown'}:${proof.location?.lineNumber || 'N/A'}`;
 
-    const analysis = await kimiClient.analyzeProof(
+    const analysis = await runWithStepTimeout('LLM_ANALYSIS', async () => kimiClient.analyzeProof(
       proof.vulnerabilityType,
       proofDetails,
       contractCode,
       finding.description
-    );
+    ));
 
     log.info({ isValid: analysis.isValid, confidence: analysis.confidence, severity: analysis.severity }, 'LLM analysis complete');
 
@@ -235,13 +276,13 @@ async function processValidationLLM(submission: ProofSubmissionMessage): Promise
     // =================
     // STEP 5: Update finding with validation result
     // =================
-    await validationService.validateFinding(proof.findingId, {
+    await runWithStepTimeout('UPDATE_RESULT', async () => validationService.validateFinding(proof.findingId, {
       isValid: analysis.isValid,
       confidence: analysis.confidence,
       reasoning: analysis.reasoning,
       severity: analysis.severity as any,
       exploitability: analysis.exploitability,
-    });
+    }));
 
     // =================
     // STEP 6: Keep proof in validating state until on-chain write succeeds
@@ -332,6 +373,7 @@ async function processValidationLLM(submission: ProofSubmissionMessage): Promise
       if (!protocol.onChainProtocolId) {
         throw new Error('VALIDATION_ONCHAIN_REQUIRED: Protocol is not registered on-chain');
       } else {
+        const onChainProtocolId = protocol.onChainProtocolId;
         const severityMap: Record<string, OnChainSeverity> = {
           'CRITICAL': OnChainSeverity.CRITICAL,
           'HIGH': OnChainSeverity.HIGH,
@@ -356,19 +398,19 @@ async function processValidationLLM(submission: ProofSubmissionMessage): Promise
 
         const executionLogStr = `LLM validation: ${analysis.reasoning}`.slice(0, 500);
 
-        log.debug({ onChainProtocolId: protocol.onChainProtocolId, findingId: finding.id, severity: OnChainSeverity[onChainSeverity], outcome: ValidationOutcome[outcome] }, 'Recording validation on-chain');
+        log.debug({ onChainProtocolId, findingId: finding.id, severity: OnChainSeverity[onChainSeverity], outcome: ValidationOutcome[outcome] }, 'Recording validation on-chain');
 
         const validationClient = new ValidationRegistryClient();
 
-        const onChainResult = await validationClient.recordValidation(
-          protocol.onChainProtocolId,
+        const onChainResult = await runWithStepTimeout('RECORD_ONCHAIN', async () => validationClient.recordValidation(
+          onChainProtocolId,
           ethers.id(finding.id),
           finding.vulnerabilityType,
           onChainSeverity,
           outcome,
           executionLogStr,
           proofHash
-        );
+        ));
 
         log.info({ validationId: onChainResult.validationId, txHash: onChainResult.txHash }, 'On-chain validation recorded successfully');
 
@@ -413,13 +455,13 @@ async function processValidationLLM(submission: ProofSubmissionMessage): Promise
       if (researcherWallet && validatorWallet) {
         log.debug({ researcherWallet, validatorWallet, feedbackType }, 'Recording reputation feedback on-chain');
 
-        await reputationService.recordFeedbackOnChain(
+        await runWithStepTimeout('REPUTATION', async () => reputationService.recordFeedbackOnChain(
           researcherWallet,
           validatorWallet,
           repValidationId,
           finding.id,
           feedbackType
-        );
+        ));
 
         log.info('Reputation feedback recorded on-chain successfully');
         await emitValidationLog(vId, pId, 'INFO', '[INFO] Reputation feedback recorded on-chain successfully');

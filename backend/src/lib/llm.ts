@@ -27,6 +27,11 @@ interface LLMResponse {
   };
 }
 
+interface LLMRequestOptions {
+  requestTimeoutMs?: number;
+  maxRetries?: number;
+}
+
 export class KimiLLMClient {
   private apiKey: string;
   private baseUrl: string;
@@ -58,10 +63,11 @@ export class KimiLLMClient {
     messages: LLMMessage[],
     temperature: number = 0.3,
     maxTokens: number = 16384,
-    enableThinking: boolean = true
+    enableThinking: boolean = true,
+    options?: LLMRequestOptions
   ): Promise<LLMResponse> {
-    const requestTimeoutMs = Number(process.env.KIMI_REQUEST_TIMEOUT_MS || '120000');
-    const maxRetries = Math.max(0, Number(process.env.KIMI_MAX_RETRIES || '2'));
+    const requestTimeoutMs = options?.requestTimeoutMs ?? Number(process.env.KIMI_REQUEST_TIMEOUT_MS || '300000');
+    const maxRetries = options?.maxRetries ?? Math.max(0, Number(process.env.KIMI_MAX_RETRIES || '1'));
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       const controller = new AbortController();
@@ -143,7 +149,9 @@ export class KimiLLMClient {
         const retryable =
           errorMessage.toLowerCase().includes('timeout') ||
           errorMessage.toLowerCase().includes('fetch failed') ||
-          errorMessage.toLowerCase().includes('headers timeout');
+          errorMessage.toLowerCase().includes('headers timeout') ||
+          errorMessage.toLowerCase().includes('aborterror') ||
+          errorMessage.toLowerCase().includes('aborted');
 
         if (attempt < maxRetries && retryable) {
           const delayMs = 1000 * (attempt + 1);
@@ -280,12 +288,17 @@ Respond with ONLY valid JSON, no markdown or extra text.`;
     } catch (error) {
       log.error({ err: error }, 'Failed to analyze proof');
 
-      // Fallback response on parse error
-      return {
-        isValid: false,
-        confidence: 0,
-        reasoning: `Analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      };
+      // Only return fallback for JSON parse errors (LLM responded but output was unparseable)
+      // Network/timeout errors must propagate so the caller can retry
+      if (error instanceof SyntaxError) {
+        return {
+          isValid: false,
+          confidence: 0,
+          reasoning: `Analysis failed: LLM response could not be parsed`,
+        };
+      }
+
+      throw error;
     }
   }
 
