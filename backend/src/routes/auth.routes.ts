@@ -5,6 +5,11 @@ import { supabaseAdmin } from '../lib/supabase.js';
 import { resolveUserFromToken } from '../lib/auth-token.js';
 import { z } from 'zod';
 import { createLogger } from '../lib/logger.js';
+import {
+  isSiweNonceReplay,
+  rememberSiweNonce,
+  validateSiweMessageSemantics,
+} from '../lib/siwe-validation.js';
 
 const log = createLogger('AuthRoutes');
 
@@ -42,6 +47,18 @@ router.post('/siwe', async (req: Request, res: Response, next: NextFunction): Pr
     // Validate request body
     const { message, signature, walletAddress }: SiweRequest = siweSchema.parse(req.body);
 
+    const semanticValidation = validateSiweMessageSemantics(message, walletAddress);
+    if (!semanticValidation.ok) {
+      res.status(401).json({ error: 'Invalid SIWE message' });
+      return;
+    }
+
+    if (isSiweNonceReplay(semanticValidation.nonce)) {
+      log.warn({ nonce: semanticValidation.nonce }, 'Rejected replayed SIWE nonce');
+      res.status(401).json({ error: 'Invalid SIWE message' });
+      return;
+    }
+
     // Verify SIWE signature using ethers.js
     let recoveredAddress: string;
     try {
@@ -56,6 +73,8 @@ router.post('/siwe', async (req: Request, res: Response, next: NextFunction): Pr
       res.status(401).json({ error: 'Invalid signature' });
       return;
     }
+
+    rememberSiweNonce(semanticValidation.nonce);
 
     // Normalize wallet address to lowercase for consistent storage
     const normalizedAddress = walletAddress.toLowerCase();

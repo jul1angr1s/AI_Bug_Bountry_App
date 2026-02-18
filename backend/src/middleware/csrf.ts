@@ -40,23 +40,8 @@ export function verifyCsrfToken(req: Request, res: Response, next: NextFunction)
 
   const cookieToken = req.cookies[CSRF_COOKIE_NAME];
   const headerToken = req.headers[CSRF_HEADER_NAME] as string | undefined;
-  const authHeader = req.headers.authorization;
-  const hasBearerAuth = typeof authHeader === 'string' && authHeader.startsWith('Bearer ');
-  const isProduction = process.env.NODE_ENV === 'production';
 
   if (!cookieToken || !headerToken) {
-    // For bearer-authenticated API calls, CSRF protection via cookie offers limited value.
-    // Allow header-only flow to avoid cross-site cookie edge cases on different Railway subdomains.
-    if (hasBearerAuth && headerToken) {
-      res.cookie(CSRF_COOKIE_NAME, headerToken, {
-        httpOnly: false,
-        secure: isProduction,
-        sameSite: isProduction ? 'none' : 'lax',
-        maxAge: 24 * 60 * 60 * 1000,
-      });
-      return next();
-    }
-
     res.status(403).json({
       error: { code: 'CSRF_MISSING', message: 'CSRF token required' },
     });
@@ -70,17 +55,6 @@ export function verifyCsrfToken(req: Request, res: Response, next: NextFunction)
     cookieBuffer.length !== headerBuffer.length ||
     !timingSafeEqual(cookieBuffer, headerBuffer)
   ) {
-    // If bearer auth is present, trust header token and resync cookie to recover from stale cookie drift.
-    if (hasBearerAuth) {
-      res.cookie(CSRF_COOKIE_NAME, headerToken, {
-        httpOnly: false,
-        secure: isProduction,
-        sameSite: isProduction ? 'none' : 'lax',
-        maxAge: 24 * 60 * 60 * 1000,
-      });
-      return next();
-    }
-
     res.status(403).json({
       error: { code: 'CSRF_MISMATCH', message: 'CSRF token invalid' },
     });

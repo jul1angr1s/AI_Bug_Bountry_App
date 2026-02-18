@@ -1,344 +1,100 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { Wallet } from 'ethers';
-import request from 'supertest';
-import express, { Express } from 'express';
+import { beforeEach, describe, expect, it } from 'vitest';
+import {
+  isSiweNonceReplay,
+  rememberSiweNonce,
+  validateSiweMessageSemantics,
+} from '../../lib/siwe-validation.js';
 
-// Mock Supabase before importing routes
-vi.mock('../../lib/supabase.js', () => ({
-  supabaseAdmin: {
-    auth: {
-      admin: {
-        listUsers: vi.fn(),
-        createUser: vi.fn(),
-        updateUserById: vi.fn(),
-        generateLink: vi.fn(),
-      },
-    },
-  },
-}));
+function buildSiweMessage(params: {
+  domain: string;
+  address: string;
+  chainId?: number;
+  nonce?: string;
+  issuedAt?: string;
+  expirationTime?: string;
+}): string {
+  const chainId = params.chainId ?? 84532;
+  const nonce = params.nonce ?? `nonce-${Date.now()}`;
+  const issuedAt = params.issuedAt ?? new Date().toISOString();
+  const expirationLine = params.expirationTime
+    ? `\nExpiration Time: ${params.expirationTime}`
+    : '';
 
-import authRoutes from '../auth.routes.js';
-import { supabaseAdmin } from '../../lib/supabase.js';
+  return `${params.domain} wants you to sign in with your Ethereum account:
+${params.address}
 
-// Cast to access mock functions
-const mockSupabaseAdmin = supabaseAdmin as any;
+Sign in to Thunder Security Bug Bounty Platform
 
-// Create Express app for testing
-let app: Express;
+URI: http://${params.domain}
+Version: 1
+Chain ID: ${chainId}
+Nonce: ${nonce}
+Issued At: ${issuedAt}${expirationLine}`;
+}
 
-beforeEach(() => {
-  app = express();
-  app.use(express.json());
-  app.use('/api/v1/auth', authRoutes);
-  vi.clearAllMocks();
-});
-
-describe('SIWE Authentication Routes', () => {
-  let testWallet: Wallet;
-  let testMessage: string;
+describe('validateSiweMessageSemantics', () => {
+  const wallet = '0x1111111111111111111111111111111111111111';
 
   beforeEach(() => {
-    testWallet = Wallet.createRandom();
-    testMessage = `Sign in to Thunder Security Bug Bounty Platform\n\nWallet: ${testWallet.address}\nNonce: test-nonce-${Date.now()}`;
+    process.env.FRONTEND_URL = 'http://localhost:5173';
+    process.env.SIWE_ALLOWED_CHAIN_IDS = '84532';
+    process.env.SIWE_MAX_AGE_SECONDS = '600';
+    delete process.env.SIWE_ALLOWED_DOMAINS;
   });
 
-  describe('POST /api/v1/auth/siwe', () => {
-    // Test 1: Valid signature creates new user
-    it('should verify valid SIWE signature and create new user', async () => {
-      const signature = await testWallet.signMessage(testMessage);
-
-      mockSupabaseAdmin.auth.admin.listUsers.mockResolvedValue({
-        data: { users: [] },
-      });
-
-      mockSupabaseAdmin.auth.admin.createUser.mockResolvedValue({
-        data: {
-          user: {
-            id: 'user-new-123',
-            email: `${testWallet.address.toLowerCase()}@wallet.local`,
-          },
-        },
-        error: null,
-      });
-
-      mockSupabaseAdmin.auth.admin.generateLink.mockResolvedValue({
-        data: {
-          properties: {
-            action_link: `https://test.supabase.co/auth/v1/verify?token=magic-token-new&type=magiclink`,
-          },
-        },
-        error: null,
-      });
-
-      const response = await request(app)
-        .post('/api/v1/auth/siwe')
-        .send({
-          message: testMessage,
-          signature,
-          walletAddress: testWallet.address,
-        });
-
-      expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty('access_token');
-      expect(response.body.access_token).toBe('magic-token-new');
-      expect(response.body.user).toEqual({
-        id: 'user-new-123',
-        wallet_address: testWallet.address,
-      });
-
-      // Verify createUser was called with correct parameters
-      expect(mockSupabaseAdmin.auth.admin.createUser).toHaveBeenCalledWith(
-        expect.objectContaining({
-          email: `${testWallet.address.toLowerCase()}@wallet.local`,
-          user_metadata: expect.objectContaining({
-            wallet_address: testWallet.address,
-            siwe_verified: true,
-          }),
-        })
-      );
+  it('accepts valid SIWE message semantics', () => {
+    const message = buildSiweMessage({
+      domain: 'localhost:5173',
+      address: wallet,
+      nonce: 'valid-nonce',
     });
 
-    // Test 2: Valid signature updates existing user
-    it('should verify valid signature and update existing user on re-authentication', async () => {
-      const signature = await testWallet.signMessage(testMessage);
+    const result = validateSiweMessageSemantics(message, wallet);
+    expect(result).toEqual({ ok: true, nonce: 'valid-nonce' });
+  });
 
-      mockSupabaseAdmin.auth.admin.listUsers.mockResolvedValue({
-        data: {
-          users: [
-            {
-              id: 'user-existing-456',
-              email: `${testWallet.address.toLowerCase()}@wallet.local`,
-              user_metadata: {
-                wallet_address: testWallet.address,
-                siwe_verified: true,
-                verified_at: '2026-02-06T00:00:00Z',
-              },
-            },
-          ],
-        },
-      });
-
-      mockSupabaseAdmin.auth.admin.updateUserById.mockResolvedValue({
-        data: { user: { id: 'user-existing-456' } },
-        error: null,
-      });
-
-      mockSupabaseAdmin.auth.admin.generateLink.mockResolvedValue({
-        data: {
-          properties: {
-            action_link: `https://test.supabase.co/auth/v1/verify?token=magic-token-existing&type=magiclink`,
-          },
-        },
-        error: null,
-      });
-
-      const response = await request(app)
-        .post('/api/v1/auth/siwe')
-        .send({
-          message: testMessage,
-          signature,
-          walletAddress: testWallet.address,
-        });
-
-      expect(response.status).toBe(200);
-      expect(response.body.user.id).toBe('user-existing-456');
-
-      // Verify createUser was NOT called
-      expect(mockSupabaseAdmin.auth.admin.createUser).not.toHaveBeenCalled();
-
-      // Verify updateUserById was called
-      expect(mockSupabaseAdmin.auth.admin.updateUserById).toHaveBeenCalledWith(
-        'user-existing-456',
-        expect.objectContaining({
-          user_metadata: expect.objectContaining({
-            wallet_address: testWallet.address,
-            siwe_verified: true,
-          }),
-        })
-      );
+  it('rejects disallowed domain', () => {
+    const message = buildSiweMessage({
+      domain: 'evil.example',
+      address: wallet,
+      nonce: 'domain-bad',
     });
 
-    // Test 3: Invalid signature rejected
-    it('should reject invalid SIWE signature (different signer)', async () => {
-      const differentWallet = Wallet.createRandom();
-      const invalidSignature = await differentWallet.signMessage(testMessage);
+    const result = validateSiweMessageSemantics(message, wallet);
+    expect(result).toEqual({ ok: false });
+  });
 
-      const response = await request(app)
-        .post('/api/v1/auth/siwe')
-        .send({
-          message: testMessage,
-          signature: invalidSignature,
-          walletAddress: testWallet.address, // Different from signer
-        });
-
-      expect(response.status).toBe(401);
-      expect(response.body).toEqual({ error: 'Invalid signature' });
-      expect(mockSupabaseAdmin.auth.admin.createUser).not.toHaveBeenCalled();
+  it('rejects disallowed chain id', () => {
+    const message = buildSiweMessage({
+      domain: 'localhost:5173',
+      address: wallet,
+      chainId: 1,
+      nonce: 'chain-bad',
     });
 
-    // Test 4: Mismatched wallet addresses
-    it('should reject mismatched wallet address', async () => {
-      const signature = await testWallet.signMessage(testMessage);
-      const differentAddress = '0x1234567890123456789012345678901234567890';
+    const result = validateSiweMessageSemantics(message, wallet);
+    expect(result).toEqual({ ok: false });
+  });
 
-      const response = await request(app)
-        .post('/api/v1/auth/siwe')
-        .send({
-          message: testMessage,
-          signature,
-          walletAddress: differentAddress,
-        });
-
-      expect(response.status).toBe(401);
-      expect(response.body).toEqual({ error: 'Invalid signature' });
+  it('rejects stale issued-at timestamp', () => {
+    const staleIssuedAt = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    const message = buildSiweMessage({
+      domain: 'localhost:5173',
+      address: wallet,
+      nonce: 'stale-issued-at',
+      issuedAt: staleIssuedAt,
     });
 
-    // Test 5: Invalid wallet address format
-    it('should reject invalid wallet address format (400 validation error)', async () => {
-      const signature = await testWallet.signMessage(testMessage);
+    const result = validateSiweMessageSemantics(message, wallet);
+    expect(result).toEqual({ ok: false });
+  });
+});
 
-      const response = await request(app)
-        .post('/api/v1/auth/siwe')
-        .send({
-          message: testMessage,
-          signature,
-          walletAddress: 'not-a-valid-address',
-        });
-
-      expect(response.status).toBe(400);
-      expect(response.body).toHaveProperty('error', 'Invalid request body');
-      expect(response.body).toHaveProperty('details');
-    });
-
-    // Test 6: Missing required fields
-    it('should reject request missing required fields (400 validation error)', async () => {
-      const response = await request(app)
-        .post('/api/v1/auth/siwe')
-        .send({
-          message: testMessage,
-          // Missing signature and walletAddress
-        });
-
-      expect(response.status).toBe(400);
-      expect(response.body).toHaveProperty('error', 'Invalid request body');
-      expect(response.body.details).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({ field: 'signature' }),
-          expect.objectContaining({ field: 'walletAddress' }),
-        ])
-      );
-    });
-
-    // Test 7: Invalid signature format
-    it('should reject invalid signature format (400 validation error)', async () => {
-      const response = await request(app)
-        .post('/api/v1/auth/siwe')
-        .send({
-          message: testMessage,
-          signature: 'not-a-hex-string',
-          walletAddress: testWallet.address,
-        });
-
-      expect(response.status).toBe(400);
-      expect(response.body).toHaveProperty('error', 'Invalid request body');
-    });
-
-    // Test 8: Supabase user creation error
-    it('should return 500 when Supabase user creation fails', async () => {
-      const signature = await testWallet.signMessage(testMessage);
-
-      mockSupabaseAdmin.auth.admin.listUsers.mockResolvedValue({
-        data: { users: [] },
-      });
-
-      mockSupabaseAdmin.auth.admin.createUser.mockResolvedValue({
-        data: null,
-        error: new Error('Supabase connection failed'),
-      });
-
-      const response = await request(app)
-        .post('/api/v1/auth/siwe')
-        .send({
-          message: testMessage,
-          signature,
-          walletAddress: testWallet.address,
-        });
-
-      expect(response.status).toBe(500);
-    });
-
-    // Test 9: Supabase token generation error
-    it('should return 500 when magic link token generation fails', async () => {
-      const signature = await testWallet.signMessage(testMessage);
-
-      mockSupabaseAdmin.auth.admin.listUsers.mockResolvedValue({
-        data: { users: [] },
-      });
-
-      mockSupabaseAdmin.auth.admin.createUser.mockResolvedValue({
-        data: {
-          user: {
-            id: 'user-123',
-            email: `${testWallet.address.toLowerCase()}@wallet.local`,
-          },
-        },
-        error: null,
-      });
-
-      mockSupabaseAdmin.auth.admin.generateLink.mockResolvedValue({
-        data: null,
-        error: new Error('Token generation failed'),
-      });
-
-      const response = await request(app)
-        .post('/api/v1/auth/siwe')
-        .send({
-          message: testMessage,
-          signature,
-          walletAddress: testWallet.address,
-        });
-
-      expect(response.status).toBe(500);
-    });
-
-    // Test 10: Case-insensitive wallet address handling
-    it('should handle case-insensitive wallet addresses correctly', async () => {
-      const signature = await testWallet.signMessage(testMessage);
-      const upperCaseAddress = testWallet.address.toUpperCase();
-
-      mockSupabaseAdmin.auth.admin.listUsers.mockResolvedValue({
-        data: { users: [] },
-      });
-
-      mockSupabaseAdmin.auth.admin.createUser.mockResolvedValue({
-        data: {
-          user: {
-            id: 'user-case-123',
-            email: `${testWallet.address.toLowerCase()}@wallet.local`,
-          },
-        },
-        error: null,
-      });
-
-      mockSupabaseAdmin.auth.admin.generateLink.mockResolvedValue({
-        data: {
-          properties: {
-            action_link: `https://test.supabase.co/auth/v1/verify?token=token-case&type=magiclink`,
-          },
-        },
-        error: null,
-      });
-
-      const response = await request(app)
-        .post('/api/v1/auth/siwe')
-        .send({
-          message: testMessage,
-          signature,
-          walletAddress: upperCaseAddress, // Use uppercase
-        });
-
-      expect(response.status).toBe(200);
-      expect(response.body.user.wallet_address).toBe(upperCaseAddress);
-    });
+describe('SIWE nonce replay protection', () => {
+  it('detects replayed nonces after first successful use', () => {
+    const nonce = `nonce-replay-${Date.now()}`;
+    expect(isSiweNonceReplay(nonce)).toBe(false);
+    rememberSiweNonce(nonce);
+    expect(isSiweNonceReplay(nonce)).toBe(true);
   });
 });

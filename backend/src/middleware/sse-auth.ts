@@ -19,8 +19,11 @@ export async function sseAuthenticate(req: Request, res: Response, next: NextFun
     // Method 1: Cookie-based authentication (production)
     const cookieToken = req.cookies?.auth_token;
 
-    // Method 2: Query parameter authentication (development only)
-    const queryToken = process.env.NODE_ENV === 'development'
+    // Method 2: Query parameter authentication (explicit non-production fallback only)
+    const allowQueryToken =
+      process.env.NODE_ENV !== 'production' &&
+      process.env.ALLOW_SSE_QUERY_TOKEN_FOR_TESTS === 'true';
+    const queryToken = allowQueryToken
       ? (req.query.token as string | undefined)
       : undefined;
 

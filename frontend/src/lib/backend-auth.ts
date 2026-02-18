@@ -1,4 +1,5 @@
 const BACKEND_AUTH_STORAGE_KEY = 'thunder-security-backend-auth';
+const LEGACY_STORAGE_KEY = BACKEND_AUTH_STORAGE_KEY;
 
 export interface BackendAuthSession {
   access_token: string;
@@ -10,11 +11,12 @@ export interface BackendAuthSession {
 }
 
 export function saveBackendAuthSession(session: BackendAuthSession): void {
-  localStorage.setItem(BACKEND_AUTH_STORAGE_KEY, JSON.stringify(session));
+  sessionStorage.setItem(BACKEND_AUTH_STORAGE_KEY, JSON.stringify(session));
+  localStorage.removeItem(LEGACY_STORAGE_KEY);
 }
 
 export function loadBackendAuthSession(): BackendAuthSession | null {
-  const raw = localStorage.getItem(BACKEND_AUTH_STORAGE_KEY);
+  const raw = sessionStorage.getItem(BACKEND_AUTH_STORAGE_KEY);
   if (!raw) return null;
 
   try {
@@ -29,6 +31,6 @@ export function loadBackendAuthSession(): BackendAuthSession | null {
 }
 
 export function clearBackendAuthSession(): void {
-  localStorage.removeItem(BACKEND_AUTH_STORAGE_KEY);
+  sessionStorage.removeItem(BACKEND_AUTH_STORAGE_KEY);
+  localStorage.removeItem(LEGACY_STORAGE_KEY);
 }
-

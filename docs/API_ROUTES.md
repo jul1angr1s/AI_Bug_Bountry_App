@@ -67,6 +67,40 @@ graph LR
 
 ## Public Routes
 
+### SIWE Authentication
+
+```http
+POST /api/v1/auth/siwe
+```
+
+**Request Body**
+```json
+{
+  "message": "EIP-4361 formatted SIWE message",
+  "signature": "0x...",
+  "walletAddress": "0x..."
+}
+```
+
+**Security Validation Rules**
+- The backend validates SIWE message semantics before token issuance:
+  - allowed `domain` must match configured frontend host(s)
+  - `chainId` must be in allowed chain list (default includes Base Sepolia)
+  - `nonce` is single-use (replay-protected)
+  - `issuedAt` must be fresh (bounded max age)
+  - optional `expirationTime` must not be expired
+- Requests that fail SIWE semantic validation return:
+  - `401 {"error":"Invalid SIWE message"}`
+
+### Session Cookie
+
+```http
+POST /api/v1/auth/session-cookie
+Authorization: Bearer {jwt}
+```
+
+Sets `auth_token` HttpOnly cookie used by SSE/EventSource and browser credential flows.
+
 ### Health Check
 
 ```http
