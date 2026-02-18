@@ -141,17 +141,13 @@ GRACEFUL_SHUTDOWN_TIMEOUT=30000
 
 ### Environment Variable Validation
 
-On startup, the backend validates all required environment variables:
+On startup, the backend validates all required environment variables (there is no standalone `check:env` script):
 
 ```bash
-# Check environment configuration
-npm run check:env
-
-# Expected output:
-# ✓ NODE_ENV is set to production
-# ✓ DATABASE_URL is configured
-# ✓ REDIS_URL is configured
-# ✓ All required secrets are present
+# Validate by starting the backend in production mode
+cd backend
+npm run build
+NODE_ENV=production npm run start
 ```
 
 ---

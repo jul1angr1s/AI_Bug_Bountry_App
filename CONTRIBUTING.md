@@ -30,7 +30,7 @@ git submodule update --init --recursive
 1. Copy environment templates:
    ```bash
    cp backend/.env.example backend/.env
-   cp frontend/.env frontend/.env
+   cp frontend/.env.example frontend/.env
    ```
 
 2. Fill in required values (see `backend/.env.example` for descriptions)
@@ -112,6 +112,30 @@ Submodule dependencies:
 - Include a description of what changed and why
 - Ensure all tests pass
 - Update documentation if behavior changes
+
+### Required PR checks (main branch)
+
+The repository enforces checks from `.github/workflows/pr-validation.yml` on pull requests to `main`:
+
+- `Backend - Type-check, Test, Build` (includes `npm run test:docs-parity` and `npm run check:docs-parity`)
+- `Frontend - Type-check, Build`
+- `PR Size Check`
+
+Lint steps currently run in advisory mode (`|| true`); type-check, tests, build, and docs parity are fail-closed.
+
+### High-risk change process (security, architecture, infra)
+
+For high-risk changes, use isolated git worktrees and explicit evidence:
+
+1. Create one worktree per stream with bounded file scope ownership.
+2. Implement with TDD (failing test first, then code, then green tests).
+3. Merge stream branches through an integration branch/worktree before `main`.
+4. Attach evidence in the related OpenSpec change task file:
+   - test command output
+   - CI run links / status
+   - deployment validation logs (Railway when applicable)
+
+Reference implementation: `openspec/changes/repository-security-architecture-hardening`.
 
 ## Documentation
 

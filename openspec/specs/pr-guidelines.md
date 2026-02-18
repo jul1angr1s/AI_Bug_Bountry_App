@@ -4,6 +4,24 @@
 
 Large PRs are difficult to review, increase risk of bugs, and slow down development velocity. This document establishes PR size limits and split strategies for the project.
 
+## High-Risk Change Workflow
+
+Security, architecture, and infrastructure-affecting changes must use stream-isolated worktrees and explicit evidence handoff.
+
+### Required steps
+
+1. Create separate worktrees from `main` for each stream, with explicit owner + file-scope boundaries.
+2. Run implementation in stream branches with TDD per task (red, green, refactor).
+3. Merge stream branches into a dedicated integration branch/worktree before merging to `main`.
+4. Record evidence in the corresponding OpenSpec task file:
+   - commands and pass/fail results for affected tests
+   - CI workflow results for required checks
+   - deployment/runtime validation evidence when relevant (for example Railway status/log/health checks)
+
+### Current reference change
+
+- `openspec/changes/repository-security-architecture-hardening`
+
 ## Hard Limits
 
 ### Size Limits

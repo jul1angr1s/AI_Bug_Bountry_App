@@ -6,7 +6,7 @@ on:
 
 jobs:
   backend-checks:
-    name: Backend - Lint, Type-check, Test
+    name: Backend - Type-check, Test, Build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,11 +20,19 @@ jobs:
         working-directory: backend
         run: npm ci
 
+      - name: Docs parity tests
+        working-directory: backend
+        run: npm run test:docs-parity
+
+      - name: Docs command parity check
+        working-directory: backend
+        run: npm run check:docs-parity
+
       - name: Type check
         working-directory: backend
         run: npx tsc --noEmit
 
-      - name: Lint
+      - name: Lint (advisory)
         working-directory: backend
         run: npx eslint src --max-warnings 0 || true
 
@@ -37,7 +45,7 @@ jobs:
         run: npm run build
 
   frontend-checks:
-    name: Frontend - Lint, Type-check, Build
+    name: Frontend - Type-check, Build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -55,7 +63,7 @@ jobs:
         working-directory: frontend
         run: npx tsc --noEmit
 
-      - name: Lint
+      - name: Lint (advisory)
         working-directory: frontend
         run: npx eslint src --max-warnings 0 || true
 

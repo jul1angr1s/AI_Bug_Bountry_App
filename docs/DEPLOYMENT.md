@@ -300,11 +300,11 @@ npx prisma migrate reset
 npx prisma db push --force-reset
 ```
 
-### Seed Database (Optional)
+### Initialize Agent Records (Optional)
 
 ```bash
 cd backend
-npm run prisma:seed
+npx tsx scripts/init-agents.ts
 ```
 
 ---

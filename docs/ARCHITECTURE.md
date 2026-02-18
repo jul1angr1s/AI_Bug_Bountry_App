@@ -747,6 +747,7 @@ graph LR
 
 ```bash
 # Terminal 1: Database
+cd backend
 docker-compose up postgres redis
 
 # Terminal 2: Backend

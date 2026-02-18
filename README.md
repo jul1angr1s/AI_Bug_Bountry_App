@@ -251,7 +251,7 @@ cd frontend && npm run dev         # Terminal 2 - Dashboard
 | Layer | Tests | Command |
 |---|---|---|
 | Smart Contracts | 87 functions, 1,681 lines | `cd backend/contracts && forge test` |
-| Backend Unit | 302 tests across 8 files | `cd backend && npm run test:unit` |
+| Backend Unit | 302 tests across 8 files | `cd backend && npm test` |
 | Backend Integration | 36 test cases | `cd backend && npm run test:integration` |
 | Backend Regression | 46 HTTP-level tests | `cd backend && npm run test:regression` |
 | Backend E2E | Full demo workflow | `cd backend && npm run test:e2e` |

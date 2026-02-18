@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document defines the Quality Assurance (QA) strategy for ensuring the reliability, security, and correctness of the platform. We adopt a **"Zero-Untested-Code"** policy, enforced by autonomous hooks that generate tests for new capabilities before they can be merged.
+This document defines the Quality Assurance (QA) strategy for ensuring the reliability, security, and correctness of the platform. Current enforcement is performed by repository test scripts and GitHub Actions workflows.
 
 ---
 
@@ -20,11 +20,11 @@ This document defines the Quality Assurance (QA) strategy for ensuring the relia
 
 ---
 
-## 2. Automated Test Generation (The "Auto-QA" Hook)
+## 2. Automated Test Generation (Planned Pattern)
 
-To enforce the "Zero-Untested-Code" policy, we utilize a pre-push or CI hook that detects code changes lacking coverage.
+The repository does **not** currently ship an enabled pre-push auto-test-generation hook. The following pattern is an optional workflow design reference.
 
-### 2.1 The Workflow
+### 2.1 Example Workflow
 **Trigger**: `git push` or CI Pipeline detected new functional code (e.g., new function in `*.sol` or `*.ts`).
 
 **Logic Flow**:
@@ -40,7 +40,7 @@ To enforce the "Zero-Untested-Code" policy, we utilize a pre-push or CI hook tha
     *   **Run**: Runs existing tests.
     *   **Pass**: Allows push.
 
-### 2.2 Hook Definition (Pseudo-code)
+### 2.2 Hook Template (Pseudo-code)
 
 ```bash
 # .husky/pre-push
@@ -115,13 +115,13 @@ When a new **Capability** (e.g., "Front-Running Protection") is added, an Accept
 
 ## 5. Continuous Integration (CI) Pipeline
 
-All tests run on every Pull Request via `GitHub Actions` or `Railway` CI.
+PR validation is enforced via `.github/workflows/pr-validation.yml` and broader test coverage runs via `.github/workflows/test.yml`.
 
-1.  **Build**: Docker build + Contract Compile.
-2.  **Lint**: ESLint + Solhint.
-3.  **Unit**: `npm run test:unit` + `forge test`.
-4.  **Integration**: `npm run test:integration`.
-5.  **E2E (Nightly)**: Full System Simulation.
-6.  **Security**: `slither .` (Contracts) + `trivy` (Images).
+1.  **PR Validation (required for PRs to main)**: backend type-check/tests/build, frontend type-check/build, PR size check, and docs command parity (`cd backend && npm run check:docs-parity`).
+2.  **Backend Unit**: `cd backend && npm test` (with workflow-level include/exclude flags).
+3.  **Backend Integration**: `cd backend && npm run test:integration` where integration suites are present.
+4.  **Smart Contracts**: `cd backend/contracts && forge test`.
+5.  **Frontend Unit**: `cd frontend && npx vitest run --coverage`.
+6.  **AI Integration**: `cd backend && npm run test:ai` (requires secrets and longer runtime).
 
 ---

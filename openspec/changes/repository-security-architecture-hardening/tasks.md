@@ -17,10 +17,10 @@
 
 ## 3. Stream C - Repository Professionalization and CI/Docs Parity (Repo-wide)
 
-- [ ] 3.1 (Docs/CI, TDD) Add a parity check script/test that fails when documented commands are missing from `package.json` scripts; wire it in CI workflow.
-- [ ] 3.2 (Docs) Correct mismatched command/config claims in `README.md`, `CONTRIBUTING.md`, `docs/TESTING.md`, `docs/ARCHITECTURE.md`, and deployment docs to match executable behavior.
-- [ ] 3.3 (CI) Update `.github/workflows/pr-validation.yml` and/or `.github/workflows/test.yml` so documented required checks match actual enforced checks.
-- [ ] 3.4 (PR process) Add worktree-based implementation guidance and evidence requirements in `docs/pr-guidelines`-related docs with references to this change.
+- [x] 3.1 (Docs/CI, TDD) Add a parity check script/test that fails when documented commands are missing from `package.json` scripts; wire it in CI workflow.
+- [x] 3.2 (Docs) Correct mismatched command/config claims in `README.md`, `CONTRIBUTING.md`, `docs/TESTING.md`, `docs/ARCHITECTURE.md`, and deployment docs to match executable behavior.
+- [x] 3.3 (CI) Update `.github/workflows/pr-validation.yml` and/or `.github/workflows/test.yml` so documented required checks match actual enforced checks.
+- [x] 3.4 (PR process) Add worktree-based implementation guidance and evidence requirements in `docs/pr-guidelines`-related docs with references to this change.
 
 ## 4. Worktree, Background Agent, and Integration Orchestration
 
