@@ -52,7 +52,7 @@ The AI analysis system is integrated as **Step 5** in the 7-step research pipeli
                    ▼
         ┌──────────────────────┐
         │   LLM Analyzer       │
-        │   (Claude Sonnet 4.5)│
+        │   (Kimi 4.5)│
         └──────────┬───────────┘
                    │
                    │ AI-Enhanced Findings
