@@ -162,6 +162,17 @@ export default function Login() {
               Install MetaMask
             </a>
           </p>
+          <p className="text-xs text-gray-600">
+            Built by{' '}
+            <a
+              href="https://github.com/jul1angr1s/AI_Bug_Bountry_App"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-400 hover:text-blue-300 underline"
+            >
+              jul1angr1s
+            </a>
+          </p>
         </div>
       </div>
 

@@ -9,6 +9,9 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6)](https://www.typescriptlang.org/)
 [![Smart Contracts](https://img.shields.io/badge/Contracts-Verified-success)](https://sepolia.basescan.org/address/0xee7620019d3ff8b2fe3e8a8f2F8bA3d8e3950027)
 [![Tests](https://img.shields.io/badge/Tests-Passing-brightgreen)](https://github.com/jul1angr1s/AI_Bug_Bountry_App)
+[![GitHub Repo](https://img.shields.io/badge/GitHub-Repository-181717?logo=github&logoColor=white)](https://github.com/jul1angr1s/AI_Bug_Bountry_App)
+[![YouTube Demo](https://img.shields.io/badge/YouTube-Demo-FF0000?logo=youtube&logoColor=white)](https://youtu.be/_Sd-BSVN-i4)
+[![Live Frontend](https://img.shields.io/badge/Railway-Live_Frontend-0B0D0E?logo=railway&logoColor=white)](https://frontend-production-e29e.up.railway.app)
 
 **4 Autonomous Agents** &bull; **ERC-8004 Identity** &bull; **x.402 Payments** &bull; **Results in Minutes**
 
@@ -130,7 +133,7 @@ https://frontend-production-e29e.up.railway.app
 
 **Dashboard**
 
-![Dashboard](docs/UI/updated/dashboard%20new.png)
+![Dashboard](<docs/UI/updated/dashboard new.png>)
 
 </td>
 <td width="50%" align="center">
