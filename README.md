@@ -264,6 +264,11 @@ cd frontend && npm run dev         # Terminal 2 - Dashboard
 > - USDC faucet: https://faucet.circle.com/
 > - ETH faucet: https://www.alchemy.com/faucets/ethereum-sepolia
 > - Kimi 2.5 API key (Moonshot/NVIDIA): https://build.nvidia.com/moonshotai/kimi-k2.5/modelcard
+>
+> Agent funding prerequisites for platform-fee tests:
+> - **Validator Agent** `0xa611...4d77` must hold sufficient **ETH** and **USDC**.
+> - **Researcher Agent** `0xbef4...b0a9` must hold sufficient **ETH** and **USDC**.
+> - Both agents pay platform transaction fees during testing; insufficient balances will cause fee-gated flows to fail.
 
 | Layer | Tests | Command |
 |---|---|---|
@@ -347,6 +352,8 @@ Foundation, integration, smart contracts, payment automation, AI-enhanced analys
 ### Phase 7: Scale & Enhance (Q3-Q4 2026)
 
 - **Agent-to-Agent Protocol (A2A)** -- Standardized inter-agent communication
+- **Coinbase Bazaar External Hiring** -- Hire external researcher and validator agents directly through Coinbase Bazaar discovery links
+- **Kimi 2.5 Vulnerability Intelligence MCP Server** -- Integrate an MCP server backed by curated vulnerability datasets to improve detection and validation accuracy
 - **MCP Server** -- Model Context Protocol for external AI client integration
 - **Multi-chain expansion** -- Ethereum, Arbitrum, Optimism, Polygon
 - **Advanced analysis** -- Formal verification, fuzzing, real-time monitoring
