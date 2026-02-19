@@ -353,8 +353,8 @@ Foundation, integration, smart contracts, payment automation, AI-enhanced analys
 
 - **Agent-to-Agent Protocol (A2A)** -- Standardized inter-agent communication
 - **Coinbase Bazaar External Hiring** -- Hire external researcher and validator agents directly through Coinbase Bazaar discovery links
-- **Kimi 2.5 Vulnerability Intelligence MCP Server** -- Integrate an MCP server backed by curated vulnerability datasets to improve detection and validation accuracy
-- **MCP Server** -- Model Context Protocol for external AI client integration
+- **Kimi 2.5 Vulnerability Intelligence RAG Server** -- Integrate a RAG server backed by curated vulnerability datasets to improve detection and validation accuracy
+- **RAG Server** -- Retrieval-Augmented Generation infrastructure for external AI client integration
 - **Multi-chain expansion** -- Ethereum, Arbitrum, Optimism, Polygon
 - **Advanced analysis** -- Formal verification, fuzzing, real-time monitoring
 
