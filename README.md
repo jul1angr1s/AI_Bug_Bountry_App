@@ -248,6 +248,12 @@ cd frontend && npm run dev         # Terminal 2 - Dashboard
 
 ## Testing
 
+> [!IMPORTANT]
+> For end-to-end testing, your wallet must have **USDC** and **ETH** on **Base Sepolia**.
+> - USDC faucet: https://faucet.circle.com/
+> - ETH faucet: https://www.alchemy.com/faucets/ethereum-sepolia
+> - Kimi 2.5 API key (Moonshot/NVIDIA): https://build.nvidia.com/moonshotai/kimi-k2.5/modelcard
+
 | Layer | Tests | Command |
 |---|---|---|
 | Smart Contracts | 87 functions, 1,681 lines | `cd backend/contracts && forge test` |
