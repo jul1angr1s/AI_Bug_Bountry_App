@@ -1,33 +1,12 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { RegisterAgentModal } from '../../../components/agents/RegisterAgentModal';
+import { toast } from 'sonner';
 
-// Mock wagmi hooks
-vi.mock('wagmi', () => ({
-  useAccount: () => ({ address: undefined, isConnected: false }),
-  useWriteContract: () => ({
-    writeContract: vi.fn(),
-    data: undefined,
-    isPending: false,
-    error: null,
-    reset: vi.fn(),
-  }),
-  useWaitForTransactionReceipt: () => ({
-    isLoading: false,
-    isSuccess: false,
-  }),
-  useChainId: () => 84532,
-}));
-
-// Mock api functions
-vi.mock('../../../lib/api', () => ({
-  registerAgent: vi.fn().mockResolvedValue({}),
-  syncAgentRegistration: vi.fn().mockResolvedValue({}),
-}));
-
-// Mock contracts
-vi.mock('../../../lib/contracts', () => ({
-  getContractByName: () => ({ address: '0x1234567890123456789012345678901234567890' }),
+vi.mock('sonner', () => ({
+  toast: {
+    info: vi.fn(),
+  },
 }));
 
 describe('RegisterAgentModal', () => {
@@ -51,9 +30,10 @@ describe('RegisterAgentModal', () => {
       <RegisterAgentModal isOpen={true} onClose={mockOnClose} onRegistrationComplete={mockOnRegistrationComplete} />
     );
 
-    const registerTexts = screen.getAllByText(/Register/i);
-    expect(registerTexts.length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText('Add a new ERC-8004 agent identity')).toBeInTheDocument();
+    expect(screen.getByText('Register Agent')).toBeInTheDocument();
+    expect(screen.getByText('Hire through Coinbase Bazaar discovery')).toBeInTheDocument();
+    expect(screen.getByText('Resource URL (Coinbase Bazaar Discovery)')).toBeInTheDocument();
+    expect(screen.getByText('Hire Researcher Agent from Coinbase Bazaar')).toBeInTheDocument();
   });
 
   it('renders agent type selector', () => {
@@ -76,22 +56,43 @@ describe('RegisterAgentModal', () => {
     expect(mockOnClose).toHaveBeenCalledTimes(1);
   });
 
-  it('shows connect wallet message when on-chain toggle is ON and wallet not connected', () => {
+  it('shows URL validation error when input is empty', () => {
     render(
       <RegisterAgentModal isOpen={true} onClose={mockOnClose} onRegistrationComplete={mockOnRegistrationComplete} />
     );
 
-    expect(screen.getByText('Connect your wallet to register on-chain.')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Hire Researcher Agent from Coinbase Bazaar'));
+
+    expect(screen.getByText('Resource URL is required')).toBeInTheDocument();
+    expect(toast.info).not.toHaveBeenCalled();
   });
 
-  it('shows manual wallet input when on-chain toggle is OFF', () => {
+  it('shows URL validation error when URL format is invalid', () => {
     render(
       <RegisterAgentModal isOpen={true} onClose={mockOnClose} onRegistrationComplete={mockOnRegistrationComplete} />
     );
 
-    // Toggle off on-chain registration
-    fireEvent.click(screen.getByText('Register on blockchain (ERC-8004)'));
+    fireEvent.change(
+      screen.getByPlaceholderText('https://www.coinbase.com/es-la/developer-platform/discover/launches/x402-bazaar'),
+      { target: { value: 'not-a-url' } }
+    );
+    fireEvent.click(screen.getByText('Hire Researcher Agent from Coinbase Bazaar'));
 
-    expect(screen.getByPlaceholderText('0x...')).toBeInTheDocument();
+    expect(screen.getByText('Enter a valid http/https URL.')).toBeInTheDocument();
+    expect(toast.info).not.toHaveBeenCalled();
+  });
+
+  it('shows Coming soon toast when URL is valid', () => {
+    render(
+      <RegisterAgentModal isOpen={true} onClose={mockOnClose} onRegistrationComplete={mockOnRegistrationComplete} />
+    );
+
+    fireEvent.change(
+      screen.getByPlaceholderText('https://www.coinbase.com/es-la/developer-platform/discover/launches/x402-bazaar'),
+      { target: { value: 'https://www.coinbase.com/es-la/developer-platform/discover/launches/x402-bazaar' } }
+    );
+    fireEvent.click(screen.getByText('Hire Researcher Agent from Coinbase Bazaar'));
+
+    expect(toast.info).toHaveBeenCalledWith('Coming soon');
   });
 });
