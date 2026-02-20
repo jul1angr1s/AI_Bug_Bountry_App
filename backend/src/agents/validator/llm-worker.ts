@@ -115,6 +115,7 @@ export async function startValidatorAgentLLM(): Promise<void> {
     {
       connection: redisConnection,
       concurrency: 1,
+      lockDuration: 900_000, // 15 min — covers LLM_ANALYSIS (11 min) + on-chain steps
     }
   );
 
@@ -483,8 +484,18 @@ async function processValidationLLM(submission: ProofSubmissionMessage): Promise
       },
     });
 
-    await emitValidationProgress(vId, pId, 'COMPLETE', 'COMPLETED', 'LLM', 100, `Validation complete: ${analysis.isValid ? 'VALIDATED' : 'REJECTED'} (${analysis.confidence}% confidence)`);
-    await emitValidationLog(vId, pId, 'INFO', `[INFO] Validation complete: ${analysis.isValid ? 'VALIDATED' : 'REJECTED'} (${analysis.confidence}% confidence)`);
+    // Notify frontend — fire-and-forget, don't fail the job over notifications
+    try {
+      await Promise.race([
+        Promise.all([
+          emitValidationProgress(vId, pId, 'COMPLETE', 'COMPLETED', 'LLM', 100, `Validation complete: ${analysis.isValid ? 'VALIDATED' : 'REJECTED'} (${analysis.confidence}% confidence)`),
+          emitValidationLog(vId, pId, 'INFO', `[INFO] Validation complete: ${analysis.isValid ? 'VALIDATED' : 'REJECTED'} (${analysis.confidence}% confidence)`),
+        ]),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('emit timeout')), 10_000)),
+      ]);
+    } catch (emitErr) {
+      log.warn({ err: emitErr }, 'COMPLETE notification failed (validation already saved)');
+    }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     log.error({ err: error, errorMessage }, 'Validation failed');
@@ -494,20 +505,28 @@ async function processValidationLLM(submission: ProofSubmissionMessage): Promise
 
     // Update proof/finding status
     try {
-      // Keep proof in VALIDATING state when LLM is unavailable or on-chain failed
-      // so BullMQ retries can succeed later without permanent false rejection
+      // Check if proof was already finalized before this error occurred
+      const currentProof = await prisma.proof.findUnique({ where: { id: submission.proofId } });
+      const alreadyFinalized = currentProof?.status === 'VALIDATED' || currentProof?.status === 'REJECTED';
+
       const shouldKeepValidating = isOnChainRequiredError || isLLMDown;
 
-      await prisma.proof.update({
-        where: { id: submission.proofId },
-        data: {
-          status: shouldKeepValidating ? 'VALIDATING' : 'REJECTED',
-        },
-      });
+      if (alreadyFinalized) {
+        log.info({ proofId: submission.proofId, status: currentProof.status }, 'Proof already finalized — skipping error rollback');
+      } else {
+        // Keep proof in VALIDATING state when LLM is unavailable or on-chain failed
+        // so BullMQ retries can succeed later without permanent false rejection
+        await prisma.proof.update({
+          where: { id: submission.proofId },
+          data: {
+            status: shouldKeepValidating ? 'VALIDATING' : 'REJECTED',
+          },
+        });
+      }
 
       // Only reject findings for actual validation logic failures,
       // NOT for LLM unavailability (timeout/abort/network errors)
-      if (!shouldKeepValidating) {
+      if (!shouldKeepValidating && !alreadyFinalized) {
         const decryptResult = await decryptProof(submission);
         if (decryptResult.success && decryptResult.proof) {
           await prisma.finding.update({
