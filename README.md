@@ -13,7 +13,7 @@
 <p><strong>Explore:</strong></p>
 
 [![GitHub Repository](https://img.shields.io/badge/GitHub-Repository-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/jul1angr1s/AI_Bug_Bountry_App)
-[![YouTube Demo](https://img.shields.io/badge/YouTube-Watch_Demo-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://youtu.be/_Sd-BSVN-i4)
+[![YouTube Demo](https://img.shields.io/badge/YouTube-Watch_Demo-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://youtu.be/Q8WKmDOgXGw)
 [![Live Frontend](https://img.shields.io/badge/Railway-Live_App-0B0D0E?style=for-the-badge&logo=railway&logoColor=white)](https://frontend-production-e29e.up.railway.app)
 
 **4 Autonomous Agents** &bull; **ERC-8004 Identity** &bull; **x.402 Payments** &bull; **Results in Minutes**
@@ -124,7 +124,7 @@ See the [Demonstration Guide](docs/DEMONSTRATION.md) for a full walkthrough with
 ---
 
 ## See in Action
-https://youtu.be/_Sd-BSVN-i4
+https://youtu.be/Q8WKmDOgXGw
 </div>
 https://frontend-production-e29e.up.railway.app
 
