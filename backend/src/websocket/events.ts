@@ -544,6 +544,11 @@ export interface ValidationLogEvent {
   };
 }
 
+const VALIDATION_PROGRESS_TTL_RUNNING_SECONDS = 24 * 60 * 60; // 24h
+const VALIDATION_PROGRESS_TTL_TERMINAL_SECONDS = 7 * 24 * 60 * 60; // 7d
+const VALIDATION_LOG_HISTORY_LIMIT = 500;
+const VALIDATION_LOG_HISTORY_TTL_SECONDS = 24 * 60 * 60; // 24h
+
 export async function emitValidationProgress(
   validationId: string,
   protocolId: string,
@@ -579,11 +584,16 @@ export async function emitValidationProgress(
   await redis.publish(`validation:${validationId}:progress`, JSON.stringify(event));
 
   // Cache latest progress so late-connecting SSE clients get current state
+  const progressTtlSeconds =
+    state === 'COMPLETED' || state === 'FAILED'
+      ? VALIDATION_PROGRESS_TTL_TERMINAL_SECONDS
+      : VALIDATION_PROGRESS_TTL_RUNNING_SECONDS;
+
   await redis.set(
     `validation:${validationId}:current-progress`,
     JSON.stringify(event),
     'EX',
-    300 // 5 min TTL
+    progressTtlSeconds
   );
 }
 
@@ -607,7 +617,18 @@ export async function emitValidationLog(
   // Publish to Redis for SSE subscribers
   const { getRedisClient } = await import('../lib/redis.js');
   const redis = getRedisClient();
-  await redis.publish(`validation:${validationId}:logs`, JSON.stringify(event));
+  const serialized = JSON.stringify(event);
+  const historyKey = `validation:${validationId}:log-history`;
+
+  await Promise.all([
+    redis.publish(`validation:${validationId}:logs`, serialized),
+    redis
+      .multi()
+      .rpush(historyKey, serialized)
+      .ltrim(historyKey, -VALIDATION_LOG_HISTORY_LIMIT, -1)
+      .expire(historyKey, VALIDATION_LOG_HISTORY_TTL_SECONDS)
+      .exec(),
+  ]);
 }
 
 // Funding Gate WebSocket Event Types

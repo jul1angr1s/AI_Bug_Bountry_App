@@ -297,8 +297,13 @@ router.get('/:id/progress', sseAuthenticate, async (req, res, next) => {
     const subscriber = redis.duplicate();
     const bufferedMessages: string[] = [];
     let streaming = false;
+    let streamClosed = false;
+    const safeWrite = (payload: string) => {
+      if (streamClosed || res.writableEnded || res.destroyed) return;
+      res.write(payload);
+    };
     const heartbeat = setInterval(() => {
-      res.write(': ping\n\n');
+      safeWrite(': ping\n\n');
     }, 15000);
     let cleanedUp = false;
     const cleanup = () => {
@@ -308,20 +313,26 @@ router.get('/:id/progress', sseAuthenticate, async (req, res, next) => {
       subscriber.unsubscribe().catch(() => {});
       subscriber.quit().catch(() => {});
     };
+    const endStream = () => {
+      if (streamClosed || res.writableEnded || res.destroyed) return;
+      streamClosed = true;
+      cleanup();
+      res.end();
+    };
 
     subscriber.on('message', (_channel: string, message: string) => {
+      if (streamClosed) return;
       if (!streaming) {
         bufferedMessages.push(message);
         return;
       }
-      res.write(`data: ${message}\n\n`);
+      safeWrite(`data: ${message}\n\n`);
 
       // Check if validation completed
       try {
         const data = JSON.parse(message);
         if (data.data?.state === 'COMPLETED' || data.data?.state === 'FAILED') {
-          cleanup();
-          res.end();
+          endStream();
         }
       } catch { /* ignore parse errors */ }
     });
@@ -347,11 +358,11 @@ router.get('/:id/progress', sseAuthenticate, async (req, res, next) => {
         });
 
     // Send initial state (real current progress or fallback)
-    res.write(`data: ${initialState}\n\n`);
+    safeWrite(`data: ${initialState}\n\n`);
 
     // Flush any events that arrived while we were reading the cache
     for (const msg of bufferedMessages) {
-      res.write(`data: ${msg}\n\n`);
+      safeWrite(`data: ${msg}\n\n`);
     }
     streaming = true;
 
@@ -360,8 +371,7 @@ router.get('/:id/progress', sseAuthenticate, async (req, res, next) => {
       try {
         const cached = JSON.parse(cachedProgress);
         if (cached.data?.state === 'COMPLETED' || cached.data?.state === 'FAILED') {
-          cleanup();
-          res.end();
+          endStream();
           return;
         }
       } catch { /* ignore */ }
@@ -369,6 +379,7 @@ router.get('/:id/progress', sseAuthenticate, async (req, res, next) => {
 
     // Handle client disconnect
     req.on('close', () => {
+      streamClosed = true;
       cleanup();
     });
   } catch (error) {
@@ -400,6 +411,7 @@ router.get('/:id/logs', sseAuthenticate, async (req, res, next) => {
     }
 
     const protocolId = proof.finding?.scan?.protocolId || 'unknown';
+    const redis = getRedisClient();
 
     // Setup SSE
     res.setHeader('Content-Type', 'text/event-stream');
@@ -407,8 +419,57 @@ router.get('/:id/logs', sseAuthenticate, async (req, res, next) => {
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('X-Accel-Buffering', 'no');
 
+    // Subscribe to Redis first to avoid missing events while loading replay history
+    const subscriber = redis.duplicate();
+    const bufferedEvents: Array<{ channel: string; message: string }> = [];
+    let streaming = false;
+    let streamClosed = false;
+    const safeWrite = (payload: string) => {
+      if (streamClosed || res.writableEnded || res.destroyed) return;
+      res.write(payload);
+    };
+    const heartbeat = setInterval(() => {
+      safeWrite(': ping\n\n');
+    }, 15000);
+    let cleanedUp = false;
+    const cleanup = () => {
+      if (cleanedUp) return;
+      cleanedUp = true;
+      clearInterval(heartbeat);
+      subscriber.unsubscribe().catch(() => {});
+      subscriber.quit().catch(() => {});
+    };
+    const endStream = () => {
+      if (streamClosed || res.writableEnded || res.destroyed) return;
+      streamClosed = true;
+      cleanup();
+      res.end();
+    };
+
+    subscriber.on('message', (channel: string, message: string) => {
+      if (streamClosed) return;
+      if (!streaming) {
+        bufferedEvents.push({ channel, message });
+        return;
+      }
+
+      if (channel === `validation:${id}:logs`) {
+        safeWrite(`data: ${message}\n\n`);
+      } else if (channel === `validation:${id}:progress`) {
+        // Check if validation completed to close the stream
+        try {
+          const data = JSON.parse(message);
+          if (data.data?.state === 'COMPLETED' || data.data?.state === 'FAILED') {
+            endStream();
+          }
+        } catch { /* ignore parse errors */ }
+      }
+    });
+
+    await subscriber.subscribe(`validation:${id}:logs`, `validation:${id}:progress`);
+
     // Send initial connection event
-    res.write(`data: ${JSON.stringify({
+    safeWrite(`data: ${JSON.stringify({
       eventType: 'validation:log',
       timestamp: new Date().toISOString(),
       validationId: id,
@@ -419,40 +480,50 @@ router.get('/:id/logs', sseAuthenticate, async (req, res, next) => {
       },
     })}\n\n`);
 
-    // Subscribe to Redis for real-time log and progress updates
-    const redis = getRedisClient();
-    const subscriber = redis.duplicate();
-    const heartbeat = setInterval(() => {
-      res.write(': ping\n\n');
-    }, 15000);
-    let cleanedUp = false;
-    const cleanup = () => {
-      if (cleanedUp) return;
-      cleanedUp = true;
-      clearInterval(heartbeat);
-      subscriber.unsubscribe().catch(() => {});
-      subscriber.quit().catch(() => {});
-    };
+    // Replay latest stored log history for reconnecting clients
+    const historyKey = `validation:${id}:log-history`;
+    const recentLogs = await redis.lrange(historyKey, -200, -1);
+    for (const logMessage of recentLogs) {
+      safeWrite(`data: ${logMessage}\n\n`);
+    }
 
-    await subscriber.subscribe(`validation:${id}:logs`, `validation:${id}:progress`);
-
-    subscriber.on('message', (channel: string, message: string) => {
-      if (channel === `validation:${id}:logs`) {
-        res.write(`data: ${message}\n\n`);
-      } else if (channel === `validation:${id}:progress`) {
-        // Check if validation completed to close the stream
-        try {
-          const data = JSON.parse(message);
-          if (data.data?.state === 'COMPLETED' || data.data?.state === 'FAILED') {
-            cleanup();
-            res.end();
-          }
-        } catch { /* ignore parse errors */ }
+    // Flush events received during replay initialization
+    for (const event of bufferedEvents) {
+      if (event.channel === `validation:${id}:logs`) {
+        safeWrite(`data: ${event.message}\n\n`);
+        continue;
       }
-    });
+
+      if (event.channel === `validation:${id}:progress`) {
+        try {
+          const data = JSON.parse(event.message);
+          if (data.data?.state === 'COMPLETED' || data.data?.state === 'FAILED') {
+            endStream();
+            return;
+          }
+        } catch {
+          // ignore parse errors
+        }
+      }
+    }
+    streaming = true;
+
+    const cachedProgress = await redis.get(`validation:${id}:current-progress`);
+    if (cachedProgress) {
+      try {
+        const cached = JSON.parse(cachedProgress);
+        if (cached.data?.state === 'COMPLETED' || cached.data?.state === 'FAILED') {
+          endStream();
+          return;
+        }
+      } catch {
+        // ignore parse errors
+      }
+    }
 
     // Handle client disconnect
     req.on('close', () => {
+      streamClosed = true;
       cleanup();
     });
   } catch (error) {
